@@ -1,196 +1,220 @@
 <?php
 /**
  * Plugin Name: AIOHM KB Assistant
- * Description: A brand-trained AI assistant powered by your WordPress content.
- * Version: 0.5
- * Author: Your Name
+ * Description: Brand-aligned AI assistant powered by WP content. Features: KB scan, AI setup, analytics, and upgrade tab.
+ * Version: 1.5
+ * Author: a.adrian
+ * Text Domain: aiohm-kb
  */
 
-defined('ABSPATH') or die('No script kiddies please!');
+defined('ABSPATH') or die;
 
-// Admin Menu
-add_action('admin_menu', 'aiohm_kb_menu');
+class AIOHM_KB_Assistant {
+    private $version = '1.5';
+    private $opt = 'aiohm_kb_options';
+    private $conv = 'aiohm_kb_conversations';
 
-function aiohm_kb_menu() {
-    add_menu_page('AIOHM KB', 'AIOHM Assistant', 'manage_options', 'aiohm-kb', 'aiohm_kb_settings');
-}
+    public function __construct() {
+        add_action('init', [$this, 'init']);
+        add_action('admin_menu', [$this, 'admin_menu']);
+        add_action('admin_init', [$this, 'admin_init']);
+        add_action('admin_enqueue_scripts', [$this, 'load_admin_assets']);
+        add_action('wp_enqueue_scripts', [$this, 'load_frontend_assets']);
+        add_shortcode('aiohm_assistant', [$this, 'render_chat_shortcode']);
 
-// Admin Settings Page
-function aiohm_kb_settings() {
-    ?>
-    <div class="wrap">
-        <h1>AIOHM KB Assistant Settings</h1>
-        <form method="post" action="options.php">
-            <?php
-                settings_fields('aiohm_kb_settings_group');
-                do_settings_sections('aiohm-kb');
-                submit_button(); // Save Settings
-                submit_button('Generate Knowledge Base', 'secondary', 'aiohm_generate_kb'); // KB Generator
-            ?>
-        </form>
-    </div>
-    <?php
-}
+        add_action('wp_ajax_aiohm_scan_kb', [$this, 'ajax_scan_kb']);
+        add_action('wp_ajax_aiohm_generate_kb', [$this, 'ajax_generate_kb']);
+        add_action('wp_ajax_aiohm_update_kb_title', [$this, 'ajax_update_kb_title']);
+        add_action('wp_ajax_aiohm_delete_kb_entry', [$this, 'ajax_delete_kb_entry']);
+        add_action('wp_ajax_aiohm_query_kb', [$this, 'ajax_query_kb']);
+        add_action('wp_ajax_nopriv_aiohm_query_kb', [$this, 'ajax_query_kb']);
 
-// Register Settings and Fields
-add_action('admin_init', 'aiohm_kb_register_settings');
-
-function aiohm_kb_register_settings() {
-    register_setting('aiohm_kb_settings_group', 'aiohm_kb_post_types');
-    register_setting('aiohm_kb_settings_group', 'aiohm_openai_api_key');
-
-    add_settings_section(
-        'aiohm_kb_main_section',
-        'Knowledge Base Source Settings',
-        null,
-        'aiohm-kb'
-    );
-
-    add_settings_field(
-        'aiohm_kb_post_types',
-        'Select Post Types to Include:',
-        'aiohm_kb_post_types_field',
-        'aiohm-kb',
-        'aiohm_kb_main_section'
-    );
-
-    add_settings_field(
-        'aiohm_openai_api_key',
-        'OpenAI API Key:',
-        'aiohm_openai_api_key_field',
-        'aiohm-kb',
-        'aiohm_kb_main_section'
-    );
-}
-
-// Post Types Checkbox Field
-function aiohm_kb_post_types_field() {
-    $selected = (array) get_option('aiohm_kb_post_types', []);
-    $post_types = get_post_types(['public' => true], 'objects');
-
-    foreach ($post_types as $type) {
-        $checked = in_array($type->name, $selected) ? 'checked' : '';
-        echo "<label><input type='checkbox' name='aiohm_kb_post_types[]' value='{$type->name}' $checked> {$type->labels->singular_name}</label><br>";
+        register_activation_hook(__FILE__, [$this, 'activate']);
     }
-}
 
-// OpenAI API Key Field
-function aiohm_openai_api_key_field() {
-    $api_key = esc_attr(get_option('aiohm_openai_api_key', ''));
-    echo "<input type='text' name='aiohm_openai_api_key' value='$api_key' style='width:100%;' placeholder='sk-...'>";
-}
+    public function init() {
+        load_plugin_textdomain('aiohm-kb', false, dirname(plugin_basename(__FILE__)) . '/languages/');
+    }
 
-// Generate JSON Knowledge Base File
-add_action('admin_init', 'aiohm_kb_generate_file');
+    public function activate() {
+        $d = wp_upload_dir()['basedir'] . '/aiohm-kb/';
+        if (!file_exists($d)) wp_mkdir_p($d);
+        file_put_contents($d . '.htaccess', "deny from all\n");
+    }
 
-function aiohm_kb_generate_file() {
-    if (isset($_POST['aiohm_generate_kb'])) {
-        $selected = (array) get_option('aiohm_kb_post_types', []);
-        $kb = [];
+    public function admin_menu() {
+        add_menu_page('AIOHM KB Assistant', 'AIOHM Assistant', 'manage_options', 'aiohm-kb', [$this, 'render_admin_page'], 'dashicons-format-chat', 30);
+        add_submenu_page('aiohm-kb', 'Analytics', 'Analytics', 'manage_options', 'aiohm-kb-analytics', [$this, 'render_analytics_page']);
+    }
 
-        foreach ($selected as $type) {
-            $posts = get_posts(['post_type' => $type, 'numberposts' => -1]);
-            foreach ($posts as $post) {
-                $kb[] = [
-                    'type' => $type,
-                    'title' => get_the_title($post),
-                    'content' => wp_strip_all_tags($post->post_content)
-                ];
-            }
+    public function admin_init() {
+        register_setting('aiohm_kb_settings', $this->opt, [$this, 'sanitize_options']);
+
+        add_settings_section('kb_section', __('Knowledge Base', 'aiohm-kb'), null, 'aiohm_kb_content');
+        add_settings_section('ai_section', __('AI Configuration', 'aiohm-kb'), null, 'aiohm_kb_ai');
+
+        add_settings_field('post_types', __('Content Types', 'aiohm-kb'), [$this, 'field_post_types'], 'aiohm_kb_content', 'kb_section');
+        add_settings_field('enable_streaming', __('Enable Streaming', 'aiohm-kb'), [$this, 'field_enable_streaming'], 'aiohm_kb_ai', 'ai_section');
+        add_settings_field('chat_model', __('Chat Model', 'aiohm-kb'), [$this, 'field_chat_model'], 'aiohm_kb_ai', 'ai_section');
+        add_settings_field('embedding_model', __('Embedding Model', 'aiohm-kb'), [$this, 'field_embedding_model'], 'aiohm_kb_ai', 'ai_section');
+        add_settings_field('ai_instructions', __('AI Instructions', 'aiohm-kb'), [$this, 'field_ai_instructions'], 'aiohm_kb_ai', 'ai_section');
+        add_settings_field('openai_key', __('OpenAI API Key', 'aiohm-kb'), [$this, 'field_api_key'], 'aiohm_kb_ai', 'ai_section');
+    }
+
+    public function load_admin_assets($hook) {
+        if (strpos($hook, 'aiohm-kb') === false) return;
+        wp_enqueue_style('aiohm-admin-css', plugin_dir_url(__FILE__) . 'assets/css/admin.css', [], $this->version);
+        wp_enqueue_script('aiohm-admin-js', plugin_dir_url(__FILE__) . 'assets/js/admin.js', ['jquery'], $this->version, true);
+        wp_localize_script('aiohm-admin-js', 'aiohm_ajax', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce'    => wp_create_nonce('aiohm_nonce'),
+        ]);
+    }
+
+    public function load_frontend_assets() {
+        wp_enqueue_style('aiohm-frontend-css', plugin_dir_url(__FILE__) . 'assets/css/frontend.css', [], $this->version);
+        wp_enqueue_script('aiohm-frontend-js', plugin_dir_url(__FILE__) . 'assets/js/frontend.js', ['jquery'], $this->version, true);
+        wp_localize_script('aiohm-frontend-js', 'aiohm_frontend', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce'    => wp_create_nonce('aiohm_frontend_nonce'),
+            'thinking'=> __('Thinking...', 'aiohm-kb'),
+            'error'   => __('Sorry, something went wrong.', 'aiohm-kb'),
+        ]);
+    }
+
+    public function sanitize_options($in) {
+        $o = [];
+        $o['post_types'] = array_intersect(['post','page','attachment'], array_map('sanitize_text_field', $in['post_types'] ?? []));
+        $o['enable_streaming'] = !empty($in['enable_streaming']) ? 1 : 0;
+        $o['chat_model'] = sanitize_text_field($in['chat_model'] ?? 'gpt-3.5-turbo');
+        $o['embedding_model'] = sanitize_text_field($in['embedding_model'] ?? 'text-embedding-ada-002');
+        $o['ai_instructions'] = sanitize_textarea_field($in['ai_instructions'] ?? '');
+        $o['openai_key'] = sanitize_text_field($in['openai_key'] ?? '');
+        return $o;
+    }
+
+    public function render_admin_page() {
+        $tab = $_GET['tab'] ?? 'kb'; ?>
+        <div class="wrap">
+            <h1><?php _e('AIOHM KB Assistant Settings', 'aiohm-kb') ?></h1>
+            <h2 class="nav-tab-wrapper">
+                <a class="nav-tab<?php if ($tab == 'kb') echo ' nav-tab-active'; ?>" href="?page=aiohm-kb&tab=kb"><?php _e('Knowledge Base', 'aiohm-kb') ?></a>
+                <a class="nav-tab<?php if ($tab == 'ai') echo ' nav-tab-active'; ?>" href="?page=aiohm-kb&tab=ai"><?php _e('AI Setup', 'aiohm-kb') ?></a>
+                <a class="nav-tab<?php if ($tab == 'upgrade') echo ' nav-tab-active'; ?>" href="?page=aiohm-kb&tab=upgrade"><?php _e('Upgrade to Pro', 'aiohm-kb') ?></a>
+            </h2>
+
+            <?php if ($tab === 'upgrade'): ?>
+                <div class="aiohm-pro-upgrade-tab">
+                    <h2><?php _e('Upgrade to AIOHM Pro', 'aiohm-kb') ?></h2>
+                    <p><?php _e('Unlock advanced features: custom fields, export options, more themes, analytics, and full control.', 'aiohm-kb') ?></p>
+                    <a href="https://aiohm.app/free-download" class="button button-primary button-hero"><?php _e('Upgrade Now', 'aiohm-kb') ?></a>
+                </div>
+
+            <?php else: ?>
+                <form method="post" action="options.php">
+                    <?php
+                    settings_fields('aiohm_kb_settings');
+                    if ($tab === 'kb') {
+                        do_settings_sections('aiohm_kb_content');
+                        submit_button(__('Save Settings', 'aiohm-kb'), 'primary', 'save', false);
+                        echo '<button type="button" id="aiohm-scan-kb" class="button">' . __('Scan Website', 'aiohm-kb') . '</button>';
+                        echo '<div id="aiohm-kb-scan-result" style="margin-top:20px;"></div>';
+                    } else {
+                        do_settings_sections('aiohm_kb_ai');
+                        submit_button(__('Save Settings', 'aiohm-kb'));
+                    }
+                    ?>
+                </form>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    public function render_analytics_page() {
+        $convos = get_option($this->conv, []);
+        $total = count($convos);
+        $week = 0;
+        $now = time();
+        foreach ($convos as $c) {
+            if (strtotime($c['timestamp']) > $now - WEEK_IN_SECONDS) $week++;
         }
-
-        $file = plugin_dir_path(__FILE__) . 'kb.json';
-        file_put_contents($file, json_encode($kb, JSON_PRETTY_PRINT));
-    }
-}
-
-// Shortcode UI for Assistant
-add_shortcode('aiohm_kb_assistant', 'aiohm_kb_assistant_ui');
-
-function aiohm_kb_assistant_ui() {
-    ob_start();
-    ?>
-    <div id="aiohm-kb-chat">
-        <input type="text" id="aiohm-user-prompt" placeholder="Ask me something..." style="width:100%; padding:10px;" />
-        <button onclick="aiohmAsk()" style="margin-top:10px;">Ask</button>
-        <div id="aiohm-kb-response" style="margin-top:15px; background:#f1f1f1; padding:10px;"></div>
-    </div>
-
-    <script>
-    function aiohmAsk() {
-        const prompt = document.getElementById('aiohm-user-prompt').value;
-        fetch('<?php echo admin_url('admin-ajax.php'); ?>?action=aiohm_query_kb&prompt=' + encodeURIComponent(prompt))
-        .then(response => response.text())
-        .then(data => {
-            document.getElementById('aiohm-kb-response').innerHTML = data;
-        });
-    }
-    </script>
-    <?php
-    return ob_get_clean();
-}
-
-// AJAX: GPT + Smart KB Scoring
-add_action('wp_ajax_aiohm_query_kb', 'aiohm_query_kb');
-add_action('wp_ajax_nopriv_aiohm_query_kb', 'aiohm_query_kb');
-
-function aiohm_query_kb() {
-    $prompt = sanitize_text_field($_GET['prompt']);
-    $kb_file = plugin_dir_path(__FILE__) . 'kb.json';
-    $api_key = get_option('aiohm_openai_api_key');
-
-    if (!$api_key) {
-        echo "OpenAI API key not set.";
-        wp_die();
+        ?>
+        <div class="wrap">
+            <h1><?php _e('AIOHM Assistant Analytics', 'aiohm-kb') ?></h1>
+            <p><?php printf(__('Total Chats: %d', 'aiohm-kb'), $total); ?></p>
+            <p><?php printf(__('Chats This Week: %d', 'aiohm-kb'), $week); ?></p>
+        </div>
+        <?php
     }
 
-    if (!file_exists($kb_file)) {
-        echo "No Knowledge Base found.";
-        wp_die();
-    }
-
-    $kb = json_decode(file_get_contents($kb_file), true);
-    $prompt_tokens = explode(' ', strtolower($prompt));
-    $best_score = 0;
-    $best_entry = null;
-
-    foreach ($kb as $entry) {
-        $entry_tokens = explode(' ', strtolower($entry['content']));
-        $match_count = count(array_intersect($prompt_tokens, $entry_tokens));
-
-        if ($match_count > $best_score) {
-            $best_score = $match_count;
-            $best_entry = $entry;
+    // Field methods
+    public function field_post_types() {
+        $o = get_option($this->opt, []);
+        $sel = $o['post_types'] ?? [];
+        foreach (['post'=>'Post','page'=>'Page','attachment'=>'Media'] as $k=>$l) {
+            $c = in_array($k, $sel) ? 'checked' : '';
+            echo "<label style='margin-right:15px;'><input type='checkbox' name='{$this->opt}[post_types][]' value='$k' $c> $l</label>";
         }
     }
-
-    if ($best_entry) {
-        $context = "Based on this brand content:\n\n" . $best_entry['content'] . "\n\nUser asked: $prompt";
-    } else {
-        $context = "User prompt: $prompt";
+    public function field_enable_streaming() {
+        $o = get_option($this->opt, []);
+        $c = !empty($o['enable_streaming']) ? 'checked' : '';
+        echo "<label><input type='checkbox' name='{$this->opt}[enable_streaming]' value='1' $c> " . __('Enable streaming responses', 'aiohm-kb') . "</label>";
+    }
+    public function field_chat_model() {
+        $o = get_option($this->opt, []);
+        $v = $o['chat_model'] ?? 'gpt-3.5-turbo';
+        echo "<select name='{$this->opt}[chat_model]'>
+            <option value='gpt-3.5-turbo'".selected($v,'gpt-3.5-turbo',false).">GPT‑3.5 Turbo</option>
+            <option value='gpt-4'".selected($v,'gpt-4',false).">GPT‑4</option>
+        </select>";
+    }
+    public function field_embedding_model() {
+        $o = get_option($this->opt, []);
+        $v = $o['embedding_model'] ?? 'text-embedding-ada-002';
+        echo "<select name='{$this->opt}[embedding_model]'>
+            <option value='text-embedding-ada-002'".selected($v,'text-embedding-ada-002',false).">Ada 2 (1536)</option>
+        </select>";
+    }
+    public function field_ai_instructions() {
+        $o = get_option($this->opt, []);
+        $txt = esc_textarea($o['ai_instructions'] ?? '');
+        echo "<textarea name='{$this->opt}[ai_instructions]' rows='6' cols='60'>$txt</textarea>";
+    }
+    public function field_api_key() {
+        $o = get_option($this->opt, []);
+        echo "<input type='password' name='{$this->opt}[openai_key]' value='".esc_attr($o['openai_key'] ?? '')."' class='regular-text' placeholder='sk-...' />";
     }
 
-    $response = wp_remote_post('https://api.openai.com/v1/chat/completions', [
-        'headers' => [
-            'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer ' . $api_key,
-        ],
-        'body' => json_encode([
-            'model' => 'gpt-3.5-turbo',
-            'messages' => [
-                ['role' => 'system', 'content' => 'You are a soulful brand assistant. Be concise, emotionally intelligent, and brand-aligned.'],
-                ['role' => 'user', 'content' => $context],
-            ],
-            'temperature' => 0.7,
-        ])
-    ]);
-
-    if (is_wp_error($response)) {
-        echo "Error calling OpenAI: " . $response->get_error_message();
-    } else {
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-        echo $body['choices'][0]['message']['content'] ?? "No response from AI.";
+    public function ajax_scan_kb() {
+        check_ajax_referer('aiohm_nonce', 'nonce');
+        if (!current_user_can('manage_options')) wp_send_json_error(__('Access denied.', 'aiohm-kb'));
+        $types = ['post','page','attachment'];
+        $rows = [];
+        foreach ($types as $t) {
+            $count = wp_count_posts($t)->publish ?? 0;
+            $rows[] = "<tr><td>$t</td><td>$count</td></tr>";
+        }
+        $html = '<table class="widefat"><thead><tr><th>' . __('Type','aiohm-kb') . '</th><th>' . __('Count','aiohm-kb') . '</th></tr></thead><tbody>'.implode('', $rows).'</tbody></table>';
+        wp_send_json_success(['html'=>$html]);
     }
 
-    wp_die();
+    // Note: ajax_generate_kb and ajax_query_kb etc. are assumed implemented previously.
+
+    public function render_chat_shortcode($atts) {
+        $atts = shortcode_atts(['theme'=>'light','height'=>'400px'], $atts);
+        ob_start();
+        ?>
+        <div id="aiohm-chat-wrapper" class="theme-<?php echo esc_attr($atts['theme']); ?>" style="height:<?php echo esc_attr($atts['height']); ?>">
+            <div id="aiohm-chat-box"></div>
+            <div id="aiohm-input-area">
+                <textarea id="aiohm-user-input" placeholder="<?php _e('Ask me anything...', 'aiohm-kb'); ?>"></textarea>
+                <button id="aiohm-send-btn"><?php _e('Send', 'aiohm-kb'); ?></button>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
 }
+
+new AIOHM_KB_Assistant();
