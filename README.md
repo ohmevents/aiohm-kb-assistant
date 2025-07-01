@@ -4,13 +4,34 @@
 
 ---
 
-### ✨ Features
+# Plugin Features – AIOHM Knowledge Assistant
 
-- ✅ Sync posts, pages, or any content into a structured JSON knowledge base
-- ✅ Embed a chat-style assistant with `[aiohm_kb_assistant]`
-- ✅ Smart matching logic based on prompt keyword scoring
-- ✅ Connect to OpenAI's GPT-3.5 (via API key)
-- ✅ Designed for coaches, creators, and aligned brands
+## ✅ Free Version (Core Features)
+- Auto-scans all WordPress content (pages, posts, menus)
+- Reads and indexes all files in /wp-content/uploads (PDF, DOCX, TXT, images via OCR)
+- Creates a searchable private knowledge base
+- GPT-based assistant widget (chat popup or shortcode)
+- Embed chat on any page with [aiohm_chat]
+- Basic dashboard for API key & plugin settings
+- Data stays local — no external training
+- Modular, lightweight architecture
+
+## 🚀 Pro Version (Coming Soon)
+- Upload and organize custom documents via dashboard (Knowledge DB)
+- Delete/edit files from custom panel
+- Custom prompts: inject brand tone or personality into assistant
+- Multi-language model selection (Claude, GPT-4, Mistral)
+- Assistant builder UI (fine-tune assistant per project)
+- Brand voice presets and assistant themes
+- Shortcode generator (FAQ, pricing, custom call-to-actions)
+- Export AI KB as json file
+- Future integrations: WooCommerce, HelpScout, Notion
+
+## 🔒 Privacy & AI
+- No external data stored without user permission
+- GDPR-compliant assistant logic (local RAG with API fallback)
+- Configurable model permissions
+
 
 ---
 

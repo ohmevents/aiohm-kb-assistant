@@ -1,66 +1,31 @@
 === AIOHM KB Assistant ===
-Contributors: yourusername
-Donate link: https://www.aiohm.app
-Tags: ai, assistant, chatbot, brand voice, openai, wordpress, knowledge base
-Requires at least: 5.5
-Tested up to: 6.5
-Stable tag: 0.5
+
+Contributors: YourName
+Tags: knowledge base, AI, GPT-3.5, GPT-4, embedding, OCR, WordPress
+Requires at least: 5.6
+Tested up to: 6.3
+Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-An emotionally intelligent assistant trained on your WordPress content. Use your own posts and pages to build a soulful, brand-aligned AI — powered by OpenAI.
+AIOHM KB Assistant leverages GPT-3.5/GPT-4 and embedding technology to enhance your WordPress site's knowledge base capabilities.
 
 == Description ==
 
-**AIOHM KB Assistant** turns your WordPress website into a source of living knowledge.  
-With a single click, convert your posts and pages into an internal knowledge base and connect it to OpenAI's GPT engine.  
-Ask questions, get soulful answers, and give your visitors a truly aligned experience.
+AIOHM KB Assistant is a powerful plugin designed to improve your WordPress site's knowledge base using advanced AI technologies. Seamlessly integrate GPT-3.5 and GPT-4 capabilities to assist with content creation and management.
 
-Perfect for:
-- Coaches and creators
-- Retreat and event sites
-- Conscious brands with a message
+**Key Features:**
 
-== Features ==
-* Select any post type to include in your assistant
-* Generate a clean JSON knowledge base (no tech needed)
-* Use a simple shortcode to place a branded AI on your site
-* Ask natural questions and get responses from GPT-3.5
-* Enter your OpenAI API key securely via plugin settings
-* Built for alignment, simplicity, and brand clarity
+- **AI Chat Integration:** Use shortcode [aiohm_assistant] to enable chat functionality powered by GPT-3.5 or GPT-4.
+- **Knowledge Base Management:** Easily scan posts, pages, and media (with OCR support) to build and maintain an up-to-date knowledge base.
+- **Embedding & Similarity Control:** Utilize embedding techniques to enhance content discoverability and manage similarity thresholds.
 
 == Installation ==
 
-1. Upload the plugin to `/wp-content/plugins/` directory
-2. Activate the plugin via the Plugins menu
-3. Go to **AIOHM Assistant** settings in your admin panel
-4. Select which content to use and click **Generate KB**
-5. Add your OpenAI API key
-6. Place `[aiohm_kb_assistant]` on any page or post
+1. Upload the `aiohm-kb-assistant` directory to the `/wp-content/plugins/` directory.
+2. Activate the plugin through the 'Plugins' menu in WordPress.
+3. Use the shortcode [aiohm_assistant] in your posts or pages to enable AI chat integration.
 
-== Frequently Asked Questions ==
+== Troubleshooting ==
 
-= Is my content sent to OpenAI? =  
-Only the specific post or page that matches a user query is sent — and only if you’ve entered your API key.
-
-= Can I use this without OpenAI? =  
-Yes. Without an API key, the assistant will fall back to direct content matching and display local info.
-
-= Will this slow down my site? =  
-No. The plugin runs a clean sync and serves lightweight responses only when queried.
-
-== Screenshots ==
-1. Admin settings panel (select post types + API key)
-2. Assistant chatbox embedded via shortcode
-3. Example response from GPT powered by your content
-
-== Changelog ==
-
-= 0.5 =
-* AI assistant integrated with OpenAI GPT-3.5
-* Improved prompt-to-content scoring logic
-* Admin UI for post types and API key
-* Shortcode frontend working with AJAX
-
-== Upgrade Notice ==
-Add your OpenAI key and regenerate the KB after updating to v0.5
+If you encounter the following error:

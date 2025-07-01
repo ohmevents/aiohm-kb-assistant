@@ -1,0 +1,69 @@
+#aiohm-kb-assistant {
+    max-width: 400px;
+    margin: 20px auto;
+    font-family: Arial, sans-serif;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    overflow: hidden;
+    background-color: #fff;
+}
+
+.aiohm-chat-window {
+    display: flex;
+    flex-direction: column;
+    height: 500px;
+}
+
+.aiohm-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    background: #f9f9f9;
+}
+
+.aiohm-message {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    max-width: 90%;
+    line-height: 1.4;
+}
+
+.aiohm-user {
+    background-color: #dceeff;
+    align-self: flex-end;
+    text-align: right;
+}
+
+.aiohm-bot {
+    background-color: #eaeaea;
+    align-self: flex-start;
+    text-align: left;
+}
+
+.aiohm-chat-input-area {
+    display: flex;
+    border-top: 1px solid #ddd;
+}
+
+#aiohm-chat-input {
+    flex: 1;
+    border: none;
+    padding: 12px;
+    font-size: 14px;
+    outline: none;
+}
+
+#aiohm-chat-send {
+    padding: 0 20px;
+    border: none;
+    background-color: #0073aa;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+#aiohm-chat-send:hover {
+    background-color: #005f8d;
+}
