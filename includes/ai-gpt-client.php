@@ -1,120 +1,338 @@
 <?php
-// includes/ai-gpt-client.php
+/**
+ * AI GPT Client for handling API requests to OpenAI and Claude
+ */
 
-function aiohm_send_to_openai($json_path) {
-    $api_key = get_option('aiohm_openai_key');
-    if (!$api_key || !file_exists($json_path)) return false;
-
-    $data = json_decode(file_get_contents($json_path), true);
-    $chunks = array_map(function($entry) {
-        return [
-            'role' => 'user',
-            'content' => "Title: {$entry['title']}\n\nContent: {$entry['content']}"
-        ];
-    }, $data);
-
-    $response = wp_remote_post('https://api.openai.com/v1/chat/completions', [
-        'headers' => [
-            'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer ' . $api_key
-        ],
-        'body' => json_encode([
-            'model' => 'gpt-4',
-            'messages' => array_merge([
-                ["role" => "system", "content" => "Summarize the following website content for training in a knowledge assistant."]
-            ], $chunks),
-            'temperature' => 0.5
-        ])
-    ]);
-
-    if (is_wp_error($response)) return false;
-    return wp_remote_retrieve_body($response);
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
 }
 
-add_action('aiohm_scan_completed', 'aiohm_process_scan_with_gpt');
-function aiohm_process_scan_with_gpt($json_path) {
-    $summary = aiohm_send_to_openai($json_path);
-    if ($summary) {
-        $out_path = str_replace('site-scan', 'summary', $json_path);
-        file_put_contents($out_path, $summary);
-
-        do_action('aiohm_summary_ready', $out_path);
+class AIOHM_KB_AI_GPT_Client {
+    
+    private $settings;
+    private $openai_api_key;
+    private $claude_api_key;
+    private $default_model;
+    
+    public function __construct() {
+        $this->settings = AIOHM_KB_Core_Init::get_settings();
+        $this->openai_api_key = !empty($this->settings['openai_api_key']) ? $this->settings['openai_api_key'] : getenv('OPENAI_API_KEY');
+        $this->claude_api_key = !empty($this->settings['claude_api_key']) ? $this->settings['claude_api_key'] : getenv('CLAUDE_API_KEY');
+        $this->default_model = $this->settings['default_model'];
     }
-}
-
-add_action('aiohm_summary_ready', 'aiohm_embed_summary_into_vector_db');
-function aiohm_embed_summary_into_vector_db($summary_path) {
-    $raw = file_get_contents($summary_path);
-    $api_key = get_option('aiohm_openai_key');
-    if (!$api_key || !$raw) return;
-
-    $chunks = explode("\n\n", strip_tags($raw));
-    $vector_data = [];
-
-    foreach ($chunks as $chunk) {
-        $response = wp_remote_post('https://api.openai.com/v1/embeddings', [
-            'headers' => [
-                'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer ' . $api_key
-            ],
-            'body' => json_encode([
-                'model' => 'text-embedding-ada-002',
-                'input' => $chunk
-            ])
-        ]);
-
-        if (!is_wp_error($response)) {
-            $embedding = json_decode(wp_remote_retrieve_body($response), true);
-            $vector_data[] = [
-                'text' => $chunk,
-                'embedding' => $embedding['data'][0]['embedding'] ?? []
-            ];
+    
+    /**
+     * Generate response using AI model
+     */
+    public function generate_response($query, $context = array(), $model = null) {
+        if (!$model) {
+            $model = $this->default_model;
+        }
+        
+        // Prepare context for the AI
+        $context_text = $this->prepare_context($context);
+        
+        // Generate system prompt
+        $system_prompt = $this->get_system_prompt();
+        
+        // Generate user prompt with context
+        $user_prompt = $this->build_user_prompt($query, $context_text);
+        
+        try {
+            if ($model === 'openai' && !empty($this->openai_api_key)) {
+                return $this->call_openai_api($system_prompt, $user_prompt);
+            } elseif ($model === 'claude' && !empty($this->claude_api_key)) {
+                return $this->call_claude_api($system_prompt, $user_prompt);
+            } else {
+                throw new Exception('No valid API key found for selected model: ' . $model);
+            }
+        } catch (Exception $e) {
+            AIOHM_KB_Core_Init::log('AI API Error: ' . $e->getMessage(), 'error');
+            throw $e;
         }
     }
-
-    $vector_path = str_replace('summary', 'vector', $summary_path);
-    file_put_contents($vector_path, json_encode($vector_data, JSON_PRETTY_PRINT));
-
-    // Optional retrieval logic
-    update_option('aiohm_last_vector_path', $vector_path);
-}
-
-function aiohm_search_vectors($query) {
-    $vector_path = get_option('aiohm_last_vector_path');
-    if (!$vector_path || !file_exists($vector_path)) return [];
-
-    $vector_data = json_decode(file_get_contents($vector_path), true);
-    $api_key = get_option('aiohm_openai_key');
-    if (!$api_key || !$query) return [];
-
-    // Get embedding for query
-    $response = wp_remote_post('https://api.openai.com/v1/embeddings', [
-        'headers' => [
-            'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer ' . $api_key
-        ],
-        'body' => json_encode([
+    
+    /**
+     * Call OpenAI API
+     */
+    private function call_openai_api($system_prompt, $user_prompt) {
+        $url = 'https://api.openai.com/v1/chat/completions';
+        
+        $headers = array(
+            'Authorization: Bearer ' . $this->openai_api_key,
+            'Content-Type: application/json'
+        );
+        
+        $data = array(
+            'model' => 'gpt-3.5-turbo',
+            'messages' => array(
+                array(
+                    'role' => 'system',
+                    'content' => $system_prompt
+                ),
+                array(
+                    'role' => 'user',
+                    'content' => $user_prompt
+                )
+            ),
+            'max_tokens' => intval($this->settings['max_tokens']),
+            'temperature' => floatval($this->settings['temperature']),
+            'top_p' => 1,
+            'frequency_penalty' => 0,
+            'presence_penalty' => 0
+        );
+        
+        $response = $this->make_http_request($url, $headers, $data);
+        
+        if (isset($response['choices'][0]['message']['content'])) {
+            return trim($response['choices'][0]['message']['content']);
+        } else {
+            throw new Exception('Invalid response from OpenAI API');
+        }
+    }
+    
+    /**
+     * Call Claude API
+     */
+    private function call_claude_api($system_prompt, $user_prompt) {
+        $url = 'https://api.anthropic.com/v1/messages';
+        
+        $headers = array(
+            'x-api-key: ' . $this->claude_api_key,
+            'Content-Type: application/json',
+            'anthropic-version: 2023-06-01'
+        );
+        
+        $data = array(
+            'model' => 'claude-3-sonnet-20240229',
+            'max_tokens' => intval($this->settings['max_tokens']),
+            'temperature' => floatval($this->settings['temperature']),
+            'system' => $system_prompt,
+            'messages' => array(
+                array(
+                    'role' => 'user',
+                    'content' => $user_prompt
+                )
+            )
+        );
+        
+        $response = $this->make_http_request($url, $headers, $data);
+        
+        if (isset($response['content'][0]['text'])) {
+            return trim($response['content'][0]['text']);
+        } else {
+            throw new Exception('Invalid response from Claude API');
+        }
+    }
+    
+    /**
+     * Make HTTP request to API
+     */
+    private function make_http_request($url, $headers, $data) {
+        $args = array(
+            'method' => 'POST',
+            'headers' => $headers,
+            'body' => json_encode($data),
+            'timeout' => 30,
+            'sslverify' => true
+        );
+        
+        $response = wp_remote_request($url, $args);
+        
+        if (is_wp_error($response)) {
+            throw new Exception('HTTP request failed: ' . $response->get_error_message());
+        }
+        
+        $response_code = wp_remote_retrieve_response_code($response);
+        $response_body = wp_remote_retrieve_body($response);
+        
+        if ($response_code !== 200) {
+            $error_data = json_decode($response_body, true);
+            $error_message = isset($error_data['error']['message']) ? $error_data['error']['message'] : 'API request failed';
+            throw new Exception("API Error ({$response_code}): {$error_message}");
+        }
+        
+        $decoded_response = json_decode($response_body, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('Invalid JSON response from API');
+        }
+        
+        return $decoded_response;
+    }
+    
+    /**
+     * Prepare context from relevant chunks
+     */
+    private function prepare_context($context_chunks) {
+        if (empty($context_chunks)) {
+            return '';
+        }
+        
+        $context_parts = array();
+        
+        foreach ($context_chunks as $chunk) {
+            $context_part = "Source: " . $chunk['title'] . " (" . $chunk['content_type'] . ")\n";
+            $context_part .= "Content: " . $chunk['content'] . "\n";
+            $context_parts[] = $context_part;
+        }
+        
+        return implode("\n---\n", $context_parts);
+    }
+    
+    /**
+     * Get system prompt
+     */
+    private function get_system_prompt() {
+        $site_name = get_bloginfo('name');
+        $site_description = get_bloginfo('description');
+        
+        return "You are a helpful AI assistant for {$site_name}. " .
+               (!empty($site_description) ? "The website is described as: {$site_description}. " : "") .
+               "You have access to knowledge from the website content including posts, pages, uploaded documents, and images. " .
+               "Use the provided context to answer questions accurately and helpfully. " .
+               "If you don't have enough information in the context to answer a question, say so politely. " .
+               "Keep your responses concise and relevant. " .
+               "Always base your answers on the provided context when possible.";
+    }
+    
+    /**
+     * Build user prompt with context
+     */
+    private function build_user_prompt($query, $context_text) {
+        $prompt = "Question: {$query}\n\n";
+        
+        if (!empty($context_text)) {
+            $prompt .= "Relevant context from the knowledge base:\n{$context_text}\n\n";
+            $prompt .= "Please answer the question based on the above context. ";
+        } else {
+            $prompt .= "No specific context was found in the knowledge base for this question. ";
+            $prompt .= "Please provide a helpful general response or indicate that you don't have specific information about this topic. ";
+        }
+        
+        return $prompt;
+    }
+    
+    /**
+     * Generate embeddings using OpenAI API
+     */
+    public function generate_embeddings($text) {
+        if (empty($this->openai_api_key)) {
+            throw new Exception('OpenAI API key is required for embeddings');
+        }
+        
+        $url = 'https://api.openai.com/v1/embeddings';
+        
+        $headers = array(
+            'Authorization: Bearer ' . $this->openai_api_key,
+            'Content-Type: application/json'
+        );
+        
+        $data = array(
             'model' => 'text-embedding-ada-002',
-            'input' => $query
-        ])
-    ]);
-
-    if (is_wp_error($response)) return [];
-    $query_embedding = json_decode(wp_remote_retrieve_body($response), true)['data'][0]['embedding'] ?? [];
-
-    // Cosine similarity
-    $scores = [];
-    foreach ($vector_data as $item) {
-        $dot = $norm_a = $norm_b = 0;
-        for ($i = 0; $i < count($query_embedding); $i++) {
-            $dot += $query_embedding[$i] * $item['embedding'][$i];
-            $norm_a += pow($query_embedding[$i], 2);
-            $norm_b += pow($item['embedding'][$i], 2);
+            'input' => $text
+        );
+        
+        $response = $this->make_http_request($url, $headers, $data);
+        
+        if (isset($response['data'][0]['embedding'])) {
+            return $response['data'][0]['embedding'];
+        } else {
+            throw new Exception('Invalid embedding response from OpenAI API');
         }
-        $cos_sim = $dot / (sqrt($norm_a) * sqrt($norm_b));
-        $scores[] = ['text' => $item['text'], 'score' => $cos_sim];
     }
-
-    usort($scores, fn($a, $b) => $b['score'] <=> $a['score']);
-    return array_slice($scores, 0, 5);
+    
+    /**
+     * Test API connection
+     */
+    public function test_api_connection($model = null) {
+        if (!$model) {
+            $model = $this->default_model;
+        }
+        
+        try {
+            $test_response = $this->generate_response(
+                "Hello, this is a connection test. Please respond with 'Connection successful.'",
+                array(),
+                $model
+            );
+            
+            return array(
+                'success' => true,
+                'model' => $model,
+                'response' => $test_response
+            );
+            
+        } catch (Exception $e) {
+            return array(
+                'success' => false,
+                'model' => $model,
+                'error' => $e->getMessage()
+            );
+        }
+    }
+    
+    /**
+     * Get available models
+     */
+    public function get_available_models() {
+        $models = array();
+        
+        if (!empty($this->openai_api_key)) {
+            $models['openai'] = array(
+                'name' => 'OpenAI GPT',
+                'description' => 'OpenAI GPT-3.5 Turbo',
+                'available' => true
+            );
+        }
+        
+        if (!empty($this->claude_api_key)) {
+            $models['claude'] = array(
+                'name' => 'Anthropic Claude',
+                'description' => 'Claude 3 Sonnet',
+                'available' => true
+            );
+        }
+        
+        return $models;
+    }
+    
+    /**
+     * Validate API keys
+     */
+    public function validate_api_keys() {
+        $validation = array(
+            'openai' => array(
+                'provided' => !empty($this->openai_api_key),
+                'valid' => false
+            ),
+            'claude' => array(
+                'provided' => !empty($this->claude_api_key),
+                'valid' => false
+            )
+        );
+        
+        // Test OpenAI key
+        if ($validation['openai']['provided']) {
+            try {
+                $test = $this->test_api_connection('openai');
+                $validation['openai']['valid'] = $test['success'];
+            } catch (Exception $e) {
+                $validation['openai']['error'] = $e->getMessage();
+            }
+        }
+        
+        // Test Claude key
+        if ($validation['claude']['provided']) {
+            try {
+                $test = $this->test_api_connection('claude');
+                $validation['claude']['valid'] = $test['success'];
+            } catch (Exception $e) {
+                $validation['claude']['error'] = $e->getMessage();
+            }
+        }
+        
+        return $validation;
+    }
 }

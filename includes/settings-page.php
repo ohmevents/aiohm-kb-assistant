@@ -1,59 +1,645 @@
 <?php
-// includes/settings-page.php
+/**
+ * Admin settings page and Q&A generator
+ */
 
-add_action('admin_menu', function () {
-    add_menu_page(
-        'AIOHM Settings',
-        'AIOHM Settings',
-        'manage_options',
-        'aiohm-settings',
-        'aiohm_render_settings_page',
-        'dashicons-art',
-        80
-    );
-});
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
+}
 
-function aiohm_render_settings_page() {
-    echo '<div class="wrap"><h1>AIOHM Settings</h1>';
-    echo '<form method="post">';
-
-    // API Key Inputs
-    echo '<h2>🔑 API Keys</h2>';
-    echo '<table class="form-table"><tr><th>OpenAI Key:</th><td><input type="text" name="aiohm_openai_key" value="' . esc_attr(get_option('aiohm_openai_key')) . '" class="regular-text" /></td></tr>';
-    echo '<tr><th>Claude Key:</th><td><input type="text" name="aiohm_claude_key" value="' . esc_attr(get_option('aiohm_claude_key')) . '" class="regular-text" /></td></tr></table>';
-
-    // Save and Generate Buttons
-    submit_button('💾 Save Settings');
-    echo '<button name="generate_qa_dataset" class="button button-secondary" style="margin-left:10px;">⚙️ Generate Q&A Dataset</button>';
-    echo '</form>';
-
-    // Save logic
-    if (!empty($_POST['aiohm_openai_key']) || !empty($_POST['aiohm_claude_key'])) {
-        update_option('aiohm_openai_key', sanitize_text_field($_POST['aiohm_openai_key']));
-        update_option('aiohm_claude_key', sanitize_text_field($_POST['aiohm_claude_key']));
-        echo '<div class="notice notice-success is-dismissible"><p>✅ Keys saved.</p></div>';
+class AIOHM_KB_Settings_Page {
+    
+    public static function init() {
+        add_action('admin_menu', array(__CLASS__, 'add_admin_menu'));
+        add_action('admin_init', array(__CLASS__, 'register_settings'));
+        add_action('wp_ajax_aiohm_generate_qa', array(__CLASS__, 'generate_qa_ajax'));
+        add_action('wp_ajax_aiohm_test_api', array(__CLASS__, 'test_api_ajax'));
+        add_action('wp_ajax_aiohm_export_data', array(__CLASS__, 'export_data_ajax'));
     }
-
-    // Generate Q&A logic
-    if (!empty($_POST['generate_qa_dataset'])) {
-        $entries = get_option('aiohm_vector_entries', []);
-        $qa = [];
-        foreach ($entries as $entry) {
-            $text = $entry['text'] ?? '';
-            $lines = preg_split('/\r\n|\r|\n/', $text);
-            foreach ($lines as $line) {
-                if (strpos($line, '?') !== false && strlen($line) < 160) {
-                    $qa[] = [
-                        'question' => trim($line),
-                        'answer' => wp_trim_words($text, 80)
-                    ];
-                    break;
-                }
-            }
+    
+    /**
+     * Add admin menu
+     */
+    public static function add_admin_menu() {
+        add_menu_page(
+            __('AIOHM Settings', 'aiohm-kb-assistant'),
+            __('AIOHM Settings', 'aiohm-kb-assistant'),
+            'manage_options',
+            'aiohm-settings',
+            array(__CLASS__, 'settings_page'),
+            'dashicons-admin-generic',
+            30
+        );
+        
+        add_submenu_page(
+            'aiohm-settings',
+            __('Scan Website', 'aiohm-kb-assistant'),
+            __('Scan Website', 'aiohm-kb-assistant'),
+            'manage_options',
+            'aiohm-scan-website',
+            array(__CLASS__, 'scan_website_page')
+        );
+        
+        add_submenu_page(
+            'aiohm-settings',
+            __('Knowledge Base', 'aiohm-kb-assistant'),
+            __('Knowledge Base', 'aiohm-kb-assistant'),
+            'manage_options',
+            'aiohm-knowledge-base',
+            array(__CLASS__, 'knowledge_base_page')
+        );
+    }
+    
+    /**
+     * Register settings
+     */
+    public static function register_settings() {
+        register_setting('aiohm_kb_settings', 'aiohm_kb_settings', array(__CLASS__, 'sanitize_settings'));
+        
+        // API Settings Section
+        add_settings_section(
+            'aiohm_api_section',
+            __('API Configuration', 'aiohm-kb-assistant'),
+            array(__CLASS__, 'api_section_callback'),
+            'aiohm_kb_settings'
+        );
+        
+        add_settings_field(
+            'openai_api_key',
+            __('OpenAI API Key', 'aiohm-kb-assistant'),
+            array(__CLASS__, 'openai_api_key_callback'),
+            'aiohm_kb_settings',
+            'aiohm_api_section'
+        );
+        
+        add_settings_field(
+            'claude_api_key',
+            __('Claude API Key', 'aiohm-kb-assistant'),
+            array(__CLASS__, 'claude_api_key_callback'),
+            'aiohm_kb_settings',
+            'aiohm_api_section'
+        );
+        
+        add_settings_field(
+            'default_model',
+            __('Default Model', 'aiohm-kb-assistant'),
+            array(__CLASS__, 'default_model_callback'),
+            'aiohm_kb_settings',
+            'aiohm_api_section'
+        );
+        
+        // Chat Settings Section
+        add_settings_section(
+            'aiohm_chat_section',
+            __('Chat Configuration', 'aiohm-kb-assistant'),
+            array(__CLASS__, 'chat_section_callback'),
+            'aiohm_kb_settings'
+        );
+        
+        add_settings_field(
+            'chat_enabled',
+            __('Enable Chat', 'aiohm-kb-assistant'),
+            array(__CLASS__, 'chat_enabled_callback'),
+            'aiohm_kb_settings',
+            'aiohm_chat_section'
+        );
+        
+        add_settings_field(
+            'max_tokens',
+            __('Max Tokens', 'aiohm-kb-assistant'),
+            array(__CLASS__, 'max_tokens_callback'),
+            'aiohm_kb_settings',
+            'aiohm_chat_section'
+        );
+        
+        add_settings_field(
+            'temperature',
+            __('Temperature', 'aiohm-kb-assistant'),
+            array(__CLASS__, 'temperature_callback'),
+            'aiohm_kb_settings',
+            'aiohm_chat_section'
+        );
+        
+        // Processing Settings Section
+        add_settings_section(
+            'aiohm_processing_section',
+            __('Processing Configuration', 'aiohm-kb-assistant'),
+            array(__CLASS__, 'processing_section_callback'),
+            'aiohm_kb_settings'
+        );
+        
+        add_settings_field(
+            'chunk_size',
+            __('Chunk Size', 'aiohm-kb-assistant'),
+            array(__CLASS__, 'chunk_size_callback'),
+            'aiohm_kb_settings',
+            'aiohm_processing_section'
+        );
+        
+        add_settings_field(
+            'chunk_overlap',
+            __('Chunk Overlap', 'aiohm-kb-assistant'),
+            array(__CLASS__, 'chunk_overlap_callback'),
+            'aiohm_kb_settings',
+            'aiohm_processing_section'
+        );
+    }
+    
+    /**
+     * Main settings page
+     */
+    public static function settings_page() {
+        $settings = AIOHM_KB_Core_Init::get_settings();
+        ?>
+        <div class="wrap">
+            <h1><?php _e('AIOHM Knowledge Assistant Settings', 'aiohm-kb-assistant'); ?></h1>
+            
+            <div class="aiohm-admin-container">
+                <div class="aiohm-main-content">
+                    <form method="post" action="options.php">
+                        <?php
+                        settings_fields('aiohm_kb_settings');
+                        do_settings_sections('aiohm_kb_settings');
+                        submit_button();
+                        ?>
+                    </form>
+                </div>
+                
+                <div class="aiohm-sidebar">
+                    <div class="aiohm-widget">
+                        <h3><?php _e('API Status', 'aiohm-kb-assistant'); ?></h3>
+                        <div id="aiohm-api-status">
+                            <button type="button" class="button" id="test-apis-btn">
+                                <?php _e('Test API Connections', 'aiohm-kb-assistant'); ?>
+                            </button>
+                            <div id="api-test-results"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="aiohm-widget">
+                        <h3><?php _e('Q&A Dataset Generator', 'aiohm-kb-assistant'); ?></h3>
+                        <p><?php _e('Generate a Q&A dataset from your knowledge base for training external assistants.', 'aiohm-kb-assistant'); ?></p>
+                        <button type="button" class="button button-primary" id="generate-qa-btn">
+                            <?php _e('Generate Q&A Dataset', 'aiohm-kb-assistant'); ?>
+                        </button>
+                        <div id="qa-generation-results"></div>
+                    </div>
+                    
+                    <div class="aiohm-widget">
+                        <h3><?php _e('Export Data', 'aiohm-kb-assistant'); ?></h3>
+                        <p><?php _e('Export your knowledge base for backup or migration.', 'aiohm-kb-assistant'); ?></p>
+                        <button type="button" class="button" id="export-data-btn">
+                            <?php _e('Export Knowledge Base', 'aiohm-kb-assistant'); ?>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+        jQuery(document).ready(function($) {
+            // Test API connections
+            $('#test-apis-btn').click(function() {
+                var $btn = $(this);
+                var $results = $('#api-test-results');
+                
+                $btn.prop('disabled', true).text('<?php _e('Testing...', 'aiohm-kb-assistant'); ?>');
+                $results.html('<div class="notice notice-info"><p><?php _e('Testing API connections...', 'aiohm-kb-assistant'); ?></p></div>');
+                
+                $.post(ajaxurl, {
+                    action: 'aiohm_test_api',
+                    nonce: '<?php echo wp_create_nonce('aiohm_admin_nonce'); ?>'
+                }, function(response) {
+                    if (response.success) {
+                        var html = '<div class="notice notice-success"><p><?php _e('API Test Results:', 'aiohm-kb-assistant'); ?></p>';
+                        $.each(response.data, function(model, result) {
+                            html += '<p><strong>' + model + ':</strong> ' + (result.valid ? '✓ Working' : '✗ Failed') + '</p>';
+                        });
+                        html += '</div>';
+                        $results.html(html);
+                    } else {
+                        $results.html('<div class="notice notice-error"><p>' + response.data + '</p></div>');
+                    }
+                }).fail(function() {
+                    $results.html('<div class="notice notice-error"><p><?php _e('Failed to test APIs', 'aiohm-kb-assistant'); ?></p></div>');
+                }).always(function() {
+                    $btn.prop('disabled', false).text('<?php _e('Test API Connections', 'aiohm-kb-assistant'); ?>');
+                });
+            });
+            
+            // Generate Q&A dataset
+            $('#generate-qa-btn').click(function() {
+                var $btn = $(this);
+                var $results = $('#qa-generation-results');
+                
+                $btn.prop('disabled', true).text('<?php _e('Generating...', 'aiohm-kb-assistant'); ?>');
+                $results.html('<div class="notice notice-info"><p><?php _e('Generating Q&A dataset...', 'aiohm-kb-assistant'); ?></p></div>');
+                
+                $.post(ajaxurl, {
+                    action: 'aiohm_generate_qa',
+                    nonce: '<?php echo wp_create_nonce('aiohm_admin_nonce'); ?>'
+                }, function(response) {
+                    if (response.success) {
+                        $results.html('<div class="notice notice-success"><p>' + response.data.message + '</p><p><strong>Generated ' + response.data.count + ' Q&A pairs</strong></p></div>');
+                    } else {
+                        $results.html('<div class="notice notice-error"><p>' + response.data + '</p></div>');
+                    }
+                }).fail(function() {
+                    $results.html('<div class="notice notice-error"><p><?php _e('Failed to generate Q&A dataset', 'aiohm-kb-assistant'); ?></p></div>');
+                }).always(function() {
+                    $btn.prop('disabled', false).text('<?php _e('Generate Q&A Dataset', 'aiohm-kb-assistant'); ?>');
+                });
+            });
+            
+            // Export data
+            $('#export-data-btn').click(function() {
+                var $btn = $(this);
+                
+                $btn.prop('disabled', true).text('<?php _e('Exporting...', 'aiohm-kb-assistant'); ?>');
+                
+                $.post(ajaxurl, {
+                    action: 'aiohm_export_data',
+                    nonce: '<?php echo wp_create_nonce('aiohm_admin_nonce'); ?>'
+                }, function(response) {
+                    if (response.success) {
+                        // Create download link
+                        var blob = new Blob([JSON.stringify(response.data, null, 2)], {type: 'application/json'});
+                        var url = window.URL.createObjectURL(blob);
+                        var a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'aiohm-knowledge-base-export.json';
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    } else {
+                        alert('<?php _e('Export failed', 'aiohm-kb-assistant'); ?>: ' + response.data);
+                    }
+                }).fail(function() {
+                    alert('<?php _e('Export failed', 'aiohm-kb-assistant'); ?>');
+                }).always(function() {
+                    $btn.prop('disabled', false).text('<?php _e('Export Knowledge Base', 'aiohm-kb-assistant'); ?>');
+                });
+            });
+        });
+        </script>
+        
+        <style>
+        .aiohm-admin-container {
+            display: flex;
+            gap: 20px;
         }
-        update_option('aiohm_qa_dataset', $qa);
-        echo '<div class="notice notice-info is-dismissible"><p>✅ ' . count($qa) . ' Q&A pairs generated.</p></div>';
+        .aiohm-main-content {
+            flex: 2;
+        }
+        .aiohm-sidebar {
+            flex: 1;
+        }
+        .aiohm-widget {
+            background: #fff;
+            border: 1px solid #ccd0d4;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .aiohm-widget h3 {
+            margin-top: 0;
+        }
+        #api-test-results, #qa-generation-results {
+            margin-top: 10px;
+        }
+        </style>
+        <?php
     }
-
-    echo '</div>';
+    
+    /**
+     * Scan website page
+     */
+    public static function scan_website_page() {
+        $site_crawler = new AIOHM_KB_Site_Crawler();
+        $uploads_crawler = new AIOHM_KB_Uploads_Crawler();
+        
+        $site_stats = $site_crawler->get_scan_stats();
+        $uploads_stats = $uploads_crawler->get_scan_stats();
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Scan Website Content', 'aiohm-kb-assistant'); ?></h1>
+            
+            <div class="aiohm-scan-container">
+                <div class="aiohm-scan-section">
+                    <h2><?php _e('Website Content', 'aiohm-kb-assistant'); ?></h2>
+                    <div class="aiohm-stats">
+                        <div class="stat-item">
+                            <strong><?php _e('Posts:', 'aiohm-kb-assistant'); ?></strong>
+                            <?php printf(__('%d total, %d indexed, %d pending', 'aiohm-kb-assistant'), 
+                                $site_stats['posts']['total'], 
+                                $site_stats['posts']['indexed'], 
+                                $site_stats['posts']['pending']); ?>
+                        </div>
+                        <div class="stat-item">
+                            <strong><?php _e('Pages:', 'aiohm-kb-assistant'); ?></strong>
+                            <?php printf(__('%d total, %d indexed, %d pending', 'aiohm-kb-assistant'), 
+                                $site_stats['pages']['total'], 
+                                $site_stats['pages']['indexed'], 
+                                $site_stats['pages']['pending']); ?>
+                        </div>
+                        <div class="stat-item">
+                            <strong><?php _e('Menus:', 'aiohm-kb-assistant'); ?></strong>
+                            <?php printf(__('%d total', 'aiohm-kb-assistant'), $site_stats['menus']['total']); ?>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="button button-primary" id="scan-website-btn">
+                        <?php _e('Scan Website Content', 'aiohm-kb-assistant'); ?>
+                    </button>
+                    
+                    <div id="website-scan-results"></div>
+                </div>
+                
+                <div class="aiohm-scan-section">
+                    <h2><?php _e('Upload Folder', 'aiohm-kb-assistant'); ?></h2>
+                    <div class="aiohm-stats">
+                        <div class="stat-item">
+                            <strong><?php _e('Total Files:', 'aiohm-kb-assistant'); ?></strong>
+                            <?php echo $uploads_stats['total_files']; ?>
+                        </div>
+                        <?php foreach ($uploads_stats['by_type'] as $type => $data): ?>
+                        <div class="stat-item">
+                            <strong><?php echo strtoupper($type); ?>:</strong>
+                            <?php printf(__('%d files (%s)', 'aiohm-kb-assistant'), 
+                                $data['count'], 
+                                size_format($data['size'])); ?>
+                        </div>
+                        <?php endforeach; ?>
+                        <div class="stat-item">
+                            <strong><?php _e('Total Size:', 'aiohm-kb-assistant'); ?></strong>
+                            <?php echo size_format($uploads_stats['total_size']); ?>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="button button-primary" id="scan-uploads-btn">
+                        <?php _e('Scan Upload Folder', 'aiohm-kb-assistant'); ?>
+                    </button>
+                    
+                    <div id="uploads-scan-results"></div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+        jQuery(document).ready(function($) {
+            // Scan website content
+            $('#scan-website-btn').click(function() {
+                var $btn = $(this);
+                var $results = $('#website-scan-results');
+                
+                $btn.prop('disabled', true).text('<?php _e('Scanning...', 'aiohm-kb-assistant'); ?>');
+                $results.html('<div class="notice notice-info"><p><?php _e('Scanning website content...', 'aiohm-kb-assistant'); ?></p></div>');
+                
+                $.post(ajaxurl, {
+                    action: 'aiohm_scan_content',
+                    scan_type: 'website',
+                    nonce: '<?php echo wp_create_nonce('aiohm_admin_nonce'); ?>'
+                }, function(response) {
+                    if (response.success) {
+                        var html = '<div class="notice notice-success"><p><?php _e('Website scan completed!', 'aiohm-kb-assistant'); ?></p>';
+                        html += '<p><strong>Processed ' + response.data.total_processed + ' items</strong></p>';
+                        html += '<ul>';
+                        html += '<li>Posts: ' + response.data.posts.length + '</li>';
+                        html += '<li>Pages: ' + response.data.pages.length + '</li>';
+                        html += '<li>Menus: ' + response.data.menus.length + '</li>';
+                        html += '</ul></div>';
+                        $results.html(html);
+                        
+                        // Refresh page to update stats
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        $results.html('<div class="notice notice-error"><p>' + response.data + '</p></div>');
+                    }
+                }).fail(function() {
+                    $results.html('<div class="notice notice-error"><p><?php _e('Scan failed', 'aiohm-kb-assistant'); ?></p></div>');
+                }).always(function() {
+                    $btn.prop('disabled', false).text('<?php _e('Scan Website Content', 'aiohm-kb-assistant'); ?>');
+                });
+            });
+            
+            // Scan uploads
+            $('#scan-uploads-btn').click(function() {
+                var $btn = $(this);
+                var $results = $('#uploads-scan-results');
+                
+                $btn.prop('disabled', true).text('<?php _e('Scanning...', 'aiohm-kb-assistant'); ?>');
+                $results.html('<div class="notice notice-info"><p><?php _e('Scanning upload folder...', 'aiohm-kb-assistant'); ?></p></div>');
+                
+                $.post(ajaxurl, {
+                    action: 'aiohm_scan_content',
+                    scan_type: 'uploads',
+                    nonce: '<?php echo wp_create_nonce('aiohm_admin_nonce'); ?>'
+                }, function(response) {
+                    if (response.success) {
+                        var html = '<div class="notice notice-success"><p><?php _e('Upload folder scan completed!', 'aiohm-kb-assistant'); ?></p>';
+                        html += '<p><strong>Processed ' + response.data.length + ' files</strong></p></div>';
+                        $results.html(html);
+                    } else {
+                        $results.html('<div class="notice notice-error"><p>' + response.data + '</p></div>');
+                    }
+                }).fail(function() {
+                    $results.html('<div class="notice notice-error"><p><?php _e('Scan failed', 'aiohm-kb-assistant'); ?></p></div>');
+                }).always(function() {
+                    $btn.prop('disabled', false).text('<?php _e('Scan Upload Folder', 'aiohm-kb-assistant'); ?>');
+                });
+            });
+        });
+        </script>
+        
+        <style>
+        .aiohm-scan-container {
+            display: flex;
+            gap: 30px;
+        }
+        .aiohm-scan-section {
+            flex: 1;
+            background: #fff;
+            padding: 20px;
+            border: 1px solid #ccd0d4;
+        }
+        .aiohm-stats {
+            margin: 15px 0;
+        }
+        .stat-item {
+            margin: 8px 0;
+            padding: 8px;
+            background: #f8f9fa;
+            border-left: 3px solid #007cba;
+        }
+        #website-scan-results, #uploads-scan-results {
+            margin-top: 15px;
+        }
+        </style>
+        <?php
+    }
+    
+    /**
+     * Knowledge base management page
+     */
+    public static function knowledge_base_page() {
+        // This will be handled by the AIOHM_KB_Manager class
+        $manager = new AIOHM_KB_Manager();
+        $manager->display_knowledge_base_page();
+    }
+    
+    // Settings field callbacks
+    public static function api_section_callback() {
+        echo '<p>' . __('Configure your AI API keys for chat functionality.', 'aiohm-kb-assistant') . '</p>';
+    }
+    
+    public static function openai_api_key_callback() {
+        $settings = AIOHM_KB_Core_Init::get_settings();
+        echo '<input type="password" id="openai_api_key" name="aiohm_kb_settings[openai_api_key]" value="' . esc_attr($settings['openai_api_key']) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Your OpenAI API key for GPT models.', 'aiohm-kb-assistant') . '</p>';
+    }
+    
+    public static function claude_api_key_callback() {
+        $settings = AIOHM_KB_Core_Init::get_settings();
+        echo '<input type="password" id="claude_api_key" name="aiohm_kb_settings[claude_api_key]" value="' . esc_attr($settings['claude_api_key']) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Your Anthropic Claude API key.', 'aiohm-kb-assistant') . '</p>';
+    }
+    
+    public static function default_model_callback() {
+        $settings = AIOHM_KB_Core_Init::get_settings();
+        $models = array(
+            'openai' => 'OpenAI GPT',
+            'claude' => 'Anthropic Claude'
+        );
+        
+        echo '<select id="default_model" name="aiohm_kb_settings[default_model]">';
+        foreach ($models as $value => $label) {
+            echo '<option value="' . esc_attr($value) . '"' . selected($settings['default_model'], $value, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . __('Default AI model to use for chat responses.', 'aiohm-kb-assistant') . '</p>';
+    }
+    
+    public static function chat_section_callback() {
+        echo '<p>' . __('Configure chat behavior and response settings.', 'aiohm-kb-assistant') . '</p>';
+    }
+    
+    public static function chat_enabled_callback() {
+        $settings = AIOHM_KB_Core_Init::get_settings();
+        echo '<input type="checkbox" id="chat_enabled" name="aiohm_kb_settings[chat_enabled]" value="1"' . checked($settings['chat_enabled'], true, false) . ' />';
+        echo '<label for="chat_enabled">' . __('Enable chat functionality on frontend', 'aiohm-kb-assistant') . '</label>';
+    }
+    
+    public static function max_tokens_callback() {
+        $settings = AIOHM_KB_Core_Init::get_settings();
+        echo '<input type="number" id="max_tokens" name="aiohm_kb_settings[max_tokens]" value="' . esc_attr($settings['max_tokens']) . '" min="50" max="2000" />';
+        echo '<p class="description">' . __('Maximum tokens for AI responses (50-2000).', 'aiohm-kb-assistant') . '</p>';
+    }
+    
+    public static function temperature_callback() {
+        $settings = AIOHM_KB_Core_Init::get_settings();
+        echo '<input type="number" id="temperature" name="aiohm_kb_settings[temperature]" value="' . esc_attr($settings['temperature']) . '" min="0" max="2" step="0.1" />';
+        echo '<p class="description">' . __('Response creativity (0.0 = focused, 2.0 = creative).', 'aiohm-kb-assistant') . '</p>';
+    }
+    
+    public static function processing_section_callback() {
+        echo '<p>' . __('Configure how content is processed and chunked for the knowledge base.', 'aiohm-kb-assistant') . '</p>';
+    }
+    
+    public static function chunk_size_callback() {
+        $settings = AIOHM_KB_Core_Init::get_settings();
+        echo '<input type="number" id="chunk_size" name="aiohm_kb_settings[chunk_size]" value="' . esc_attr($settings['chunk_size']) . '" min="500" max="3000" />';
+        echo '<p class="description">' . __('Size of content chunks for processing (500-3000 characters).', 'aiohm-kb-assistant') . '</p>';
+    }
+    
+    public static function chunk_overlap_callback() {
+        $settings = AIOHM_KB_Core_Init::get_settings();
+        echo '<input type="number" id="chunk_overlap" name="aiohm_kb_settings[chunk_overlap]" value="' . esc_attr($settings['chunk_overlap']) . '" min="0" max="500" />';
+        echo '<p class="description">' . __('Overlap between chunks to maintain context (0-500 characters).', 'aiohm-kb-assistant') . '</p>';
+    }
+    
+    /**
+     * Sanitize settings
+     */
+    public static function sanitize_settings($input) {
+        $sanitized = array();
+        
+        $sanitized['openai_api_key'] = sanitize_text_field($input['openai_api_key']);
+        $sanitized['claude_api_key'] = sanitize_text_field($input['claude_api_key']);
+        $sanitized['default_model'] = in_array($input['default_model'], array('openai', 'claude')) ? $input['default_model'] : 'openai';
+        $sanitized['chat_enabled'] = isset($input['chat_enabled']) ? true : false;
+        $sanitized['auto_scan'] = isset($input['auto_scan']) ? true : false;
+        $sanitized['max_tokens'] = intval($input['max_tokens']);
+        $sanitized['temperature'] = floatval($input['temperature']);
+        $sanitized['chunk_size'] = intval($input['chunk_size']);
+        $sanitized['chunk_overlap'] = intval($input['chunk_overlap']);
+        
+        // Validate ranges
+        $sanitized['max_tokens'] = max(50, min(2000, $sanitized['max_tokens']));
+        $sanitized['temperature'] = max(0.0, min(2.0, $sanitized['temperature']));
+        $sanitized['chunk_size'] = max(500, min(3000, $sanitized['chunk_size']));
+        $sanitized['chunk_overlap'] = max(0, min(500, $sanitized['chunk_overlap']));
+        
+        return $sanitized;
+    }
+    
+    /**
+     * Generate Q&A dataset AJAX handler
+     */
+    public static function generate_qa_ajax() {
+        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
+            wp_die('Security check failed');
+        }
+        
+        try {
+            $rag_engine = new AIOHM_KB_RAG_Engine();
+            $qa_dataset = $rag_engine->generate_qa_dataset();
+            
+            wp_send_json_success(array(
+                'message' => 'Q&A dataset generated successfully',
+                'count' => count($qa_dataset)
+            ));
+            
+        } catch (Exception $e) {
+            wp_send_json_error('Failed to generate Q&A dataset: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Test API AJAX handler
+     */
+    public static function test_api_ajax() {
+        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
+            wp_die('Security check failed');
+        }
+        
+        try {
+            $ai_client = new AIOHM_KB_AI_GPT_Client();
+            $validation = $ai_client->validate_api_keys();
+            
+            wp_send_json_success($validation);
+            
+        } catch (Exception $e) {
+            wp_send_json_error('Failed to test APIs: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Export data AJAX handler
+     */
+    public static function export_data_ajax() {
+        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
+            wp_die('Security check failed');
+        }
+        
+        try {
+            $rag_engine = new AIOHM_KB_RAG_Engine();
+            $export_data = $rag_engine->export_knowledge_base();
+            
+            wp_send_json_success($export_data);
+            
+        } catch (Exception $e) {
+            wp_send_json_error('Failed to export data: ' . $e->getMessage());
+        }
+    }
 }
