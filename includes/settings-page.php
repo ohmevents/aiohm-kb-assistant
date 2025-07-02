@@ -185,6 +185,47 @@ class AIOHM_KB_Settings_Page {
             'aiohm_processing_section'
         );
     }
+
+    public static function handle_progressive_scan_ajax() {
+    // Verify nonce and permissions
+    if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
+        wp_die('Security check failed');
+    }
+    
+    try {
+        // Add additional error logging
+        AIOHM_KB_Core_Init::log('Starting progressive scan', 'info');
+        
+        // Validate and sanitize input parameters more strictly
+        $scan_type = sanitize_text_field($_POST['scan_type']);
+        $batch_size = min(intval($_POST['batch_size'] ?? 5), 20); // Limit batch size
+        $current_offset = intval($_POST['current_offset'] ?? 0);
+        
+        // Add memory usage logging
+        AIOHM_KB_Core_Init::log('Memory usage before scan: ' . memory_get_usage(true), 'debug');
+        
+        // Proceed with scan based on type
+        if ($scan_type === 'website') {
+            $crawler = new AIOHM_KB_Site_Crawler();
+            $results = $crawler->scan_website_with_progress($batch_size, $current_offset);
+        } elseif ($scan_type === 'uploads') {
+            $crawler = new AIOHM_KB_Uploads_Crawler();
+            $results = $crawler->scan_uploads_with_progress($batch_size, $current_offset);
+        } else {
+            throw new Exception('Invalid scan type: ' . $scan_type);
+        }
+        
+        // Add completion logging
+        AIOHM_KB_Core_Init::log('Scan batch completed successfully', 'info');
+        
+        wp_send_json_success($results);
+        
+    } catch (Exception $e) {
+        AIOHM_KB_Core_Init::log('Scan Error: ' . $e->getMessage(), 'error');
+        AIOHM_KB_Core_Init::log('Stack trace: ' . $e->getTraceAsString(), 'error');
+        wp_send_json_error('Scan failed: ' . $e->getMessage());
+    }
+}
     
     /**
      * Main settings page

@@ -36,8 +36,16 @@ class AIOHM_KB_Site_Crawler {
      * Process website content in batches with progress tracking
      */
     public function scan_website_with_progress($batch_size = 5, $current_offset = 0) {
-        $start_time = microtime(true);
-        
+    $start_time = microtime(true);
+    
+    // Clear object cache before scan
+    wp_cache_flush();
+    
+    // Implement garbage collection
+    gc_enable();
+    gc_collect_cycles();
+    
+    try {
         $total_posts = wp_count_posts('post')->publish;
         $total_pages = wp_count_posts('page')->publish;
         $total_items = $total_posts + $total_pages;
@@ -56,6 +64,54 @@ class AIOHM_KB_Site_Crawler {
                 'is_complete' => false
             )
         );
+        
+        // Calculate which content type to process based on offset
+        if ($current_offset < $total_posts) {
+            // Process posts
+            $posts = $this->get_posts_batch($batch_size, $current_offset);
+            $results['posts'] = $this->process_posts($posts);
+            $results['progress']['currently_scanning'] = 'Posts';
+            $results['total_processed'] = count($results['posts']);
+        } else {
+            // Process pages
+            $pages_offset = $current_offset - $total_posts;
+            $pages = $this->get_pages_batch($batch_size, $pages_offset);
+            $results['pages'] = $this->process_posts($pages);
+            $results['progress']['currently_scanning'] = 'Pages';
+            $results['total_processed'] = count($results['pages']);
+        }
+        
+        // Calculate progress
+        $new_offset = $current_offset + $results['total_processed'];
+        $results['progress']['current_offset'] = $new_offset;
+        $results['progress']['percentage'] = ($total_items > 0) ? round(($new_offset / $total_items) * 100, 1) : 100;
+        
+        // Calculate timing metrics
+        $elapsed_time = microtime(true) - $start_time;
+        if ($elapsed_time > 0 && $results['total_processed'] > 0) {
+            $items_per_second = $results['total_processed'] / $elapsed_time;
+            $remaining_items = $total_items - $new_offset;
+            
+            if ($items_per_second > 0) {
+                $estimated_seconds = $remaining_items / $items_per_second;
+                $results['progress']['estimated_time_remaining'] = $this->format_time_remaining($estimated_seconds);
+                $results['progress']['items_per_minute'] = round($items_per_second * 60);
+            }
+        }
+        
+        // Check if complete
+        $results['progress']['is_complete'] = ($new_offset >= $total_items);
+        
+        // Clean up
+        gc_collect_cycles();
+        
+        return $results;
+        
+    } catch (Exception $e) {
+        AIOHM_KB_Core_Init::log('Site crawler error: ' . $e->getMessage(), 'error');
+        throw $e;
+    }
+}
         
         // Calculate which content type to process based on offset
         if ($current_offset < $total_posts) {
