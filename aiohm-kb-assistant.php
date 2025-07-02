@@ -49,11 +49,10 @@ class AIOHM_KB_Assistant {
     }
     
     /**
-     * Constructor
+     * Constructor - Only set up hooks, don't load dependencies yet
      */
     private function __construct() {
         $this->init_hooks();
-        $this->load_dependencies();
     }
     
     /**
@@ -64,38 +63,105 @@ class AIOHM_KB_Assistant {
         register_deactivation_hook(__FILE__, array($this, 'deactivate'));
         register_uninstall_hook(__FILE__, array('AIOHM_KB_Assistant', 'uninstall'));
         
-        add_action('plugins_loaded', array($this, 'init'));
-        add_action('init', array($this, 'load_textdomain'));
+        // Load dependencies after WordPress is fully loaded
+        add_action('plugins_loaded', array($this, 'load_dependencies'), 10);
+        
+        // Initialize plugin after dependencies are loaded
+        add_action('init', array($this, 'init_plugin'), 10);
+        
+        // Load textdomain
+        add_action('init', array($this, 'load_textdomain'), 5);
     }
     
     /**
-     * Load plugin dependencies
+     * Load plugin dependencies - Called on 'plugins_loaded'
      */
-    private function load_dependencies() {
-        require_once AIOHM_KB_INCLUDES_DIR . 'core-init.php';
-        require_once AIOHM_KB_INCLUDES_DIR . 'crawler-site.php';
-        require_once AIOHM_KB_INCLUDES_DIR . 'crawler-uploads.php';
-        require_once AIOHM_KB_INCLUDES_DIR . 'rag-engine.php';
-        require_once AIOHM_KB_INCLUDES_DIR . 'ai-gpt-client.php';
-        require_once AIOHM_KB_INCLUDES_DIR . 'settings-page.php';
-        require_once AIOHM_KB_INCLUDES_DIR . 'aiohm-kb-manager.php';
-        require_once AIOHM_KB_INCLUDES_DIR . 'shortcode-chat.php';
-        require_once AIOHM_KB_INCLUDES_DIR . 'shortcode-search.php';
-        require_once AIOHM_KB_INCLUDES_DIR . 'chat-box.php';
-        require_once AIOHM_KB_INCLUDES_DIR . 'frontend-widget.php';
+    public function load_dependencies() {
+        // Check if files exist before loading
+        $required_files = array(
+            'core-init.php',
+            'rag-engine.php',
+            'ai-gpt-client.php'
+        );
+        
+        // Load required files first
+        foreach ($required_files as $file) {
+            $file_path = AIOHM_KB_INCLUDES_DIR . $file;
+            if (file_exists($file_path)) {
+                require_once $file_path;
+            } else {
+                add_action('admin_notices', function() use ($file) {
+                    echo '<div class="notice notice-error"><p>';
+                    echo sprintf(__('AIOHM KB Assistant: Required file %s is missing.', 'aiohm-kb-assistant'), $file);
+                    echo '</p></div>';
+                });
+                return false;
+            }
+        }
+        
+        // Load optional files (only if they exist)
+        $optional_files = array(
+            'settings-page.php',
+            'shortcode-chat.php',
+            'shortcode-search.php',
+            'frontend-widget.php',
+            'chat-box.php',
+            'crawler-site.php',
+            'crawler-uploads.php',
+            'aiohm-kb-manager.php'
+        );
+        
+        foreach ($optional_files as $file) {
+            $file_path = AIOHM_KB_INCLUDES_DIR . $file;
+            if (file_exists($file_path)) {
+                require_once $file_path;
+            }
+        }
+        
+        // Load ARMember integration if ARMember is active
+        if (class_exists('ARMemberLite')) {
+            $armember_file = AIOHM_KB_INCLUDES_DIR . 'armember-integration.php';
+            if (file_exists($armember_file)) {
+                require_once $armember_file;
+            }
+        }
+        
+        return true;
     }
     
     /**
-     * Initialize plugin
+     * Initialize plugin - Called on 'init'
      */
-    public function init() {
+    public function init_plugin() {
+        // Only initialize if core class exists
+        if (!class_exists('AIOHM_KB_Core_Init')) {
+            return;
+        }
+        
         // Initialize core components
         AIOHM_KB_Core_Init::init();
-        AIOHM_KB_Settings_Page::init();
-        AIOHM_KB_Manager::init();
-        AIOHM_KB_Shortcode_Chat::init();
-        AIOHM_KB_Shortcode_Search::init();
-        AIOHM_KB_Frontend_Widget::init();
+        
+        // Initialize other components if they exist
+        if (class_exists('AIOHM_KB_Settings_Page')) {
+            AIOHM_KB_Settings_Page::init();
+        }
+        
+        if (class_exists('AIOHM_KB_Shortcode_Chat')) {
+            AIOHM_KB_Shortcode_Chat::init();
+        }
+        
+        if (class_exists('AIOHM_KB_Shortcode_Search')) {
+            AIOHM_KB_Shortcode_Search::init();
+        }
+        
+        if (class_exists('AIOHM_KB_Frontend_Widget')) {
+            AIOHM_KB_Frontend_Widget::init();
+        }
+        
+        // Initialize ARMember integration if available
+        if (class_exists('ARMemberLite') && class_exists('AIOHM_KB_ARMember_Integration')) {
+            AIOHM_KB_ARMember_Integration::init();
+        }
     }
     
     /**
@@ -117,6 +183,9 @@ class AIOHM_KB_Assistant {
         
         // Flush rewrite rules
         flush_rewrite_rules();
+        
+        // Set activation notice
+        set_transient('aiohm_kb_activation_notice', true, 30);
     }
     
     /**
@@ -125,6 +194,7 @@ class AIOHM_KB_Assistant {
     public function deactivate() {
         // Clean up scheduled events
         wp_clear_scheduled_hook('aiohm_kb_cleanup');
+        wp_clear_scheduled_hook('aiohm_sync_armember_users');
         
         // Flush rewrite rules
         flush_rewrite_rules();
@@ -142,6 +212,24 @@ class AIOHM_KB_Assistant {
         
         // Remove user meta
         delete_metadata('user', 0, 'aiohm_kb_preferences', '', true);
+        
+        // Drop custom tables
+        global $wpdb;
+        $tables = array(
+            $wpdb->prefix . 'aiohm_vector_entries',
+            $wpdb->prefix . 'aiohm_chat_history',
+            $wpdb->prefix . 'aiohm_response_ratings',
+            $wpdb->prefix . 'aiohm_logs',
+            $wpdb->prefix . 'aiohm_error_logs'
+        );
+        
+        foreach ($tables as $table) {
+            $wpdb->query("DROP TABLE IF EXISTS {$table}");
+        }
+        
+        // Clear scheduled events
+        wp_clear_scheduled_hook('aiohm_kb_cleanup');
+        wp_clear_scheduled_hook('aiohm_sync_armember_users');
     }
     
     /**
@@ -169,8 +257,73 @@ class AIOHM_KB_Assistant {
             KEY content_type (content_type)
         ) $charset_collate;";
         
+        // Chat history table
+        $chat_table = $wpdb->prefix . 'aiohm_chat_history';
+        $chat_sql = "CREATE TABLE $chat_table (
+            id int(11) NOT NULL AUTO_INCREMENT,
+            user_id int(11) NOT NULL,
+            conversation_id varchar(255),
+            message longtext,
+            response longtext,
+            context_used longtext,
+            timestamp datetime DEFAULT CURRENT_TIMESTAMP,
+            ip_address varchar(45),
+            user_agent text,
+            PRIMARY KEY (id),
+            KEY user_id (user_id),
+            KEY conversation_id (conversation_id),
+            KEY timestamp (timestamp)
+        ) $charset_collate;";
+        
+        // Response ratings table
+        $ratings_table = $wpdb->prefix . 'aiohm_response_ratings';
+        $ratings_sql = "CREATE TABLE $ratings_table (
+            id int(11) NOT NULL AUTO_INCREMENT,
+            chat_id varchar(255),
+            user_id int(11),
+            rating varchar(20),
+            feedback text,
+            timestamp datetime DEFAULT CURRENT_TIMESTAMP,
+            ip_address varchar(45),
+            PRIMARY KEY (id),
+            KEY user_id (user_id),
+            KEY rating (rating)
+        ) $charset_collate;";
+        
+        // Logs table
+        $logs_table = $wpdb->prefix . 'aiohm_logs';
+        $logs_sql = "CREATE TABLE $logs_table (
+            id int(11) NOT NULL AUTO_INCREMENT,
+            level varchar(20),
+            message text,
+            timestamp datetime DEFAULT CURRENT_TIMESTAMP,
+            user_id int(11),
+            ip_address varchar(45),
+            PRIMARY KEY (id),
+            KEY level (level),
+            KEY timestamp (timestamp)
+        ) $charset_collate;";
+        
+        // Error logs table
+        $error_table = $wpdb->prefix . 'aiohm_error_logs';
+        $error_sql = "CREATE TABLE $error_table (
+            id int(11) NOT NULL AUTO_INCREMENT,
+            type varchar(50),
+            message text,
+            user_id int(11),
+            user_message text,
+            timestamp datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY type (type),
+            KEY timestamp (timestamp)
+        ) $charset_collate;";
+        
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+        dbDelta($chat_sql);
+        dbDelta($ratings_sql);
+        dbDelta($logs_sql);
+        dbDelta($error_sql);
     }
     
     /**
@@ -186,7 +339,16 @@ class AIOHM_KB_Assistant {
             'max_tokens' => 150,
             'temperature' => 0.7,
             'chunk_size' => 1000,
-            'chunk_overlap' => 200
+            'chunk_overlap' => 200,
+            'rate_limit_requests' => 60,
+            'rate_limit_window' => 3600,
+            'auto_sync_armember' => false,
+            'enable_chat_history' => true,
+            'enable_response_rating' => true,
+            'show_upgrade_prompts' => true,
+            'max_chat_history' => 100,
+            'cleanup_old_chats' => true,
+            'chat_retention_days' => 30
         );
         
         if (!get_option('aiohm_kb_settings')) {
@@ -205,10 +367,12 @@ class AIOHM_KB_Assistant {
     }
 }
 
-// Initialize the plugin
-function aiohm_kb_assistant() {
-    return AIOHM_KB_Assistant::get_instance();
+// Initialize the plugin only if WordPress is loaded
+if (defined('ABSPATH')) {
+    function aiohm_kb_assistant() {
+        return AIOHM_KB_Assistant::get_instance();
+    }
+    
+    // Start the plugin
+    aiohm_kb_assistant();
 }
-
-// Start the plugin
-aiohm_kb_assistant();

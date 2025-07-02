@@ -12,7 +12,7 @@ class AIOHM_KB_Uploads_Crawler {
     
     private $rag_engine;
     private $upload_dir;
-    private $supported_extensions = array('pdf', 'jpg', 'jpeg', 'png', 'gif', 'json');
+    private $supported_extensions = array('pdf', 'jpg', 'jpeg', 'png', 'gif', 'json', 'doc', 'docx', 'txt', 'csv');
     
     public function __construct() {
         $this->rag_engine = new AIOHM_KB_RAG_Engine();
@@ -76,6 +76,117 @@ class AIOHM_KB_Uploads_Crawler {
     }
     
     /**
+     * Scan upload folder in batches with progress tracking
+     */
+    public function scan_uploads_with_progress($batch_size = 5, $current_offset = 0) {
+        $start_time = microtime(true);
+        
+        // Get all supported files
+        $all_files = $this->get_supported_files();
+        $total_items = count($all_files);
+        
+        $results = array(
+            'files' => array(),
+            'total_processed' => 0,
+            'progress' => array(
+                'current_offset' => $current_offset,
+                'total_items' => $total_items,
+                'percentage' => 0,
+                'estimated_time_remaining' => 0,
+                'currently_scanning' => 'User uploads',
+                'items_per_minute' => 0,
+                'is_complete' => false
+            )
+        );
+        
+        // Get batch of files to process
+        $files_to_process = array_slice($all_files, $current_offset, $batch_size);
+        
+        // Process files
+        foreach ($files_to_process as $file_path) {
+            try {
+                $file_data = $this->process_file($file_path);
+                
+                if ($file_data && !empty($file_data['content'])) {
+                    // Add to vector database
+                    $entry_id = $this->rag_engine->add_entry(
+                        $file_data['content'],
+                        $file_data['type'],
+                        $file_data['title'],
+                        $file_data['metadata']
+                    );
+                    
+                    $results['files'][] = array(
+                        'file_path' => $file_path,
+                        'file_name' => basename($file_path),
+                        'title' => $file_data['title'],
+                        'type' => $file_data['type'],
+                        'content_length' => strlen($file_data['content']),
+                        'entry_id' => $entry_id,
+                        'status' => 'success'
+                    );
+                } else {
+                    $results['files'][] = array(
+                        'file_path' => $file_path,
+                        'file_name' => basename($file_path),
+                        'status' => 'skipped',
+                        'reason' => 'No extractable content'
+                    );
+                }
+            } catch (Exception $e) {
+                AIOHM_KB_Core_Init::log('Error processing file ' . $file_path . ': ' . $e->getMessage(), 'error');
+                
+                $results['files'][] = array(
+                    'file_path' => $file_path,
+                    'file_name' => basename($file_path),
+                    'status' => 'error',
+                    'error' => $e->getMessage()
+                );
+            }
+        }
+        
+        $results['total_processed'] = count($results['files']);
+        
+        // Calculate progress
+        $new_offset = $current_offset + $results['total_processed'];
+        $results['progress']['current_offset'] = $new_offset;
+        $results['progress']['percentage'] = ($total_items > 0) ? round(($new_offset / $total_items) * 100, 1) : 100;
+        
+        // Calculate timing metrics
+        $elapsed_time = microtime(true) - $start_time;
+        if ($elapsed_time > 0 && $results['total_processed'] > 0) {
+            $items_per_second = $results['total_processed'] / $elapsed_time;
+            $remaining_items = $total_items - $new_offset;
+            
+            if ($items_per_second > 0) {
+                $estimated_seconds = $remaining_items / $items_per_second;
+                $results['progress']['estimated_time_remaining'] = $this->format_time_remaining($estimated_seconds);
+                $results['progress']['items_per_minute'] = round($items_per_second * 60);
+            }
+        }
+        
+        // Check if complete
+        $results['progress']['is_complete'] = ($new_offset >= $total_items);
+        
+        return $results;
+    }
+    
+    /**
+     * Format time remaining in human-readable format
+     */
+    private function format_time_remaining($seconds) {
+        if ($seconds < 60) {
+            return round($seconds) . ' seconds';
+        } elseif ($seconds < 3600) {
+            return round($seconds / 60, 1) . ' minutes';
+        } else {
+            $hours = floor($seconds / 3600);
+            $minutes = round(($seconds % 3600) / 60);
+            return $hours . ' hours ' . $minutes . ' minutes';
+        }
+    }
+    
+    /**
      * Get all supported files from upload directory
      */
     private function get_supported_files() {
@@ -84,16 +195,45 @@ class AIOHM_KB_Uploads_Crawler {
             new RecursiveDirectoryIterator($this->upload_dir, RecursiveDirectoryIterator::SKIP_DOTS)
         );
         
+        // List of directories to exclude (plugin directories)
+        $excluded_dirs = array(
+            'plugins',
+            'cache',
+            'upgrade',
+            'woocommerce_uploads',
+            'elementor',
+            'backups',
+            'wp-content/uploads/cache'
+        );
+        
         foreach ($iterator as $file) {
             if ($file->isFile()) {
                 $extension = strtolower($file->getExtension());
-                if (in_array($extension, $this->supported_extensions)) {
-                    $files[] = $file->getPathname();
+                $path = $file->getPathname();
+                
+                // Skip files in excluded directories
+                $skip = false;
+                foreach ($excluded_dirs as $dir) {
+                    if (strpos($path, '/' . $dir . '/') !== false) {
+                        $skip = true;
+                        break;
+                    }
+                }
+                
+                if (!$skip && in_array($extension, $this->supported_extensions)) {
+                    $files[] = $path;
                 }
             }
         }
         
         return $files;
+    }
+    
+    /**
+     * Count total number of supported files
+     */
+    public function count_supported_files() {
+        return count($this->get_supported_files());
     }
     
     /**
@@ -115,6 +255,16 @@ class AIOHM_KB_Uploads_Crawler {
         switch ($extension) {
             case 'pdf':
                 return $this->process_pdf($file_path, $file_name, $base_metadata);
+            
+            case 'doc':
+            case 'docx':
+                return $this->process_doc($file_path, $file_name, $base_metadata);
+                
+            case 'txt':
+                return $this->process_txt($file_path, $file_name, $base_metadata);
+                
+            case 'csv':
+                return $this->process_csv($file_path, $file_name, $base_metadata);
             
             case 'jpg':
             case 'jpeg':
@@ -160,6 +310,143 @@ class AIOHM_KB_Uploads_Crawler {
             
         } catch (Exception $e) {
             AIOHM_KB_Core_Init::log('PDF processing error: ' . $e->getMessage(), 'error');
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Process Word documents
+     */
+    private function process_doc($file_path, $file_name, $metadata) {
+        try {
+            // Simple text extraction for DOC/DOCX
+            // This is a placeholder - ideally use a library like PHPWord
+            $content = '';
+            
+            if (class_exists('ZipArchive') && $metadata['mime_type'] === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                // DOCX is a ZIP file, we can extract document.xml
+                $zip = new ZipArchive();
+                if ($zip->open($file_path) === TRUE) {
+                    // Extract the main content
+                    if (($index = $zip->locateName('word/document.xml')) !== false) {
+                        $content_xml = $zip->getFromIndex($index);
+                        // Remove XML tags to get plain text
+                        $content = strip_tags($content_xml);
+                    }
+                    $zip->close();
+                }
+            }
+            
+            // If no content extracted, try exec methods if available
+            if (empty($content) && function_exists('exec')) {
+                // Try using external tools like catdoc or antiword
+                exec('catdoc "' . escapeshellarg($file_path) . '" 2>/dev/null', $output);
+                if (!empty($output)) {
+                    $content = implode("\n", $output);
+                }
+            }
+            
+            if (!empty($content)) {
+                // Clean and normalize content
+                $content = $this->clean_text($content);
+                
+                return array(
+                    'content' => $content,
+                    'type' => 'document',
+                    'title' => $file_name,
+                    'metadata' => $metadata
+                );
+            }
+            
+        } catch (Exception $e) {
+            AIOHM_KB_Core_Init::log('DOC processing error: ' . $e->getMessage(), 'error');
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Process TXT files
+     */
+    private function process_txt($file_path, $file_name, $metadata) {
+        try {
+            $content = file_get_contents($file_path);
+            
+            if (!empty($content)) {
+                // Clean and normalize content
+                $content = $this->clean_text($content);
+                
+                return array(
+                    'content' => $content,
+                    'type' => 'text',
+                    'title' => $file_name,
+                    'metadata' => $metadata
+                );
+            }
+            
+        } catch (Exception $e) {
+            AIOHM_KB_Core_Init::log('TXT processing error: ' . $e->getMessage(), 'error');
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Process CSV files
+     */
+    private function process_csv($file_path, $file_name, $metadata) {
+        try {
+            // Read CSV file
+            $csv_data = array();
+            if (($handle = fopen($file_path, "r")) !== FALSE) {
+                // Get headers
+                $headers = fgetcsv($handle);
+                
+                // Read data
+                while (($data = fgetcsv($handle)) !== FALSE) {
+                    $row = array();
+                    foreach ($data as $key => $value) {
+                        $header = isset($headers[$key]) ? $headers[$key] : "Column " . ($key + 1);
+                        $row[$header] = $value;
+                    }
+                    $csv_data[] = $row;
+                }
+                fclose($handle);
+            }
+            
+            // Convert CSV data to text
+            $content = '';
+            if (!empty($headers)) {
+                $content .= "CSV Headers: " . implode(", ", $headers) . "\n\n";
+            }
+            
+            foreach ($csv_data as $row_index => $row) {
+                $content .= "Row " . ($row_index + 1) . ":\n";
+                foreach ($row as $header => $value) {
+                    $content .= $header . ": " . $value . "\n";
+                }
+                $content .= "\n";
+            }
+            
+            if (!empty($content)) {
+                // Clean and normalize content
+                $content = $this->clean_text($content);
+                
+                return array(
+                    'content' => $content,
+                    'type' => 'csv',
+                    'title' => $file_name,
+                    'metadata' => array_merge($metadata, array(
+                        'row_count' => count($csv_data),
+                        'column_count' => count($headers),
+                        'headers' => $headers
+                    ))
+                );
+            }
+            
+        } catch (Exception $e) {
+            AIOHM_KB_Core_Init::log('CSV processing error: ' . $e->getMessage(), 'error');
         }
         
         return null;

@@ -16,8 +16,8 @@ class AIOHM_KB_RAG_Engine {
     
     public function __construct() {
         $settings = AIOHM_KB_Core_Init::get_settings();
-        $this->chunk_size = $settings['chunk_size'];
-        $this->chunk_overlap = $settings['chunk_overlap'];
+        $this->chunk_size = isset($settings['chunk_size']) ? $settings['chunk_size'] : 1000;
+        $this->chunk_overlap = isset($settings['chunk_overlap']) ? $settings['chunk_overlap'] : 200;
         $this->load_vector_entries();
     }
     
@@ -112,7 +112,7 @@ class AIOHM_KB_RAG_Engine {
         $this->vector_entries[$entry_id]['original_content'] = $content;
         $this->vector_entries[$entry_id]['chunks'] = $embedded_chunks;
         $this->vector_entries[$entry_id]['metadata'] = array_merge(
-            $this->vector_entries[$entry_id]['metadata'],
+            isset($this->vector_entries[$entry_id]['metadata']) ? $this->vector_entries[$entry_id]['metadata'] : array(),
             $metadata
         );
         $this->vector_entries[$entry_id]['updated_at'] = current_time('mysql');
@@ -143,7 +143,7 @@ class AIOHM_KB_RAG_Engine {
      * Find relevant context for a query
      */
     public function find_relevant_context($query, $max_results = 5, $similarity_threshold = 0.7) {
-        if (empty($this->vector_entries)) {
+        if (empty($this->vector_entries) || !is_array($this->vector_entries)) {
             return array();
         }
         
@@ -154,18 +154,26 @@ class AIOHM_KB_RAG_Engine {
         
         // Search through all chunks
         foreach ($this->vector_entries as $entry_id => $entry) {
+            if (!isset($entry['chunks']) || !is_array($entry['chunks'])) {
+                continue;
+            }
+            
             foreach ($entry['chunks'] as $chunk) {
+                if (!isset($chunk['embedding'])) {
+                    continue;
+                }
+                
                 $similarity = $this->calculate_similarity($query_embedding, $chunk['embedding']);
                 
                 if ($similarity >= $similarity_threshold) {
                     $results[] = array(
                         'entry_id' => $entry_id,
-                        'title' => $entry['title'],
-                        'content' => $chunk['content'],
-                        'content_type' => $entry['content_type'],
+                        'title' => isset($entry['title']) ? $entry['title'] : '',
+                        'content' => isset($chunk['content']) ? $chunk['content'] : '',
+                        'content_type' => isset($entry['content_type']) ? $entry['content_type'] : '',
                         'similarity' => $similarity,
-                        'metadata' => $entry['metadata'],
-                        'chunk_index' => $chunk['chunk_index']
+                        'metadata' => isset($entry['metadata']) ? $entry['metadata'] : array(),
+                        'chunk_index' => isset($chunk['chunk_index']) ? $chunk['chunk_index'] : 0
                     );
                 }
             }
@@ -318,7 +326,7 @@ class AIOHM_KB_RAG_Engine {
      * Calculate cosine similarity between two embeddings
      */
     private function calculate_similarity($embedding1, $embedding2) {
-        if (count($embedding1) !== count($embedding2)) {
+        if (!is_array($embedding1) || !is_array($embedding2) || count($embedding1) !== count($embedding2)) {
             return 0.0;
         }
         
@@ -348,7 +356,15 @@ class AIOHM_KB_RAG_Engine {
     public function generate_qa_dataset() {
         $qa_pairs = array();
         
+        if (!is_array($this->vector_entries) || empty($this->vector_entries)) {
+            return $qa_pairs;
+        }
+        
         foreach ($this->vector_entries as $entry) {
+            if (!isset($entry['original_content'])) {
+                continue;
+            }
+            
             $content = $entry['original_content'];
             
             // Extract potential questions from content
@@ -364,8 +380,8 @@ class AIOHM_KB_RAG_Engine {
                     $qa_pairs[] = array(
                         'question' => $question,
                         'answer' => $answer,
-                        'source_title' => $entry['title'],
-                        'source_type' => $entry['content_type'],
+                        'source_title' => isset($entry['title']) ? $entry['title'] : '',
+                        'source_type' => isset($entry['content_type']) ? $entry['content_type'] : '',
                         'confidence' => $relevant_chunks[0]['similarity']
                     );
                 }
@@ -418,22 +434,28 @@ class AIOHM_KB_RAG_Engine {
      */
     public function export_knowledge_base() {
         $export_data = array(
-            'version' => AIOHM_KB_VERSION,
+            'version' => defined('AIOHM_KB_VERSION') ? AIOHM_KB_VERSION : '1.0',
             'exported_at' => current_time('mysql'),
-            'total_entries' => count($this->vector_entries),
+            'total_entries' => is_array($this->vector_entries) ? count($this->vector_entries) : 0,
             'entries' => array()
         );
         
-        foreach ($this->vector_entries as $entry) {
-            $export_data['entries'][] = array(
-                'id' => $entry['id'],
-                'title' => $entry['title'],
-                'content_type' => $entry['content_type'],
-                'content' => $entry['original_content'],
-                'metadata' => $entry['metadata'],
-                'created_at' => $entry['created_at'],
-                'chunk_count' => count($entry['chunks'])
-            );
+        if (!empty($this->vector_entries) && is_array($this->vector_entries)) {
+            foreach ($this->vector_entries as $entry) {
+                $chunks = isset($entry['chunks']) && (is_array($entry['chunks']) || $entry['chunks'] instanceof Countable) 
+                    ? $entry['chunks'] 
+                    : array();
+                    
+                $export_data['entries'][] = array(
+                    'id' => isset($entry['id']) ? $entry['id'] : '',
+                    'title' => isset($entry['title']) ? $entry['title'] : '',
+                    'content_type' => isset($entry['content_type']) ? $entry['content_type'] : '',
+                    'content' => isset($entry['original_content']) ? $entry['original_content'] : '',
+                    'metadata' => isset($entry['metadata']) ? $entry['metadata'] : array(),
+                    'created_at' => isset($entry['created_at']) ? $entry['created_at'] : current_time('mysql'),
+                    'chunk_count' => is_array($chunks) ? count($chunks) : 0
+                );
+            }
         }
         
         return $export_data;
@@ -444,36 +466,43 @@ class AIOHM_KB_RAG_Engine {
      */
     public function get_stats() {
         $stats = array(
-            'total_entries' => count($this->vector_entries),
+            'total_entries' => is_array($this->vector_entries) ? count($this->vector_entries) : 0,
             'total_chunks' => 0,
             'by_type' => array(),
             'total_content_length' => 0,
             'average_chunks_per_entry' => 0
         );
         
-        foreach ($this->vector_entries as $entry) {
-            $chunk_count = count($entry['chunks']);
-            $content_length = strlen($entry['original_content']);
-            
-            $stats['total_chunks'] += $chunk_count;
-            $stats['total_content_length'] += $content_length;
-            
-            $type = $entry['content_type'];
-            if (!isset($stats['by_type'][$type])) {
-                $stats['by_type'][$type] = array(
-                    'count' => 0,
-                    'chunks' => 0,
-                    'content_length' => 0
-                );
+        if (!empty($this->vector_entries) && is_array($this->vector_entries)) {
+            foreach ($this->vector_entries as $entry) {
+                // Check if chunks array exists and is countable
+                $chunks = isset($entry['chunks']) && (is_array($entry['chunks']) || $entry['chunks'] instanceof Countable) 
+                    ? $entry['chunks'] 
+                    : array();
+                    
+                $chunk_count = is_array($chunks) ? count($chunks) : 0;
+                $content_length = isset($entry['original_content']) ? strlen($entry['original_content']) : 0;
+                
+                $stats['total_chunks'] += $chunk_count;
+                $stats['total_content_length'] += $content_length;
+                
+                $type = isset($entry['content_type']) ? $entry['content_type'] : 'unknown';
+                if (!isset($stats['by_type'][$type])) {
+                    $stats['by_type'][$type] = array(
+                        'count' => 0,
+                        'chunks' => 0,
+                        'content_length' => 0
+                    );
+                }
+                
+                $stats['by_type'][$type]['count']++;
+                $stats['by_type'][$type]['chunks'] += $chunk_count;
+                $stats['by_type'][$type]['content_length'] += $content_length;
             }
             
-            $stats['by_type'][$type]['count']++;
-            $stats['by_type'][$type]['chunks'] += $chunk_count;
-            $stats['by_type'][$type]['content_length'] += $content_length;
-        }
-        
-        if ($stats['total_entries'] > 0) {
-            $stats['average_chunks_per_entry'] = $stats['total_chunks'] / $stats['total_entries'];
+            if ($stats['total_entries'] > 0) {
+                $stats['average_chunks_per_entry'] = $stats['total_chunks'] / $stats['total_entries'];
+            }
         }
         
         return $stats;

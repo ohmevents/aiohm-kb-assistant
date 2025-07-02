@@ -8,6 +8,45 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Add this to your settings_page() method in the sidebar
+echo '<div class="aiohm-widget">
+    <h3>' . __('ARMember Integration', 'aiohm-kb-assistant') . '</h3>
+    <p>' . __('Sync user membership data with knowledge base access levels.', 'aiohm-kb-assistant') . '</p>
+    <button type="button" class="button" id="sync-armember-users">
+        ' . __('Sync All Users', 'aiohm-kb-assistant') . '
+    </button>
+    <div id="armember-sync-results"></div>
+</div>';
+
+// Add JavaScript for sync functionality
+echo '<script>
+jQuery(document).ready(function($) {
+    $("#sync-armember-users").click(function() {
+        var $btn = $(this);
+        var $results = $("#armember-sync-results");
+        
+        $btn.prop("disabled", true).text("' . __('Syncing...', 'aiohm-kb-assistant') . '");
+        $results.html("<div class=\"notice notice-info\"><p>' . __('Syncing ARMember users...', 'aiohm-kb-assistant') . '</p></div>");
+        
+        $.post(ajaxurl, {
+            action: "aiohm_sync_armember_users",
+            nonce: "' . wp_create_nonce('aiohm_admin_nonce') . '"
+        }, function(response) {
+            if (response.success) {
+                $results.html("<div class=\"notice notice-success\"><p>" + response.data.message + "</p></div>");
+            } else {
+                $results.html("<div class=\"notice notice-error\"><p>" + response.data + "</p></div>");
+            }
+        }).fail(function() {
+            $results.html("<div class=\"notice notice-error\"><p>' . __('Sync failed', 'aiohm-kb-assistant') . '</p></div>");
+        }).always(function() {
+            $btn.prop("disabled", false).text("' . __('Sync All Users', 'aiohm-kb-assistant') . '");
+        });
+    });
+});
+</script>';
+
+
 class AIOHM_KB_Settings_Page {
     
     public static function init() {
@@ -16,6 +55,7 @@ class AIOHM_KB_Settings_Page {
         add_action('wp_ajax_aiohm_generate_qa', array(__CLASS__, 'generate_qa_ajax'));
         add_action('wp_ajax_aiohm_test_api', array(__CLASS__, 'test_api_ajax'));
         add_action('wp_ajax_aiohm_export_data', array(__CLASS__, 'export_data_ajax'));
+        add_action('wp_ajax_aiohm_progressive_scan', array(__CLASS__, 'handle_progressive_scan_ajax'));
     }
     
     /**
@@ -347,9 +387,30 @@ class AIOHM_KB_Settings_Page {
                         </div>
                     </div>
                     
-                    <button type="button" class="button button-primary" id="scan-website-btn">
+                    <button type="button" class="button button-primary" id="scan-website-btn" data-scan-type="website">
                         <?php _e('Scan Website Content', 'aiohm-kb-assistant'); ?>
                     </button>
+                    
+                    <div id="website-scan-progress" class="aiohm-scan-progress" style="display: none;">
+                        <div class="aiohm-progress-header">
+                            <h4><?php _e('Scan Progress', 'aiohm-kb-assistant'); ?></h4>
+                            <span class="aiohm-progress-percentage">0%</span>
+                        </div>
+                        <div class="aiohm-progress-bar-container">
+                            <div class="aiohm-progress-bar"></div>
+                        </div>
+                        <div class="aiohm-progress-details">
+                            <div class="aiohm-progress-status">
+                                <?php _e('Scanning:', 'aiohm-kb-assistant'); ?> <span class="aiohm-scanning-item"></span>
+                            </div>
+                            <div class="aiohm-progress-time">
+                                <?php _e('Estimated time remaining:', 'aiohm-kb-assistant'); ?> <span class="aiohm-time-remaining"></span>
+                            </div>
+                            <div class="aiohm-progress-speed">
+                                <?php _e('Processing speed:', 'aiohm-kb-assistant'); ?> <span class="aiohm-items-per-minute"></span> <?php _e('items/minute', 'aiohm-kb-assistant'); ?>
+                            </div>
+                        </div>
+                    </div>
                     
                     <div id="website-scan-results"></div>
                 </div>
@@ -375,9 +436,30 @@ class AIOHM_KB_Settings_Page {
                         </div>
                     </div>
                     
-                    <button type="button" class="button button-primary" id="scan-uploads-btn">
+                    <button type="button" class="button button-primary" id="scan-uploads-btn" data-scan-type="uploads">
                         <?php _e('Scan Upload Folder', 'aiohm-kb-assistant'); ?>
                     </button>
+                    
+                    <div id="uploads-scan-progress" class="aiohm-scan-progress" style="display: none;">
+                        <div class="aiohm-progress-header">
+                            <h4><?php _e('Scan Progress', 'aiohm-kb-assistant'); ?></h4>
+                            <span class="aiohm-progress-percentage">0%</span>
+                        </div>
+                        <div class="aiohm-progress-bar-container">
+                            <div class="aiohm-progress-bar"></div>
+                        </div>
+                        <div class="aiohm-progress-details">
+                            <div class="aiohm-progress-status">
+                                <?php _e('Scanning:', 'aiohm-kb-assistant'); ?> <span class="aiohm-scanning-item"></span>
+                            </div>
+                            <div class="aiohm-progress-time">
+                                <?php _e('Estimated time remaining:', 'aiohm-kb-assistant'); ?> <span class="aiohm-time-remaining"></span>
+                            </div>
+                            <div class="aiohm-progress-speed">
+                                <?php _e('Processing speed:', 'aiohm-kb-assistant'); ?> <span class="aiohm-items-per-minute"></span> <?php _e('items/minute', 'aiohm-kb-assistant'); ?>
+                            </div>
+                        </div>
+                    </div>
                     
                     <div id="uploads-scan-results"></div>
                 </div>
@@ -386,68 +468,101 @@ class AIOHM_KB_Settings_Page {
         
         <script>
         jQuery(document).ready(function($) {
-            // Scan website content
+            // Progressive scanning function
+            function startProgressiveScan(scanType) {
+                const batchSize = 5;
+                let currentOffset = 0;
+                let isComplete = false;
+                let progressId = '#' + scanType + '-scan-progress';
+                let resultsId = '#' + scanType + '-scan-results';
+                let buttonId = '#scan-' + scanType + '-btn';
+                
+                // Show progress bar
+                $(progressId).show();
+                $(resultsId).html('');
+                $(buttonId).prop('disabled', true).text('<?php _e('Scanning...', 'aiohm-kb-assistant'); ?>');
+                
+                // Function to process a batch
+                function processBatch() {
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'aiohm_progressive_scan',
+                            scan_type: scanType,
+                            batch_size: batchSize,
+                            current_offset: currentOffset,
+                            nonce: '<?php echo wp_create_nonce('aiohm_admin_nonce'); ?>'
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                // Update progress
+                                const progress = response.data.progress;
+                                const percentage = progress.percentage;
+                                
+                                // Update UI
+                                $(progressId + ' .aiohm-progress-percentage').text(percentage + '%');
+                                $(progressId + ' .aiohm-progress-bar').css('width', percentage + '%');
+                                $(progressId + ' .aiohm-scanning-item').text(progress.currently_scanning);
+                                $(progressId + ' .aiohm-time-remaining').text(progress.estimated_time_remaining);
+                                $(progressId + ' .aiohm-items-per-minute').text(progress.items_per_minute);
+                                
+                                // Update current offset and check if complete
+                                currentOffset = progress.current_offset;
+                                isComplete = progress.is_complete;
+                                
+                                // If not complete, process next batch
+                                if (!isComplete) {
+                                    processBatch();
+                                } else {
+                                    // Show completion message
+                                    let html = '<div class="notice notice-success"><p><?php _e('Scan completed successfully!', 'aiohm-kb-assistant'); ?></p>';
+                                    html += '<p><strong>Processed ' + currentOffset + ' items</strong></p>';
+                                    if (scanType === 'website') {
+                                        html += '<p>The website content has been indexed and is now available for the AI assistant.</p>';
+                                    } else {
+                                        html += '<p>The upload folder files have been indexed and are now available for the AI assistant.</p>';
+                                    }
+                                    html += '</div>';
+                                    
+                                    $(resultsId).html(html);
+                                    $(buttonId).prop('disabled', false).text(scanType === 'website' ? '<?php _e('Scan Website Content', 'aiohm-kb-assistant'); ?>' : '<?php _e('Scan Upload Folder', 'aiohm-kb-assistant'); ?>');
+                                    
+                                    // Hide progress after a delay
+                                    setTimeout(function() {
+                                        $(progressId).hide();
+                                        
+                                        // Refresh page to update stats
+                                        window.location.reload();
+                                    }, 3000);
+                                }
+                            } else {
+                                // Show error
+                                $(resultsId).html('<div class="notice notice-error"><p>' + response.data + '</p></div>');
+                                $(buttonId).prop('disabled', false).text(scanType === 'website' ? '<?php _e('Scan Website Content', 'aiohm-kb-assistant'); ?>' : '<?php _e('Scan Upload Folder', 'aiohm-kb-assistant'); ?>');
+                                $(progressId).hide();
+                            }
+                        },
+                        error: function() {
+                            $(resultsId).html('<div class="notice notice-error"><p><?php _e('Scan failed. Please try again.', 'aiohm-kb-assistant'); ?></p></div>');
+                            $(buttonId).prop('disabled', false).text(scanType === 'website' ? '<?php _e('Scan Website Content', 'aiohm-kb-assistant'); ?>' : '<?php _e('Scan Upload Folder', 'aiohm-kb-assistant'); ?>');
+                            $(progressId).hide();
+                        }
+                    });
+                }
+                
+                // Start the first batch
+                processBatch();
+            }
+            
+            // Scan website button click
             $('#scan-website-btn').click(function() {
-                var $btn = $(this);
-                var $results = $('#website-scan-results');
-                
-                $btn.prop('disabled', true).text('<?php _e('Scanning...', 'aiohm-kb-assistant'); ?>');
-                $results.html('<div class="notice notice-info"><p><?php _e('Scanning website content...', 'aiohm-kb-assistant'); ?></p></div>');
-                
-                $.post(ajaxurl, {
-                    action: 'aiohm_scan_content',
-                    scan_type: 'website',
-                    nonce: '<?php echo wp_create_nonce('aiohm_admin_nonce'); ?>'
-                }, function(response) {
-                    if (response.success) {
-                        var html = '<div class="notice notice-success"><p><?php _e('Website scan completed!', 'aiohm-kb-assistant'); ?></p>';
-                        html += '<p><strong>Processed ' + response.data.total_processed + ' items</strong></p>';
-                        html += '<ul>';
-                        html += '<li>Posts: ' + response.data.posts.length + '</li>';
-                        html += '<li>Pages: ' + response.data.pages.length + '</li>';
-                        html += '<li>Menus: ' + response.data.menus.length + '</li>';
-                        html += '</ul></div>';
-                        $results.html(html);
-                        
-                        // Refresh page to update stats
-                        setTimeout(function() {
-                            window.location.reload();
-                        }, 2000);
-                    } else {
-                        $results.html('<div class="notice notice-error"><p>' + response.data + '</p></div>');
-                    }
-                }).fail(function() {
-                    $results.html('<div class="notice notice-error"><p><?php _e('Scan failed', 'aiohm-kb-assistant'); ?></p></div>');
-                }).always(function() {
-                    $btn.prop('disabled', false).text('<?php _e('Scan Website Content', 'aiohm-kb-assistant'); ?>');
-                });
+                startProgressiveScan('website');
             });
             
-            // Scan uploads
+            // Scan uploads button click
             $('#scan-uploads-btn').click(function() {
-                var $btn = $(this);
-                var $results = $('#uploads-scan-results');
-                
-                $btn.prop('disabled', true).text('<?php _e('Scanning...', 'aiohm-kb-assistant'); ?>');
-                $results.html('<div class="notice notice-info"><p><?php _e('Scanning upload folder...', 'aiohm-kb-assistant'); ?></p></div>');
-                
-                $.post(ajaxurl, {
-                    action: 'aiohm_scan_content',
-                    scan_type: 'uploads',
-                    nonce: '<?php echo wp_create_nonce('aiohm_admin_nonce'); ?>'
-                }, function(response) {
-                    if (response.success) {
-                        var html = '<div class="notice notice-success"><p><?php _e('Upload folder scan completed!', 'aiohm-kb-assistant'); ?></p>';
-                        html += '<p><strong>Processed ' + response.data.length + ' files</strong></p></div>';
-                        $results.html(html);
-                    } else {
-                        $results.html('<div class="notice notice-error"><p>' + response.data + '</p></div>');
-                    }
-                }).fail(function() {
-                    $results.html('<div class="notice notice-error"><p><?php _e('Scan failed', 'aiohm-kb-assistant'); ?></p></div>');
-                }).always(function() {
-                    $btn.prop('disabled', false).text('<?php _e('Scan Upload Folder', 'aiohm-kb-assistant'); ?>');
-                });
+                startProgressiveScan('uploads');
             });
         });
         </script>
@@ -456,12 +571,14 @@ class AIOHM_KB_Settings_Page {
         .aiohm-scan-container {
             display: flex;
             gap: 30px;
+            margin-top: 20px;
         }
         .aiohm-scan-section {
             flex: 1;
             background: #fff;
             padding: 20px;
             border: 1px solid #ccd0d4;
+            border-radius: 4px;
         }
         .aiohm-stats {
             margin: 15px 0;
@@ -471,6 +588,44 @@ class AIOHM_KB_Settings_Page {
             padding: 8px;
             background: #f8f9fa;
             border-left: 3px solid #007cba;
+        }
+        .aiohm-scan-progress {
+            margin: 20px 0;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .aiohm-progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .aiohm-progress-header h4 {
+            margin: 0;
+        }
+        .aiohm-progress-percentage {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .aiohm-progress-bar-container {
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        .aiohm-progress-bar {
+            height: 100%;
+            background-color: #007cba;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .aiohm-progress-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            font-size: 13px;
         }
         #website-scan-results, #uploads-scan-results {
             margin-top: 15px;
@@ -488,7 +643,38 @@ class AIOHM_KB_Settings_Page {
         $manager->display_knowledge_base_page();
     }
     
-    // Settings field callbacks
+    /**
+     * Handle progressive scan AJAX
+     */
+    public static function handle_progressive_scan_ajax() {
+        // Verify nonce and permissions
+        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
+            wp_die('Security check failed');
+        }
+        
+        $scan_type = sanitize_text_field($_POST['scan_type']);
+        $batch_size = intval($_POST['batch_size'] ?? 5);
+        $current_offset = intval($_POST['current_offset'] ?? 0);
+        
+        try {
+            if ($scan_type === 'website') {
+                $crawler = new AIOHM_KB_Site_Crawler();
+                $results = $crawler->scan_website_with_progress($batch_size, $current_offset);
+            } elseif ($scan_type === 'uploads') {
+                $crawler = new AIOHM_KB_Uploads_Crawler();
+                $results = $crawler->scan_uploads_with_progress($batch_size, $current_offset);
+            } else {
+                throw new Exception('Invalid scan type');
+            }
+            
+            wp_send_json_success($results);
+            
+        } catch (Exception $e) {
+            AIOHM_KB_Core_Init::log('Scan Error: ' . $e->getMessage(), 'error');
+            wp_send_json_error('Scan failed: ' . $e->getMessage());
+        }
+    }
+// Settings field callbacks
     public static function api_section_callback() {
         echo '<p>' . __('Configure your AI API keys for chat functionality.', 'aiohm-kb-assistant') . '</p>';
     }
