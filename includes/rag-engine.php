@@ -20,103 +20,6 @@ class AIOHM_KB_RAG_Engine {
         $this->chunk_overlap = isset($settings['chunk_overlap']) ? $settings['chunk_overlap'] : 200;
         $this->load_vector_entries();
     }
-
-    private function save_vector_entries() {
-    global $wpdb;
-    
-    try {
-        $wpdb->query('START TRANSACTION');
-        
-        // Serialize vector entries for storage
-        $serialized_entries = maybe_serialize($this->vector_entries);
-        
-        // Use direct database update for better performance
-        $table_name = $wpdb->prefix . 'options';
-        $result = $wpdb->update(
-            $table_name,
-            array('option_value' => $serialized_entries),
-            array('option_name' => 'aiohm_vector_entries'),
-            array('%s'),
-            array('%s')
-        );
-        
-        if ($result !== false) {
-            $wpdb->query('COMMIT');
-            wp_cache_delete('aiohm_vector_entries', 'options');
-            return true;
-        } else {
-            throw new Exception('Failed to save vector entries');
-        }
-    } catch (Exception $e) {
-        $wpdb->query('ROLLBACK');
-        AIOHM_KB_Core_Init::log('Vector entry save failed: ' . $e->getMessage(), 'error');
-        return false;
-    }
-}
-
-public function add_entry($content, $content_type, $title, $metadata = array()) {
-    try {
-        // Generate unique entry ID
-        $entry_id = $this->generate_entry_id($content, $content_type, $title);
-        
-        // Check if entry already exists
-        if (isset($this->vector_entries[$entry_id])) {
-            return $this->update_entry($entry_id, $content, $content_type, $title, $metadata);
-        }
-        
-        // Chunk the content with error handling
-        $chunks = $this->chunk_content($content);
-        if (empty($chunks)) {
-            throw new Exception('Content chunking failed');
-        }
-        
-        // Generate embeddings for each chunk
-        $embedded_chunks = array();
-        foreach ($chunks as $chunk_index => $chunk) {
-            try {
-                $embedding = $this->generate_embedding($chunk);
-                
-                $embedded_chunks[] = array(
-                    'chunk_index' => $chunk_index,
-                    'content' => $chunk,
-                    'embedding' => $embedding,
-                    'length' => strlen($chunk)
-                );
-            } catch (Exception $e) {
-                AIOHM_KB_Core_Init::log('Embedding generation failed for chunk ' . $chunk_index, 'error');
-                continue;
-            }
-        }
-        
-        if (empty($embedded_chunks)) {
-            throw new Exception('No chunks could be embedded');
-        }
-        
-        // Store entry
-        $this->vector_entries[$entry_id] = array(
-            'id' => $entry_id,
-            'title' => $title,
-            'content_type' => $content_type,
-            'original_content' => $content,
-            'chunks' => $embedded_chunks,
-            'metadata' => $metadata,
-            'created_at' => current_time('mysql'),
-            'updated_at' => current_time('mysql')
-        );
-        
-        if (!$this->save_vector_entries()) {
-            throw new Exception('Failed to save vector entries');
-        }
-        
-        AIOHM_KB_Core_Init::log("Added entry: {$entry_id} with " . count($embedded_chunks) . " chunks");
-        
-        return $entry_id;
-        
-    } catch (Exception $e) {
-        AIOHM_KB_Core_Init::log('Entry addition failed: ' . $e->getMessage(), 'error');
-        throw $e;
-    }
-}
     
     /**
      * Load vector entries from database/options
@@ -126,58 +29,106 @@ public function add_entry($content, $content_type, $title, $metadata = array()) 
     }
     
     /**
-     * Save vector entries to database/options
+     * Save vector entries with transaction support
      */
     private function save_vector_entries() {
-        return update_option('aiohm_vector_entries', $this->vector_entries);
+        global $wpdb;
+        
+        try {
+            $wpdb->query('START TRANSACTION');
+            
+            // Serialize vector entries for storage
+            $serialized_entries = maybe_serialize($this->vector_entries);
+            
+            // Use direct database update for better performance
+            $table_name = $wpdb->prefix . 'options';
+            $result = $wpdb->update(
+                $table_name,
+                array('option_value' => $serialized_entries),
+                array('option_name' => 'aiohm_vector_entries'),
+                array('%s'),
+                array('%s')
+            );
+            
+            if ($result !== false) {
+                $wpdb->query('COMMIT');
+                wp_cache_delete('aiohm_vector_entries', 'options');
+                return true;
+            } else {
+                throw new Exception('Failed to save vector entries');
+            }
+        } catch (Exception $e) {
+            $wpdb->query('ROLLBACK');
+            AIOHM_KB_Core_Init::log('Vector entry save failed: ' . $e->getMessage(), 'error');
+            return false;
+        }
     }
     
     /**
-     * Add new entry to vector database
+     * Add entry with improved error handling
      */
     public function add_entry($content, $content_type, $title, $metadata = array()) {
-        // Generate unique entry ID
-        $entry_id = $this->generate_entry_id($content, $content_type, $title);
-        
-        // Check if entry already exists
-        if (isset($this->vector_entries[$entry_id])) {
-            // Update existing entry
-            return $this->update_entry($entry_id, $content, $content_type, $title, $metadata);
-        }
-        
-        // Chunk the content
-        $chunks = $this->chunk_content($content);
-        
-        // Generate embeddings for each chunk
-        $embedded_chunks = array();
-        foreach ($chunks as $chunk_index => $chunk) {
-            $embedding = $this->generate_embedding($chunk);
+        try {
+            // Generate unique entry ID
+            $entry_id = $this->generate_entry_id($content, $content_type, $title);
             
-            $embedded_chunks[] = array(
-                'chunk_index' => $chunk_index,
-                'content' => $chunk,
-                'embedding' => $embedding,
-                'length' => strlen($chunk)
+            // Check if entry already exists
+            if (isset($this->vector_entries[$entry_id])) {
+                return $this->update_entry($entry_id, $content, $content_type, $title, $metadata);
+            }
+            
+            // Chunk the content with error handling
+            $chunks = $this->chunk_content($content);
+            if (empty($chunks)) {
+                throw new Exception('Content chunking failed');
+            }
+            
+            // Generate embeddings for each chunk
+            $embedded_chunks = array();
+            foreach ($chunks as $chunk_index => $chunk) {
+                try {
+                    $embedding = $this->generate_embedding($chunk);
+                    
+                    $embedded_chunks[] = array(
+                        'chunk_index' => $chunk_index,
+                        'content' => $chunk,
+                        'embedding' => $embedding,
+                        'length' => strlen($chunk)
+                    );
+                } catch (Exception $e) {
+                    AIOHM_KB_Core_Init::log('Embedding generation failed for chunk ' . $chunk_index, 'error');
+                    continue;
+                }
+            }
+            
+            if (empty($embedded_chunks)) {
+                throw new Exception('No chunks could be embedded');
+            }
+            
+            // Store entry
+            $this->vector_entries[$entry_id] = array(
+                'id' => $entry_id,
+                'title' => $title,
+                'content_type' => $content_type,
+                'original_content' => $content,
+                'chunks' => $embedded_chunks,
+                'metadata' => $metadata,
+                'created_at' => current_time('mysql'),
+                'updated_at' => current_time('mysql')
             );
+            
+            if (!$this->save_vector_entries()) {
+                throw new Exception('Failed to save vector entries');
+            }
+            
+            AIOHM_KB_Core_Init::log("Added entry: {$entry_id} with " . count($embedded_chunks) . " chunks");
+            
+            return $entry_id;
+            
+        } catch (Exception $e) {
+            AIOHM_KB_Core_Init::log('Entry addition failed: ' . $e->getMessage(), 'error');
+            throw $e;
         }
-        
-        // Store entry
-        $this->vector_entries[$entry_id] = array(
-            'id' => $entry_id,
-            'title' => $title,
-            'content_type' => $content_type,
-            'original_content' => $content,
-            'chunks' => $embedded_chunks,
-            'metadata' => $metadata,
-            'created_at' => current_time('mysql'),
-            'updated_at' => current_time('mysql')
-        );
-        
-        $this->save_vector_entries();
-        
-        AIOHM_KB_Core_Init::log("Added entry: {$entry_id} with " . count($embedded_chunks) . " chunks");
-        
-        return $entry_id;
     }
     
     /**
