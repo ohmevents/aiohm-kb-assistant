@@ -9,9 +9,23 @@ if (!defined('ABSPATH')) {
 }
 
 class AIOHM_KB_Shortcode_Chat {
-    
+
     public static function init() {
         add_shortcode('aiohm_chat', array(__CLASS__, 'render_chat_shortcode'));
+
+        // Moved the floating chat setup here to ensure it runs on the 'init' hook
+        self::setup_floating_chat();
+    }
+
+    /**
+     * Checks settings and adds the floating chat hook if enabled.
+     * This is called from init() to run at the correct time.
+     */
+    public static function setup_floating_chat() {
+        $settings = AIOHM_KB_Core_Init::get_settings();
+        if (!empty($settings['show_floating_chat'])) {
+            add_action('wp_footer', array(__CLASS__, 'add_floating_chat'));
+        }
     }
     
     /**
@@ -216,10 +230,4 @@ class AIOHM_KB_Shortcode_Chat {
             echo self::render_floating_chat();
         }
     }
-}
-
-// Add floating chat to footer if enabled in settings
-$settings = AIOHM_KB_Core_Init::get_settings();
-if (!empty($settings['show_floating_chat'])) {
-    add_action('wp_footer', array('AIOHM_KB_Shortcode_Chat', 'add_floating_chat'));
 }
