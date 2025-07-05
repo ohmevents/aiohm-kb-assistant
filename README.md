@@ -1,149 +1,96 @@
-# AIOHM Knowledge Assistant WordPress Plugin
+# AIOHM - Knowledge Base Assistant
 
-**Version:** 1.0.0  
-**Author:** AIOHM Development Team  
+**Version:** 1.1.1  
+**Author:** AIOHM  
+**Author URI:** [https://aiohm.com](https://aiohm.com)  
 **WordPress Compatibility:** 5.0+  
 **PHP Compatibility:** 7.4+
 
-## Description
+Transform your WordPress site into an AI-powered expert. The AIOHM Knowledge Assistant scans your website's content and embeds it into a powerful knowledge base, allowing you to provide instant, accurate answers to your visitors through an interactive chat assistant.
 
-The AIOHM Knowledge Assistant is a powerful WordPress plugin that transforms your website into an intelligent knowledge base. It scans your content, creates vector embeddings, and provides AI-powered chat and search functionality to help visitors find information quickly and accurately.
+## How It Works
 
-## Features
+The AIOHM Knowledge Assistant makes it incredibly simple to build and deploy your own custom-trained AI:
 
-- **Intelligent Content Scanning**: Automatically crawls posts, pages, and navigation menus
-- **File Processing**: Supports PDF and image upload with OCR text extraction
-- **AI Integration**: Compatible with OpenAI GPT and Anthropic Claude models
-- **Vector Search**: Advanced semantic search using embeddings
-- **Chat Interface**: Interactive AI chat widget with shortcode support
-- **Search Functionality**: Instant search with content filtering
-- **Admin Dashboard**: Complete management interface for settings and knowledge base
+1.  **Scan Your Content**: Automatically crawl your posts, pages, and readable media library files (`.txt`, `.csv`, `.json`).
+2.  **Build the Knowledge Base**: With one click, add the scanned content to your AI's knowledge base. The plugin uses vector embeddings to capture the meaning of your content, not just keywords.
+3.  **Deploy the Chat**: Add the AI chat assistant to your site using a simple shortcode or enable the floating widget to provide help everywhere.
+
+## Core Features
+
+  * **AI-Powered Chat Assistant**: Provide intelligent, human-like conversation powered by your website's content.
+  * **Semantic Search Functionality**: Implements a powerful search engine that understands the *meaning* of a query, not just keywords.
+  * **Comprehensive Content Scanner**: Finds all published posts and pages, showing you what's already in the knowledge base and what's ready to be added.
+  * **Readable File Processing**: Indexes content from text-based files (`.json`, `.txt`, `.csv`) in your Media Library.
+  * **Membership Content Control**: Includes built-in integration for the **ARMember Lite** plugin. Filter knowledge and tailor AI responses based on a user's membership level.
+  * **Personal AI Brand Soul**: For users with an AIOHM Tribe account, a guided questionnaire helps define your brand's voice and story, creating a unique personality for your AI.
+  * **Knowledge Base Management**: Easily view, manage, and delete entries from your knowledge base. You can also export your global knowledge base to a JSON file for backup.
+  * **Powerful Admin Dashboard**: A central command center to manage settings, scan content, view your knowledge base, and access AIOHM membership features.
+  * **Easy Deployment with Shortcodes**: Place your chat and search interfaces anywhere with simple, customizable shortcodes.
 
 ## Installation
 
-### Method 1: WordPress Admin (Recommended)
-1. Download the plugin zip file
-2. Go to WordPress Admin → Plugins → Add New → Upload Plugin
-3. Choose the downloaded zip file and click "Install Now"
-4. Activate the plugin
-
-### Method 2: Manual Installation
-1. Extract the plugin files
-2. Upload the `aiohm-kb-assistant` folder to `/wp-content/plugins/`
-3. Go to WordPress Admin → Plugins
-4. Find "AIOHM Knowledge Assistant" and click "Activate"
+1.  Download the plugin `.zip` file from the marketplace.
+2.  In your WordPress dashboard, navigate to `Plugins` \> `Add New`.
+3.  Click `Upload Plugin` and select the `.zip` file you downloaded.
+4.  Click `Install Now` and then `Activate Plugin`.
 
 ## Configuration
 
-1. **Access Settings**: Go to WordPress Admin → AIOHM Settings
-2. **Add API Key**: Enter your OpenAI or Claude API key
-3. **Configure Models**: Select your preferred AI model and settings
-4. **Enable Features**: Turn on chat and search functionality
-5. **Scan Content**: Run initial content scan to build knowledge base
+After activation, you will see a new **AIOHM** menu in your WordPress dashboard.
 
-## Usage
+1.  **Go to `AIOHM` \> `Settings`**:
+      * Enter your **OpenAI API Key**. This is required for the AI to function.
+      * Customize the **Custom Instructions (System Prompt)** to give your AI its unique personality and instructions.
+2.  **Go to `AIOHM` \> `Scan Content`**:
+      * Click `Scan Website` to find all your posts and pages.
+      * Select the content you want to use and click `Add / Re-index Selected` to build your knowledge base.
+3.  **Deploy the Assistant**:
+      * Add the `[aiohm_chat]` or `[aiohm_search]` shortcode to any post or page.
 
-### Chat Widget
-Add the chat interface anywhere using shortcode:
+## Shortcode Usage
+
+### Chat Shortcode
+
 ```
-[aiohm_chat title="Ask me anything" height="400"]
+[aiohm_chat title="Ask Me Anything" placeholder="Type your question..." welcome_message="Hello! How can I help you today?"]
 ```
 
-### Search Functionality
-Add search functionality using shortcode:
+  * `title`: The text displayed in the chat header.
+  * `placeholder`: The placeholder text in the input field.
+  * `welcome_message`: An initial message from the bot.
+
+### Search Shortcode
+
 ```
-[aiohm_search placeholder="Search knowledge base..." max_results="10"]
+[aiohm_search placeholder="Search the knowledge base..." max_results="10"]
 ```
 
-### Floating Chat
-The plugin can automatically add a floating chat widget to your site. Enable this in the plugin settings.
+  * `placeholder`: The placeholder text in the search bar.
+  * `max_results`: The maximum number of results to display.
 
 ## Requirements
 
-- **WordPress**: 5.0 or higher
-- **PHP**: 7.4 or higher
-- **API Key**: OpenAI API key or Anthropic Claude API key
-- **Memory**: Minimum 128MB PHP memory limit
-- **Storage**: Adequate space for vector embeddings storage
+  - WordPress 5.0 or higher
+  - PHP 7.4 or higher
+  - An active OpenAI API Key
+  - Minimum 128MB PHP memory limit
 
-## API Keys Setup
+## Support
 
-### OpenAI API Key
-1. Visit [OpenAI Platform](https://platform.openai.com/)
-2. Create an account or sign in
-3. Go to API Keys section
-4. Generate a new secret key
-5. Add the key to plugin settings
-
-### Anthropic Claude API Key
-1. Visit [Anthropic Console](https://console.anthropic.com/)
-2. Create an account or sign in
-3. Go to API Keys section
-4. Generate a new API key
-5. Add the key to plugin settings
-
-## File Structure
-
-```
-aiohm-kb-assistant/
-├── aiohm-kb-assistant.php          # Main plugin file
-├── includes/
-│   ├── core-init.php               # Core initialization
-│   ├── crawler-site.php            # Website content crawler
-│   ├── crawler-uploads.php         # File upload crawler
-│   ├── rag-engine.php              # Vector embeddings engine
-│   ├── ai-gpt-client.php           # AI API integration
-│   ├── settings-page.php           # Admin settings page
-│   ├── aiohm-kb-manager.php        # Knowledge base manager
-│   ├── shortcode-chat.php          # Chat shortcode handler
-│   ├── shortcode-search.php        # Search shortcode handler
-│   ├── chat-box.php                # Chat UI components
-│   └── frontend-widget.php         # Frontend assets
-└── assets/
-    ├── js/aiohm-chat.js            # Chat JavaScript
-    └── css/aiohm-chat.css          # Plugin styling
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**Plugin doesn't activate**
-- Check PHP version (7.4+ required)
-- Verify WordPress version (5.0+ required)
-- Check for plugin conflicts
-
-**Chat not working**
-- Verify API key is correctly entered
-- Check API key permissions
-- Ensure sufficient API credits
-
-**Search returns no results**
-- Run content scan from plugin settings
-- Check if content indexing completed
-- Verify database permissions
-
-### Support
-
-For technical support and documentation:
-- Check plugin settings page for status indicators
-- Review WordPress error logs for detailed error messages
-- Ensure API keys have proper permissions and credits
+For technical support or questions, please visit our official website at [aiohm.com](https://aiohm.com).
 
 ## Changelog
 
-### Version 1.0.0
-- Initial release
-- Core chat and search functionality
-- OpenAI and Claude API integration
-- Content scanning and vector embeddings
-- Admin dashboard and settings
-- Shortcode support
+**Version 1.2.0**
+
+  - New professional README for marketplace.
+  - Minor bug fixes and stability improvements.
+
+**Version 1.0.0**
+
+  - Initial release.
 
 ## License
 
 This plugin is proprietary software developed by AIOHM. All rights reserved.
-
-## Credits
-
-Developed with modern WordPress standards and best practices for optimal performance and security.
