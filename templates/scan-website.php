@@ -107,15 +107,14 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
                     <h3><?php _e("Uploads Scan Results", 'aiohm-kb-assistant'); ?></h3>
                     <div id="scan-uploads-container">
                         <?php
-                        // Now using $all_upload_items instead of $pending_upload_items
-                        // for rendering the table, which will include status
-                        if (!empty($all_upload_items)) { // Changed variable name
-                            echo '<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th><th>Status</th></tr></thead><tbody>'; // Added Status column
-                            foreach ($all_upload_items as $item) { // Changed variable name
+                        // Now using $all_upload_items for rendering the table, which will include status
+                        if (!empty($all_upload_items)) {
+                            echo '<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th><th>Status</th></tr></thead><tbody>';
+                            foreach ($all_upload_items as $item) {
                                 $status_class = strtolower(str_replace(' ', '-', $item['status']));
                                 $status_content = $item['status'] === 'Ready to Add' ? sprintf('<a href="#" class="add-single-item-link" data-id="%d" data-type="upload">%s</a>', $item['id'], $item['status']) : $item['status'];
                                 echo sprintf(
-                                    '<tr><th scope="row" class="check-column"><input type="checkbox" name="upload_items[]" value="%d" %s></th><td><a href="%s" target="_blank">%s</a></td><td><span class="type-%s">%s</span></td><td><span class="status-%s">%s</span></td></tr>', // Added Status column
+                                    '<tr><th scope="row" class="check-column"><input type="checkbox" name="upload_items[]" value="%d" %s></th><td><a href="%s" target="_blank">%s</a></td><td><span class="type-%s">%s</span></td><td><span class="status-%s">%s</span></td></tr>',
                                     $item['id'],
                                     ($item['status'] === 'Knowledge Base' ? 'disabled' : ''), // Disable checkbox for indexed items
                                     esc_url($item['link']),
@@ -216,7 +215,8 @@ jQuery(document).ready(function($) {
             table += `</tbody></table>`;
             $container.html(table);
         } else {
-            $container.html('<p style="padding: 15px; background-color: #f8f9fa;">No new items found.</p>');
+            // Updated message to be more generic for 'no supported files found'
+            $container.html('<p style="padding: 15px; background-color: #f8f9fa;">No supported files found.</p>');
         }
     }
 
@@ -286,10 +286,12 @@ jQuery(document).ready(function($) {
         const $btn = $(this);
         $btn.prop('disabled', true).text('Scanning Uploads...');
         
+        // This AJAX call should return ALL supported uploads, not just pending ones
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_find', nonce: nonce })
         .done(function(response) {
             if (response.success) { 
-                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', true, true); // Added true for showStatusColumn and isUploads
+                // Pass true for showStatusColumn and isUploads
+                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', true, true);
             }
         })
         .always(function() { $btn.prop('disabled', false).text('Find Uploads'); }); // Changed button text back
@@ -308,7 +310,8 @@ jQuery(document).ready(function($) {
         .done(function(response) {
             if (response.success) {
                 showAdminNotice(response.data.processed_items.length + ' file(s) processed.', 'success');
-                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', true, true); // Added true for showStatusColumn and isUploads
+                // Pass true for showStatusColumn and isUploads
+                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', true, true);
             } else {
                 showAdminNotice(response.data.message, 'error');
             }
