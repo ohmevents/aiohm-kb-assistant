@@ -196,7 +196,7 @@ class AIOHM_KB_Uploads_Crawler {
 
             } catch (Exception $e) {
                 // Log any errors during PDF parsing and fall back to metadata
-                AIOHM_KB_Assistant::log('Error parsing PDF ' . basename($file_path) . ': ' . $e->getMessage() . '. Falling back to metadata.', 'error');
+                AIOHM_KB_Assistant::log('Error parsing PDF ' + basename($file_path) + ': ' + $e->getMessage() + '. Falling back to metadata.', 'error');
                 $attachment_post = get_post($attachment_id);
                 $content_parts = [];
                 if ($attachment_post) {
