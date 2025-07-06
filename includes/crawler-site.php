@@ -1,7 +1,7 @@
 <?php
 /**
  * Website content crawler for posts and pages.
- * This version is complete and verified to be stable.
+ * This version adds a cache-clearing mechanism to fix the refresh issue.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -13,9 +13,6 @@ class AIOHM_KB_Site_Crawler {
         $this->rag_engine = new AIOHM_KB_RAG_Engine();
     }
 
-    /**
-     * Finds all published posts and pages and checks their indexing status.
-     */
     public function find_all_content() {
         $all_items = [];
         $post_types = ['post', 'page'];
@@ -42,9 +39,6 @@ class AIOHM_KB_Site_Crawler {
         return $all_items;
     }
 
-    /**
-     * Get scan statistics for posts and pages.
-     */
     public function get_scan_stats() {
         $total_posts = wp_count_posts('post')->publish;
         $total_pages = wp_count_posts('page')->publish;
@@ -58,18 +52,12 @@ class AIOHM_KB_Site_Crawler {
         ];
     }
 
-    /**
-     * Process a given batch of item IDs and add them to the knowledge base.
-     */
     public function add_items_to_kb(array $item_ids) {
         if (empty($item_ids)) return [];
         $posts = get_posts(['post__in' => $item_ids, 'post_type' => 'any', 'numberposts' => count($item_ids), 'post_status' => 'publish']);
         return $this->process_posts($posts);
     }
 
-    /**
-     * Process an array of post objects and add them to the RAG engine.
-     */
     private function process_posts($posts) {
         $processed = [];
         foreach ($posts as $post) {
@@ -80,6 +68,11 @@ class AIOHM_KB_Site_Crawler {
                 }
                 $this->rag_engine->add_entry($content_data['content'], $post->post_type, $content_data['title'], $content_data['metadata']);
                 update_post_meta($post->ID, '_aiohm_indexed', time());
+
+                // ** THE FIX IS HERE: Clear the cache for this specific post. **
+                // This ensures that when we re-fetch the list, we get the new "In Knowledge Base" status.
+                clean_post_cache($post->ID);
+
                 $processed[] = ['id' => $post->ID, 'title' => $content_data['title'], 'status' => 'success'];
             } catch (Exception $e) {
                 AIOHM_KB_Assistant::log('Error processing post ' . $post->ID . ': ' . $e->getMessage(), 'error');
@@ -89,9 +82,6 @@ class AIOHM_KB_Site_Crawler {
         return $processed;
     }
 
-    /**
-     * Extract and clean content from a post/page object.
-     */
     private function extract_post_content($post) {
         $content = strip_shortcodes($post->post_content);
         $content = wp_strip_all_tags($content);
