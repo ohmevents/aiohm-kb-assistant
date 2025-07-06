@@ -1,13 +1,18 @@
 <?php
 /**
  * Scan website content template.
- * This version removes the faulty PHP block, fixing the fatal error.
+ * This is the complete and final version with all features, styles, and scripts.
  */
 if (!defined('ABSPATH')) exit;
 
-// The data-loading PHP block has been removed from here.
-// Variables like $site_stats and $uploads_stats are now passed in from settings-page.php
-$api_key_exists = !empty(AIOHM_KB_Assistant::get_settings()['openai_api_key']);
+// Get settings and all necessary stats for the page
+$settings = AIOHM_KB_Assistant::get_settings();
+$api_key_exists = !empty($settings['openai_api_key']);
+
+$site_crawler = new AIOHM_KB_Site_Crawler();
+$uploads_crawler = new AIOHM_KB_Uploads_Crawler();
+$site_stats = $site_crawler->get_scan_stats();
+$uploads_stats = $uploads_crawler->get_stats();
 ?>
 <div class="wrap" id="aiohm-scan-page">
     <h1><?php _e('Build Your Knowledge Base', 'aiohm-kb-assistant'); ?></h1>
@@ -84,9 +89,135 @@ $api_key_exists = !empty(AIOHM_KB_Assistant::get_settings()['openai_api_key']);
 </div>
 
 <style>
-/* ... same styles as before ... */
+.aiohm-scan-columns-wrapper {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+@media (max-width: 960px) {
+    .aiohm-scan-columns-wrapper {
+        grid-template-columns: 1fr;
+    }
+}
+.aiohm-scan-section-wrapper { max-width: 100%; }
+.aiohm-scan-section { background: #fff; padding: 25px; border: 1px solid #dcdcde; border-radius: 4px; height: 100%; }
+.aiohm-stats-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; }
+.stat-group h4 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+.stat-item { margin-bottom: 8px; padding: 10px; background: #f8f9fa; border-left: 3px solid #007cba; }
+.aiohm-scan-progress { margin-top: 20px; background: #f8f9fa; padding: 15px; border-radius: 4px; }
 </style>
 
 <script type="text/javascript">
-// ... same script as before ...
+jQuery(document).ready(function($) {
+    const nonce = '<?php echo wp_create_nonce("aiohm_admin_nonce"); ?>';
+
+    // --- Website Content Scanner ---
+    $('#scan-website-btn').on('click', function() {
+        if ($(this).is(':disabled')) return;
+        const $btn = $(this);
+        $btn.prop('disabled', true).text('Scanning...');
+        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_find', nonce: nonce })
+        .done(response => { 
+            if (response.success) { 
+                renderItemsTable(response.data.items, '#pending-content-area', '#scan-results-container', 'items[]', true); 
+            } 
+        })
+        .always(() => { $btn.prop('disabled', false).text('Find Posts & Pages'); });
+    });
+    
+    $('#add-selected-to-kb-btn').on('click', function() {
+        if ($(this).is(':disabled')) return;
+        const $addBtn = $(this);
+        const selectedIds = $('#scan-results-container input:checkbox:checked').map(function() { return this.value; }).get();
+        if (selectedIds.length === 0) { alert('Please select at least one item.'); return; }
+        $addBtn.prop('disabled', true).text('Processing...');
+        
+        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_add', item_ids: selectedIds, nonce: nonce })
+        .done(response => {
+            if (response.success) {
+                alert(response.data.processed_items.length + ' item(s) were processed successfully.');
+                renderItemsTable(response.data.all_items, '#pending-content-area', '#scan-results-container', 'items[]', true);
+            } else {
+                alert('An error occurred:\n\n' + response.data.message);
+            }
+        })
+        .fail(() => {
+            alert('An unexpected server error occurred. This could be a timeout or a fatal error on the server. Please check your browser\'s developer console (F12) for more details.');
+        })
+        .always(() => {
+            $addBtn.prop('disabled', false).text('Add Selected to KB');
+        });
+    });
+
+    // --- Uploaded Files Scanner ---
+    $('#scan-uploads-btn').on('click', function() {
+        if ($(this).is(':disabled')) return;
+        const $btn = $(this);
+        $btn.prop('disabled', true).text('Scanning Uploads...');
+        
+        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_find', nonce: nonce })
+        .done(function(response) {
+            if (response.success) {
+                renderItemsTable(response.data.items, '#pending-uploads-area', '#scan-uploads-container', 'upload_items[]', false);
+            }
+        })
+        .always(function() {
+            $btn.prop('disabled', false).text('Find Uploads');
+        });
+    });
+
+    $('#add-uploads-to-kb-btn').on('click', function() {
+        if ($(this).is(':disabled')) return;
+        const $addBtn = $(this);
+        const selectedIds = $('#scan-uploads-container input:checkbox:checked').map(function() { return this.value; }).get();
+        if (selectedIds.length === 0) { alert('Please select at least one file.'); return; }
+        $addBtn.prop('disabled', true).text('Adding...');
+
+        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_add', item_ids: selectedIds, nonce: nonce })
+        .done(function(response) {
+            if (response.success) {
+                alert(response.data.processed_items.length + ' file(s) processed.');
+                renderItemsTable(response.data.items, '#pending-uploads-area', '#scan-uploads-container', 'upload_items[]', false);
+            } else {
+                alert('Error: ' + (response.data.message || 'An error occurred.'));
+            }
+        })
+        .always(function() {
+            $addBtn.prop('disabled', false).text('Add Selected Uploads to KB');
+        });
+    });
+
+    // Generic function to render a table of items
+    function renderItemsTable(items, areaSelector, containerSelector, checkboxName, showStatusColumn) {
+        const $area = $(areaSelector);
+        const $container = $(containerSelector);
+        $container.empty();
+
+        if (items && items.length > 0) {
+            let statusHeader = showStatusColumn ? '<th>Status</th>' : '';
+            let table = `<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th>${statusHeader}</tr></thead><tbody>`;
+            items.forEach(function(item) {
+                let statusCell = showStatusColumn ? `<td>${item.status}</td>` : '';
+                table += `
+                    <tr>
+                        <th scope="row" class="check-column"><input type="checkbox" name="${checkboxName}" value="${item.id}"></th>
+                        <td><a href="${item.link}" target="_blank">${item.title}</a></td>
+                        <td>${item.type}</td>
+                        ${statusCell}
+                    </tr>`;
+            });
+            table += `</tbody></table>`;
+            $container.html(table);
+        } else {
+            $container.html('<p style="padding: 15px; background-color: #f8f9fa;">No new items found.</p>');
+        }
+        $area.show();
+    }
+    
+    // Checkbox helper for both tables
+    $(document).on('click', '.aiohm-scan-section thead input:checkbox', function(){
+        $(this).closest('table').find('tbody input:checkbox:not(:disabled)').prop('checked', this.checked);
+    });
+});
 </script>

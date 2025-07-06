@@ -1,12 +1,11 @@
 <?php
 /**
- * Admin settings template.
- * This version is complete and verified to be stable.
+ * Admin settings template - Final version.
  */
 if (!defined('ABSPATH')) exit;
 
 // Set default values for all settings to avoid errors on first load
-$settings = wp_parse_args($settings, [
+$settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
     'personal_api_key' => '',
     'openai_api_key' => '',
     'system_prompt' => 'You are a helpful AI assistant.',

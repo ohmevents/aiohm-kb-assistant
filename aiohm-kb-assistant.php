@@ -83,7 +83,6 @@ class AIOHM_KB_Assistant {
         global $wpdb;
         $table_name = $wpdb->prefix . 'aiohm_vector_entries';
         $charset_collate = $wpdb->get_charset_collate();
-        // ** THE FIX IS HERE: Corrected the PRIMARY KEY definition **
         $sql = "CREATE TABLE $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL DEFAULT 0,

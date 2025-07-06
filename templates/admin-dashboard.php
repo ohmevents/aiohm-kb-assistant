@@ -1,15 +1,31 @@
 <?php
 /**
- * Admin Dashboard template with the new Brand Assistant chat interface.
+ * Admin Dashboard template.
+ * This is the complete and final version with all UI improvements and the Brand Assistant chat interface.
  */
 if (!defined('ABSPATH')) exit;
 
+// Setup variables
 $settings = AIOHM_KB_Assistant::get_settings();
 $is_user_linked = !empty($settings['personal_api_key'] ?? '');
+
 $default_tab = 'welcome';
 $current_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : $default_tab;
+
 $brand_soul_questions = [
-    "Tell Your Story. What was life like before you cracked the code?", "What was the inciting event that changed your life?", "What is life like today, for you?", "What is the primary goal of your brand?", "What drives your passion for your industry or niche?", "What qualities make you a trustworthy expert?", "What range of products or services do you offer?", "Who is your target market?", "Describe your target audience in detail.", "What challenges do your customers typically face?", "How does your company solve these challenges?", "What are the most common objections potential customers raise?", "What outcomes or benefits can customers anticipate?",
+    "Tell Your Story. What was life like before you cracked the code?",
+    "What was the inciting event that changed your life?",
+    "What is life like today, for you?",
+    "What is the primary goal of your brand?",
+    "What drives your passion for your industry or niche?",
+    "What qualities make you a trustworthy expert?",
+    "What range of products or services do you offer?",
+    "Who is your target market?",
+    "Describe your target audience in detail.",
+    "What challenges do your customers typically face?",
+    "How does your company solve these challenges?",
+    "What are the most common objections potential customers raise?",
+    "What outcomes or benefits can customers anticipate?",
 ];
 ?>
 <div class="wrap aiohm-dashboard">
@@ -52,6 +68,7 @@ $brand_soul_questions = [
             <?php if ($is_user_linked): ?>
                 <h2><?php _e('Your AI Brand Soul', 'aiohm-kb-assistant'); ?></h2>
                 <p><?php _e('Answer these questions to infuse your AI with your unique brand identity. Your answers will create your personal knowledge base.', 'aiohm-kb-assistant'); ?></p>
+                
                 <form id="brand-soul-form">
                     <?php foreach ($brand_soul_questions as $index => $question): ?>
                         <div class="form-group">
@@ -63,6 +80,7 @@ $brand_soul_questions = [
                     <span class="spinner"></span>
                 </form>
                 <div id="form-status" style="margin-top: 15px;"></div>
+
             <?php else: ?>
                 <div class="aiohm-getting-started">
                     <h2><?php _e('Join the AIOHM Tribe to Unlock Your AI Brand Soul', 'aiohm-kb-assistant'); ?></h2>

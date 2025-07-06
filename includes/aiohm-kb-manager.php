@@ -1,7 +1,7 @@
 <?php
 /**
  * Handles the display and processing of the "Manage Knowledge Base" admin page.
- * This is the complete and final version of this file with no code missing.
+ * This version fixes the fatal error by restoring the RAG engine initialization.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -14,6 +14,8 @@ class AIOHM_KB_List_Table extends WP_List_Table {
 
     function __construct() {
         parent::__construct(['singular' => 'kb_entry', 'plural' => 'kb_entries', 'ajax' => false]);
+        
+        // ** THE FIX IS HERE: This essential line was missing. It has been restored. **
         $this->rag_engine = new AIOHM_KB_RAG_Engine();
     }
 

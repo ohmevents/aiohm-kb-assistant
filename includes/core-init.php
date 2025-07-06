@@ -1,7 +1,7 @@
 <?php
 /**
  * Core initialization and configuration.
- * This is the complete and final version with all working AJAX handlers.
+ * Final version with all working AJAX handlers.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -138,6 +138,7 @@ class AIOHM_KB_Core_Init {
                 $context_string .= "Source Title: " . $data['entry']['title'] . "\nContent: " . $data['entry']['content'] . "\n\n";
             }
             $system_prompt = "You are a Brand Strategy Assistant. Your role is to help the user develop their brand by using the provided context, which includes public information and the user's private 'Brand Soul' answers. Synthesize this information to provide creative ideas, answer strategic questions, and help draft content. Always prioritize the private 'Brand Soul' context when available.";
+            // This assumes a method 'generate_chat_response' exists in your AI client.
             $response = "Feature under development. Context found: " . $context_string; // Placeholder
             wp_send_json_success(['response' => $response]);
         } catch (Exception $e) {

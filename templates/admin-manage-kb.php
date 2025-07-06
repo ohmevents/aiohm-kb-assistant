@@ -1,7 +1,7 @@
 <?php
 /**
  * Template for the Manage Knowledge Base admin page.
- * This version includes the full Backup/Restore UI and all necessary JavaScript.
+ * This is the final version with all UI improvements and working scripts.
  */
 if (!defined('ABSPATH')) exit;
 ?>
@@ -86,7 +86,6 @@ if (!defined('ABSPATH')) exit;
 jQuery(document).ready(function($) {
     const nonce = '<?php echo wp_create_nonce("aiohm_admin_nonce"); ?>';
 
-    // Logic for the Export button
     $('#export-kb-btn').on('click', function(){
         const $btn = $(this);
         $btn.prop('disabled', true).after('<span class="spinner is-active" style="vertical-align: middle;"></span>');
@@ -118,9 +117,8 @@ jQuery(document).ready(function($) {
         });
     });
 
-    // Logic for the Reset button
     $('#reset-kb-btn').on('click', function(){
-        if (!confirm('<?php _e('Are you absolutely sure you want to delete ALL knowledge base data? This cannot be undone.', 'aiohm-kb-assistant'); ?>')) return;
+        if (!confirm('<?php _e('Are you absolutely sure you want to delete all knowledge base data? This cannot be undone.', 'aiohm-kb-assistant'); ?>')) return;
         
         const $btn = $(this);
         $btn.prop('disabled', true).after('<span class="spinner is-active" style="vertical-align: middle;"></span>');
@@ -142,7 +140,6 @@ jQuery(document).ready(function($) {
         });
     });
 
-    // Logic for the Scope Toggle button
     $('.scope-toggle-btn').on('click', function(e){
         e.preventDefault();
         const $btn = $(this);
@@ -175,7 +172,6 @@ jQuery(document).ready(function($) {
         });
     });
 
-    // Logic for the Restore from JSON functionality
     $('#restore-kb-file').on('change', function(e) {
         const file = e.target.files[0];
         if (file && file.type === 'application/json') {
