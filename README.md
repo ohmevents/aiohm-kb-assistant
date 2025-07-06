@@ -1,96 +1,133 @@
-# AIOHM - Knowledge Base Assistant
+# AIOHM Knowledge Assistant
 
-**Version:** 1.1.1  
-**Author:** AIOHM  
-**Author URI:** [https://aiohm.com](https://aiohm.com)  
-**WordPress Compatibility:** 5.0+  
+**Version:** 1.2.0
+**Author:** AIOHM
+**Author URI:** [https://aiohm.app](https://aiohm.app)
+**WordPress Compatibility:** 5.0+
 **PHP Compatibility:** 7.4+
 
-Transform your WordPress site into an AI-powered expert. The AIOHM Knowledge Assistant scans your website's content and embeds it into a powerful knowledge base, allowing you to provide instant, accurate answers to your visitors through an interactive chat assistant.
+Bring soul-aligned intelligence to your WordPress site. The AIOHM Knowledge Assistant combines semantic AI with your content, creating a customizable chat experience powered by your own voice and knowledge base.
 
-## How It Works
+---
 
-The AIOHM Knowledge Assistant makes it incredibly simple to build and deploy your own custom-trained AI:
+## 🌟 Features
 
-1.  **Scan Your Content**: Automatically crawl your posts, pages, and readable media library files (`.txt`, `.csv`, `.json`).
-2.  **Build the Knowledge Base**: With one click, add the scanned content to your AI's knowledge base. The plugin uses vector embeddings to capture the meaning of your content, not just keywords.
-3.  **Deploy the Chat**: Add the AI chat assistant to your site using a simple shortcode or enable the floating widget to provide help everywhere.
+### 🪞 Mirror Mode (Q\&A Assistant)
 
-## Core Features
+* Answers questions from your structured knowledge base
+* Perfect for support, onboarding, or client education
 
-  * **AI-Powered Chat Assistant**: Provide intelligent, human-like conversation powered by your website's content.
-  * **Semantic Search Functionality**: Implements a powerful search engine that understands the *meaning* of a query, not just keywords.
-  * **Comprehensive Content Scanner**: Finds all published posts and pages, showing you what's already in the knowledge base and what's ready to be added.
-  * **Readable File Processing**: Indexes content from text-based files (`.json`, `.txt`, `.csv`) in your Media Library.
-  * **Membership Content Control**: Includes built-in integration for the **ARMember Lite** plugin. Filter knowledge and tailor AI responses based on a user's membership level.
-  * **Personal AI Brand Soul**: For users with an AIOHM Tribe account, a guided questionnaire helps define your brand's voice and story, creating a unique personality for your AI.
-  * **Knowledge Base Management**: Easily view, manage, and delete entries from your knowledge base. You can also export your global knowledge base to a JSON file for backup.
-  * **Powerful Admin Dashboard**: A central command center to manage settings, scan content, view your knowledge base, and access AIOHM membership features.
-  * **Easy Deployment with Shortcodes**: Place your chat and search interfaces anywhere with simple, customizable shortcodes.
+### 🎨 Muse Mode (Content Generator)
 
-## Installation
+* Writes in your brand voice: captions, emails, offers, and more
+* Learns from your tone and prompt templates
 
-1.  Download the plugin `.zip` file from the marketplace.
-2.  In your WordPress dashboard, navigate to `Plugins` \> `Add New`.
-3.  Click `Upload Plugin` and select the `.zip` file you downloaded.
-4.  Click `Install Now` and then `Activate Plugin`.
+### 🔍 Smart Content Scanner
 
-## Configuration
+* Crawls your WordPress posts, pages, and text-based media files (`.txt`, `.json`, `.csv`)
+* Auto-chunks content and converts it into searchable knowledge
 
-After activation, you will see a new **AIOHM** menu in your WordPress dashboard.
+### 📦 Knowledge Base Management
 
-1.  **Go to `AIOHM` \> `Settings`**:
-      * Enter your **OpenAI API Key**. This is required for the AI to function.
-      * Customize the **Custom Instructions (System Prompt)** to give your AI its unique personality and instructions.
-2.  **Go to `AIOHM` \> `Scan Content`**:
-      * Click `Scan Website` to find all your posts and pages.
-      * Select the content you want to use and click `Add / Re-index Selected` to build your knowledge base.
-3.  **Deploy the Assistant**:
-      * Add the `[aiohm_chat]` or `[aiohm_search]` shortcode to any post or page.
+* Add/edit/delete knowledge entries
+* Export knowledge as JSON
+* Tag content with tone, category, and usage type
 
-## Shortcode Usage
+### 💬 AI Chat Integration
 
-### Chat Shortcode
+* Deploy via shortcode or floating widget
+* Customizable titles, greetings, and input prompts
+
+### 🔐 Membership Awareness
+
+* Built-in support for **ARMember Lite**
+* Tailor responses based on user role or membership level
+
+### 🌈 Brand Personalization (AIOHM Tribe Users)
+
+* Define assistant voice, style, and tone with onboarding prompts
+* Align responses to your energetic and strategic language
+
+---
+
+## 🛠️ Installation
+
+1. Download the plugin `.zip` file
+2. Go to `Plugins > Add New` in your WordPress dashboard
+3. Upload and activate the plugin
+
+---
+
+## ⚙️ Configuration
+
+### Step 1: Set It Up
+
+* Go to `AIOHM > Settings`
+* Enter your OpenAI API Key
+* Customize the assistant's system prompt (tone, voice, boundaries)
+
+### Step 2: Scan Your Site
+
+* Go to `AIOHM > Scan Content`
+* Run a scan of posts, pages, and media
+* Add selected content to the knowledge base
+
+### Step 3: Deploy the Assistant
+
+* Use `[aiohm_chat]` for full chat functionality
+* Use `[aiohm_search]` for a search-only experience
+
+---
+
+## 📄 Shortcodes
+
+### Chat Assistant
 
 ```
 [aiohm_chat title="Ask Me Anything" placeholder="Type your question..." welcome_message="Hello! How can I help you today?"]
 ```
 
-  * `title`: The text displayed in the chat header.
-  * `placeholder`: The placeholder text in the input field.
-  * `welcome_message`: An initial message from the bot.
-
-### Search Shortcode
+### Knowledge Search
 
 ```
 [aiohm_search placeholder="Search the knowledge base..." max_results="10"]
 ```
 
-  * `placeholder`: The placeholder text in the search bar.
-  * `max_results`: The maximum number of results to display.
+---
 
-## Requirements
+## ✅ Requirements
 
-  - WordPress 5.0 or higher
-  - PHP 7.4 or higher
-  - An active OpenAI API Key
-  - Minimum 128MB PHP memory limit
+* WordPress 5.0+
+* PHP 7.4+
+* OpenAI API Key
+* Minimum 128MB memory limit
 
-## Support
+---
 
-For technical support or questions, please visit our official website at [aiohm.com](https://aiohm.com).
+## 🧩 Changelog
 
-## Changelog
+**1.2.0**
 
-**Version 1.2.0**
+* Professionalized readme structure
+* Improved dashboard layout and scan features
 
-  - New professional README for marketplace.
-  - Minor bug fixes and stability improvements.
+**1.1.1**
 
-**Version 1.0.0**
+* Enhanced shortcode support
+* Added onboarding flow for voice setup
 
-  - Initial release.
+**1.0.0**
 
-## License
+* Initial plugin release
+
+---
+
+## 💬 Support
+
+Need help? Visit [aiohm.app/support](https://aiohm.app/support)
+
+---
+
+## 🔒 License
 
 This plugin is proprietary software developed by AIOHM. All rights reserved.
