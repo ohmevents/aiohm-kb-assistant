@@ -1,12 +1,17 @@
 <?php
 /**
- * Plugin Name: AIOHM Assistant
- * Plugin URI: https://aiohm.com
- * Description: AI-powered knowledge base with personal, private AI assistants for creators.
- * Version: 1.1.2
+ * Plugin Name: OHM Knowledge Assistant
+ * Plugin URI: https://aiohm.app
+ * Description: A soul-aligned AI assistant for WordPress — integrates your knowledge base, voice, and strategy into a deeply intelligent and customizable chat experience.
+ * Version: 1.2.0
  * Author: AIOHM
- * Author URI: https://aiohm.com
- * Text Domain: aiohm-kb-assistant
+ * Author URI: https://aiohm.app
+ * Text Domain: ohm-knowledge-assistant
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * Requires at least: 5.8
+ * Tested up to: 6.5
+ * Requires PHP: 7.4
  */
 
 if (!defined('ABSPATH')) exit;
@@ -38,6 +43,8 @@ class AIOHM_KB_Assistant {
         register_deactivation_hook(AIOHM_KB_PLUGIN_FILE, array($this, 'deactivate'));
         add_action('plugins_loaded', array($this, 'load_dependencies'));
         add_action('init', array($this, 'init_plugin'));
+        // Add this line to call the method that adds the settings link
+        add_filter('plugin_action_links_' . plugin_basename(AIOHM_KB_PLUGIN_FILE), array($this, 'add_settings_link'));
     }
     
     public function load_dependencies() {
@@ -116,6 +123,17 @@ class AIOHM_KB_Assistant {
             'show_floating_chat' => false, // Set default to false for activation
             'scan_schedule' => 'none',
         ], '', 'no');
+    }
+
+    /**
+     * Add a settings link to the plugin actions on the plugins page.
+     * @param array $links Array of plugin action links.
+     * @return array Modified array of links.
+     */
+    public function add_settings_link($links) {
+        $settings_link = '<a href="' . admin_url('admin.php?page=aiohm-settings') . '">' . __('Settings', 'aiohm-kb-assistant') . '</a>';
+        array_unshift($links, $settings_link);
+        return $links;
     }
 
     /**
