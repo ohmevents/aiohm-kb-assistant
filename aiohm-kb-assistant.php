@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AIOHM Knowledge Assistant
  * Plugin URI: https://aiohm.app
- * Description: A soul-aligned AI assistant for WordPress — integrates your knowledge base, voice, and strategy into a deeply intelligent and customizable chat experience.
+ * Description: Bring your wisdom to life. The AIOHM Knowledge Assistant listens, learns, and speaks in your brand's voice, offering real-time answers, soulful brand support, and intuitive guidance for your visitors. With Muse and Mirror modes, it doesn't just respond - it resonates.
  * Version: 1.1.3
  * Author: OHM Events Agency
  * Author URI: https://aiohm.app
