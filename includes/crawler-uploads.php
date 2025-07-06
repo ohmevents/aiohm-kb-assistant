@@ -4,20 +4,6 @@
  * This version fixes the logic for stats calculation to correctly identify all supported files.
  */
 if (!defined('ABSPATH')) exit;
-
-// IMPORTANT: This plugin assumes Smalot/PdfParser library is available for PDF text extraction.
-// If using Composer, ensure 'composer require smalot/pdfparser' has been run.
-// If not using Composer, you will need to manually include the library files.
-// For example: require_once AIOHM_KB_PLUGIN_DIR . 'path/to/Smalot/PdfParser/Parser.php';
-// For this example, we assume the class is accessible.
-// If you manually added the library to a 'lib' folder inside your plugin:
-// require_once AIOHM_KB_PLUGIN_DIR . 'lib/Smalot/PdfParser/Parser.php'; // Adjust path as needed
-// require_once AIOHM_KB_PLUGIN_DIR . 'lib/Smalot/PdfParser/SourceData.php';
-// require_once AIOHM_KB_PLUGIN_DIR . 'lib/Smalot/PdfParser/RawData.php';
-// ... you might need to include all individual files or set up an autoloader.
-// A simpler approach for manual setup if you downloaded the zip and placed the 'src' folder inside 'lib':
-// require_once AIOHM_KB_PLUGIN_DIR . 'lib/vendor/autoload.php'; // If you copied vendor/autoload.php
-
 // Using 'use' statement assuming the class is autoloaded or manually included correctly.
 use Smalot\PdfParser\Parser;
 
