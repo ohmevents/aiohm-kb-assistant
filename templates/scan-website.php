@@ -131,7 +131,7 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
                         }
                         ?>
                     </div>
-                    <button type="button" class="button button-primary" id="add-uploads-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected Uploads to KB', 'aiohm-kb-assistant'); ?></button>
+                    <button type="button" class="button button-primary" id="add-uploads-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected to KB', 'aiohm-kb-assistant'); ?></button>
                 </div>
             </div>
         </div>
@@ -245,7 +245,7 @@ jQuery(document).ready(function($) {
         const $progress = $('#website-scan-progress');
         const $progressBar = $progress.find('.progress-bar-inner');
         const $progressPercentage = $progress.find('.progress-percentage');
-        $progress.show(); $progressBar.css('width', '0%'); $progressPercentage.text('0%');
+        $progress.show(); $progressBar.css('width', '0%'); $progressPercentage.text(percentage + '%');
         let processedCount = 0; const batchSize = 5;
 
         function processBatch(batch) {
@@ -317,7 +317,7 @@ jQuery(document).ready(function($) {
             }
         })
         .always(function() {
-            $addBtn.prop('disabled', false).text('Add Selected Uploads to KB');
+            $addBtn.prop('disabled', false).text('Add Selected to KB'); // Changed button text back
             location.reload(); // Reload page to show updated stats
         });
     });
