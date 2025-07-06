@@ -4,20 +4,6 @@
  * This version fixes the logic for stats calculation to correctly identify all supported files.
  */
 if (!defined('ABSPATH')) exit;
-
-// IMPORTANT: This plugin assumes Smalot/PdfParser library is available for PDF text extraction.
-// If using Composer, ensure 'composer require smalot/pdfparser' has been run.
-// If not using Composer, you will need to manually include the library files.
-// For example: require_once AIOHM_KB_PLUGIN_DIR . 'path/to/Smalot/PdfParser/Parser.php';
-// For this example, we assume the class is accessible.
-// If you manually added the library to a 'lib' folder inside your plugin:
-// require_once AIOHM_KB_PLUGIN_DIR . 'lib/Smalot/PdfParser/Parser.php'; // Adjust path as needed
-// require_once AIOHM_KB_PLUGIN_DIR . 'lib/Smalot/PdfParser/SourceData.php';
-// require_once AIOHM_KB_PLUGIN_DIR . 'lib/Smalot/PdfParser/RawData.php';
-// ... you might need to include all individual files or set up an autoloader.
-// A simpler approach for manual setup if you downloaded the zip and placed the 'src' folder inside 'lib':
-// require_once AIOHM_KB_PLUGIN_DIR . 'lib/vendor/autoload.php'; // If you copied vendor/autoload.php
-
 // Using 'use' statement assuming the class is autoloaded or manually included correctly.
 use Smalot\PdfParser\Parser;
 
@@ -66,10 +52,18 @@ class AIOHM_KB_Uploads_Crawler {
             'post_type'      => 'attachment',
             'posts_per_page' => -1,
             'post_status'    => 'inherit',
+            'cache_results'  => false, // Prevent caching of the post query itself
+            'no_found_rows'  => true,  // Optimization
+            'update_post_meta_cache' => false, // Prevent populating meta cache during this query
+            'update_post_term_cache' => false  // Prevent populating term cache during this query
         ]);
-        AIOHM_KB_Assistant::log('Found ' . count($attachments) . ' attachments in WordPress.');
+        AIOHM_KB_Assistant::log('Found ' . count($attachments) . ' attachments in WordPress. Iterating through them.');
 
         foreach ($attachments as $attachment) {
+            // IMPORTANT: Clear the object cache for the specific post/attachment before getting its meta.
+            // This is a strong measure against persistent caching issues.
+            clean_post_cache($attachment->ID); 
+
             $file_path = get_attached_file($attachment->ID);
             if ($file_path && file_exists($file_path)) {
                 $ext = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
@@ -77,7 +71,7 @@ class AIOHM_KB_Uploads_Crawler {
                 if (in_array($ext, $this->readable_extensions)) {
                     $is_indexed = get_post_meta($attachment->ID, '_aiohm_indexed', true);
                     $item_status = $is_indexed ? 'Knowledge Base' : 'Ready to Add';
-                    AIOHM_KB_Assistant::log("Attachment ID {$attachment->ID} is a readable extension ({$ext}). Status: {$item_status}");
+                    AIOHM_KB_Assistant::log("Attachment ID {$attachment->ID} ({$attachment->post_title}) is readable ({$ext}). Indexed Status: " . ($is_indexed ? 'True' : 'False') . ". Final Item Status: {$item_status}");
                     $all_items[] = [
                         'id'     => $attachment->ID,
                         'title'  => $attachment->post_title ?: basename($file_path),
@@ -87,10 +81,10 @@ class AIOHM_KB_Uploads_Crawler {
                         'path'   => $file_path // Added path for stats calculation
                     ];
                 } else {
-                    AIOHM_KB_Assistant::log("Attachment ID {$attachment->ID} is NOT a readable extension ({$ext}). Skipping.");
+                    AIOHM_KB_Assistant::log("Attachment ID {$attachment->ID} ({$attachment->post_title}) is NOT a readable extension ({$ext}). Skipping.");
                 }
             } else {
-                AIOHM_KB_Assistant::log("Attachment ID {$attachment->ID} has no file path or file does not exist: {$file_path}");
+                AIOHM_KB_Assistant::log("Attachment ID {$attachment->ID} ({$attachment->post_title}) has no file path or file does not exist: {$file_path}");
             }
         }
         AIOHM_KB_Assistant::log('Finished find_all_supported_attachments. Returning ' . count($all_items) . ' supported items.');
@@ -112,8 +106,8 @@ class AIOHM_KB_Uploads_Crawler {
         if (empty($attachment_ids)) return [];
         $processed = [];
         foreach ($attachment_ids as $attachment_id) {
-            $file_path = get_attached_file($attachment_id);
-            $file_title = get_the_title($attachment_id) ?: basename($file_path);
+            $file_path = get_attached_file($attachment->ID);
+            $file_title = get_the_title($attachment->ID) ?: basename($file_path);
             try {
                 if (!$file_path || !file_exists($file_path)) {
                     throw new Exception('File path not found.');
@@ -123,7 +117,7 @@ class AIOHM_KB_Uploads_Crawler {
                 if ($file_data && !empty(trim($file_data['content']))) {
                     $this->rag_engine->add_entry($file_data['content'], $file_data['type'], $file_data['title'], $file_data['metadata']);
                     update_post_meta($attachment_id, '_aiohm_indexed', time());
-                    clean_post_cache($attachment_id); // Clear cache
+                    clean_post_cache($attachment_id); // Clear cache for this specific post. This should also clear its post_meta cache.
                     AIOHM_KB_Assistant::log("Successfully processed and indexed attachment ID {$attachment_id}.");
                     $processed[] = ['id' => $attachment_id, 'title' => $file_title, 'status' => 'success'];
                 } else {
@@ -196,7 +190,7 @@ class AIOHM_KB_Uploads_Crawler {
 
             } catch (Exception $e) {
                 // Log any errors during PDF parsing and fall back to metadata
-                AIOHM_KB_Assistant::log('Error parsing PDF ' . basename($file_path) . ': ' . $e->getMessage() . '. Falling back to metadata.', 'error');
+                AIOHM_KB_Assistant::log('Error parsing PDF ' + basename($file_path) + ': ' + $e->getMessage() + '. Falling back to metadata.', 'error');
                 $attachment_post = get_post($attachment_id);
                 $content_parts = [];
                 if ($attachment_post) {

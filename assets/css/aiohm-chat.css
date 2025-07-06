@@ -820,7 +820,19 @@
     color: #b8860b;
 }
 
-.aiohm-type-pdf {
+/* Updated/New styles for content types in Manage KB */
+.aiohm-type-application { /* For application/pdf, application/json (using type-application as base) */
+    background: #ffe7e7; /* Light red/pinkish */
+    color: #d63384;      /* Strong pink */
+}
+
+.aiohm-type-text { /* For text/plain, text/csv (using type-text as base) */
+    background: #fff8e7; /* Light yellow/orange */
+    color: #b8860b;      /* Dark yellow/brown */
+}
+
+/* Existing types, just ensuring they are here */
+.aiohm-type-pdf { /* This might be redundant if using .aiohm-type-application for PDFs */
     background: #ffe7e7;
     color: #d63384;
 }
@@ -835,10 +847,11 @@
     color: #6f42c1;
 }
 
-.aiohm-type-json {
+.aiohm-type-json { /* This might be redundant if using .aiohm-type-application for JSON */
     background: #fff0e6;
     color: #fd7e14;
 }
+
 
 .aiohm-similarity-score {
     display: flex;
@@ -1147,4 +1160,24 @@
     .aiohm-result-title a {
         color: #fff;
     }
+}
+
+/* Custom styles for Manage KB page enhancements */
+.visibility-text {
+    font-weight: bold;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.visibility-public {
+    color: #28a745; /* Green */
+    background-color: #e6ffe6; /* Light green background */
+    border: 1px solid #28a745;
+}
+
+.visibility-private {
+    color: #007cba; /* Blue (AIOHM primary color) */
+    background-color: #e7f3ff; /* Light blue background */
+    border: 1px solid #007cba;
 }

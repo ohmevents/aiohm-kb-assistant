@@ -56,7 +56,6 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
                             echo '<div class="stat-item"><strong>' . esc_html(strtoupper($type)) . ' Files:</strong> <span>' . sprintf(__('%d total, %d indexed, %d pending (%s)', 'aiohm-kb-assistant'), $data['count'] ?? 0, $data['indexed'] ?? 0, $data['pending'] ?? 0, $size_formatted) . '</span></div>';
                         }
                     } else {
-                        // This block now just provides general info, the table will be rendered by JS
                         echo '<p>Supported files include .txt, .json, .csv, and .pdf from your Media Library.</p>';
                     }
                     ?>
@@ -75,8 +74,7 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
                     <h3><?php _e("Scan Results", 'aiohm-kb-assistant'); ?></h3>
                     <div id="scan-results-container">
                         <?php
-                        // The renderItemsTable function will be called by JavaScript
-                        // to populate this on page load or after a scan.
+                        // The renderItemsTable function will be called by JavaScript to populate this on page load or after a scan.
                         // Initial rendering will happen via JS.
                         ?>
                     </div>
@@ -97,8 +95,7 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
                     <h3><?php _e("Uploads Scan Results", 'aiohm-kb-assistant'); ?></h3>
                     <div id="scan-uploads-container">
                         <?php
-                        // The renderItemsTable function will be called by JavaScript
-                        // to populate this on page load or after a scan.
+                        // The renderItemsTable function will be called by JavaScript to populate this on page load or after a scan.
                         // Initial rendering will happen via JS.
                         ?>
                     </div>
@@ -122,7 +119,17 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
 .progress-info { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; color: #555; }
 .progress-bar-wrapper { background-color: #e9ecef; border-radius: 4px; height: 12px; overflow: hidden; }
 .progress-bar-inner { background-color: #007cba; width: 0%; height: 100%; transition: width 0.3s ease-in-out; }
-.type-post, .type-page { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+
+/* Styles for Content Type Badges (used by renderItemsTable) */
+.type-post, .type-page, .aiohm-content-type-badge { /* Added .aiohm-content-type-badge here for consistency with manage-kb styling */
+    display: inline-block; 
+    padding: 2px 8px; 
+    border-radius: 10px; 
+    font-size: 11px; 
+    font-weight: 600; 
+    text-transform: uppercase; 
+    white-space: nowrap; /* Prevents text from wrapping in badge */
+}
 .type-post { background-color: #e7f5ff; color: #005a87; }
 .type-page { background-color: #f3e7ff; color: #6f42c1; }
 /* Styles for common file types, derive from mime-type primary part */
@@ -167,21 +174,52 @@ jQuery(document).ready(function($) {
                     let statusClass = (item.status || '').toLowerCase().replace(/\s+/g, '-');
                     let statusContent = item.status;
                     if (item.status === 'Ready to Add') {
+                        checkboxDisabled = ''; // Ensure it's not disabled if 'Ready to Add'
                         statusContent = `<a href="#" class="add-single-item-link" data-id="${item.id}" data-type="${isUploads ? 'upload' : 'website'}">${item.status}</a>`;
                     } else if (item.status === 'Knowledge Base') {
-                        checkboxDisabled = 'disabled';
+                        checkboxDisabled = 'disabled'; // Disable checkbox for indexed items
                     }
                     statusCell = `<td><span class="status-${statusClass}">${statusContent}</span></td>`;
                 }
                 
-                let typeDisplay = isUploads ? item.type.split('/')[1].charAt(0).toUpperCase() + item.type.split('/')[1].slice(1) : item.type;
-                let typeClass = isUploads ? item.type.split('/')[0] : item.type; // Use main MIME type part for class
+                // Determine display type and class for the badge
+                let typeDisplay = item.type;
+                let typeClass = item.type.split('/')[0]; // Default to main MIME type part for class
+                
+                if (isUploads) { // Specific handling for uploads to mimic desired display
+                    if (item.type.startsWith('application/')) {
+                        const subType = item.type.split('/')[1];
+                        if (subType === 'pdf') {
+                            typeDisplay = 'PDF';
+                        } else if (subType === 'json') {
+                            typeDisplay = 'JSON';
+                        } else {
+                            typeDisplay = subType.charAt(0).toUpperCase() + subType.slice(1); // Fallback for other app types
+                        }
+                        typeClass = 'application';
+                    } else if (item.type.startsWith('text/')) {
+                        const subType = item.type.split('/')[1];
+                        if (subType === 'plain') {
+                            typeDisplay = 'TXT';
+                        } else if (subType === 'csv') {
+                            typeDisplay = 'CSV';
+                        } else {
+                             typeDisplay = subType.charAt(0).toUpperCase() + subType.slice(1); // Fallback for other text types
+                        }
+                        typeClass = 'text';
+                    } else if (item.type.startsWith('image/')) {
+                        typeDisplay = item.type.split('/')[1].toUpperCase(); // E.g., PNG, JPEG
+                        typeClass = 'image';
+                    }
+                } else { // Handle post/page for website scanner
+                    typeDisplay = item.type.charAt(0).toUpperCase() + item.type.slice(1); // Post, Page
+                }
 
                 tableHtml += `
                     <tr>
                         <th scope="row" class="check-column"><input type="checkbox" name="${checkboxName}" value="${item.id}" ${checkboxDisabled}></th>
                         <td><a href="${item.link}" target="_blank">${item.title}</a></td>
-                        <td><span class="type-${typeClass}">${typeDisplay}</span></td>
+                        <td><span class="aiohm-content-type-badge type-${typeClass}">${typeDisplay}</span></td>
                         ${statusCell}
                     </tr>`;
             });
