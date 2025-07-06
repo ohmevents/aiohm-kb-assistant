@@ -52,9 +52,35 @@ $brand_soul_questions = [
             <?php if ($is_user_linked): ?>
                 <h2><?php _e('Your AI Brand Soul', 'aiohm-kb-assistant'); ?></h2>
                 <p><?php _e('Answer these questions to infuse your AI with your unique brand identity. Your answers will create your personal knowledge base.', 'aiohm-kb-assistant'); ?></p>
-                <form id="brand-soul-form"></form>
+                <form id="brand-soul-form">
+                    <?php foreach ($brand_soul_questions as $index => $question): ?>
+                        <div class="form-group">
+                            <label for="q-<?php echo $index; ?>"><strong><?php echo esc_html($question); ?></strong></label>
+                            <textarea id="q-<?php echo $index; ?>" name="answers[<?php echo esc_attr($question); ?>]" rows="4" class="large-text"></textarea>
+                        </div>
+                    <?php endforeach; ?>
+                    <button type="submit" class="button button-primary"><?php _e('Save to My Personal KB', 'aiohm-kb-assistant'); ?></button>
+                    <span class="spinner"></span>
+                </form>
+                <div id="form-status" style="margin-top: 15px;"></div>
             <?php else: ?>
-                <?php endif; ?>
+                <div class="aiohm-getting-started">
+                    <h2><?php _e('Join the AIOHM Tribe to Unlock Your AI Brand Soul', 'aiohm-kb-assistant'); ?></h2>
+                    <p><?php _e('The first step on your journey is to create your free AIOHM Tribe account. This will give you access to the "Brand Soul" questionnaire, which forms the core of your personal AI.', 'aiohm-kb-assistant'); ?></p>
+                    <div class="aiohm-steps">
+                        <div class="aiohm-step">
+                            <h3><?php _e('1. Join the Tribe', 'aiohm-kb-assistant'); ?></h3>
+                            <p><?php _e('Click the button below to register for your free account on our main website.', 'aiohm-kb-assistant'); ?></p>
+                            <a href="https://www.aiohm.app/register" target="_blank" class="button button-primary"><?php _e('Register on aiohm.app', 'aiohm-kb-assistant'); ?></a>
+                        </div>
+                        <div class="aiohm-step">
+                            <h3><?php _e('2. Link Your Account', 'aiohm-kb-assistant'); ?></h3>
+                            <p><?php _e('After registering, find the "Personal API Key" in your account dashboard and paste it into this plugin\'s settings.', 'aiohm-kb-assistant'); ?></p>
+                            <a href="<?php echo admin_url('admin.php?page=aiohm-settings'); ?>" class="button button-secondary"><?php _e('Go to Settings', 'aiohm-kb-assistant'); ?></a>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
 
         <?php elseif ($current_tab === 'club'): ?>
             <div class="aiohm-brand-assistant-wrapper">
@@ -78,7 +104,16 @@ $brand_soul_questions = [
     </div>
 </div>
 <style>
-/* ... (keep existing styles) ... */
+.aiohm-dashboard .aiohm-header { background: #fff; padding: 20px 30px; border-bottom: 1px solid #dcdcde; margin: -20px -20px 0 -20px; }
+.aiohm-dashboard h1 { font-size: 28px; }
+.aiohm-tagline { font-size: 16px; color: #50575e; }
+.nav-tab-wrapper { margin-bottom: 0; padding: 15px 15px 0 15px; }
+.aiohm-tab-content { background: #fff; padding: 25px; border: 1px solid #dcdcde; }
+.aiohm-steps { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
+.aiohm-step { background: #f8f9fa; border-radius: 4px; padding: 25px; flex: 1; min-width: 280px; }
+#brand-soul-form .form-group { margin-bottom: 20px; }
+#form-status.success { color: #28a745; font-weight: bold; }
+#form-status.error { color: #dc3545; }
 .aiohm-chat-container { border: 1px solid #dcdcde; background: #fff; max-width: 800px; margin-top: 15px; }
 .aiohm-chat-messages { padding: 15px; overflow-y: auto; }
 .aiohm-message { display: flex; margin-bottom: 12px; }
@@ -91,7 +126,33 @@ $brand_soul_questions = [
 </style>
 <script>
 jQuery(document).ready(function($){
-    // ... (keep existing brand-soul-form script) ...
+    $('#brand-soul-form').on('submit', function(e){
+        e.preventDefault();
+        const $form = $(this);
+        const $spinner = $form.find('.spinner');
+        const $status = $('#form-status');
+        const formData = $form.serialize();
+
+        $spinner.addClass('is-active');
+        $status.text('Saving to your Personal Knowledge Base...').removeClass('success error');
+
+        $.post(ajaxurl, {
+            action: 'aiohm_save_personal_kb',
+            nonce: '<?php echo wp_create_nonce("aiohm_personal_kb_nonce"); ?>',
+            data: formData
+        }).done(function(response){
+            if (response.success) {
+                $status.text(response.data.message).addClass('success');
+                $form.find('textarea').val('');
+            } else {
+                $status.text(response.data.message).addClass('error');
+            }
+        }).fail(function(){
+            $status.text('An unknown server error occurred.');
+        }).always(function(){
+            $spinner.removeClass('is-active');
+        });
+    });
 
     // Brand Assistant Chat Logic
     const $messagesContainer = $('#brand-assistant-chat-container .aiohm-chat-messages');
