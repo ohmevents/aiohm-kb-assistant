@@ -1,7 +1,7 @@
 <?php
 /**
  * Scan website content template.
- * This version relocates the stats into their respective scanner sections.
+ * This is the final, complete, and correct version of the file.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -14,6 +14,7 @@ $uploads_crawler = new AIOHM_KB_Uploads_Crawler();
 $site_stats = $site_crawler->get_scan_stats();
 $uploads_stats = $uploads_crawler->get_stats();
 
+$total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['total'] ?? 0);
 $pending_website_items = get_transient('aiohm_pending_items_website_' . get_current_user_id()) ?: [];
 $pending_upload_items = get_transient('aiohm_pending_items_uploads_' . get_current_user_id()) ?: [];
 ?>
@@ -37,6 +38,10 @@ $pending_upload_items = get_transient('aiohm_pending_items_uploads_' . get_curre
                 <p><?php _e('Scan your website for all published posts and pages.', 'aiohm-kb-assistant'); ?></p>
                 
                 <div class="stat-group">
+                    <div class="stat-item total-stat">
+                        <strong><?php _e('Total Website Content:', 'aiohm-kb-assistant'); ?></strong>
+                        <span><?php echo esc_html($total_links); ?> (Posts + Pages)</span>
+                    </div>
                     <div class="stat-item">
                         <strong><?php _e('Posts:', 'aiohm-kb-assistant'); ?></strong>
                         <span><?php printf(__('%d total, %d indexed, %d pending', 'aiohm-kb-assistant'), $site_stats['posts']['total'] ?? 0, $site_stats['posts']['indexed'] ?? 0, $site_stats['posts']['pending'] ?? 0); ?></span>
@@ -48,7 +53,7 @@ $pending_upload_items = get_transient('aiohm_pending_items_uploads_' . get_curre
                 </div>
 
                 <button type="button" class="button button-primary" id="scan-website-btn" <?php disabled(!$api_key_exists); ?>><?php _e('Find Posts & Pages', 'aiohm-kb-assistant'); ?></button>
-                <div id="pending-content-area" style="<?php echo empty($pending_website_items) ? 'display: none;' : ''; ?> margin-top: 20px;">
+                <div id="pending-content-area" style="margin-top: 20px;">
                     <h3><?php _e("Scan Results", 'aiohm-kb-assistant'); ?></h3>
                     <div id="scan-results-container"></div>
                     <button type="button" class="button button-primary" id="add-selected-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected to KB', 'aiohm-kb-assistant'); ?></button>
@@ -84,7 +89,7 @@ $pending_upload_items = get_transient('aiohm_pending_items_uploads_' . get_curre
                 </div>
 
                 <button type="button" class="button button-primary" id="scan-uploads-btn" <?php disabled(!$api_key_exists); ?>><?php _e('Find Uploads', 'aiohm-kb-assistant'); ?></button>
-                <div id="pending-uploads-area" style="<?php echo empty($pending_upload_items) ? 'display: none;' : ''; ?> margin-top: 20px;">
+                <div id="pending-uploads-area" style="margin-top: 20px;">
                     <h3><?php _e("Uploads Scan Results", 'aiohm-kb-assistant'); ?></h3>
                     <div id="scan-uploads-container"></div>
                     <button type="button" class="button button-primary" id="add-uploads-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected Uploads to KB', 'aiohm-kb-assistant'); ?></button>
@@ -100,6 +105,7 @@ $pending_upload_items = get_transient('aiohm_pending_items_uploads_' . get_curre
 .aiohm-scan-section { background: #fff; padding: 25px; border: 1px solid #dcdcde; border-radius: 4px; height: 100%; }
 .stat-group { margin-bottom: 20px; }
 .stat-item { margin-bottom: 8px; padding: 10px; background: #f8f9fa; border-left: 3px solid #007cba; }
+.stat-item.total-stat { background-color: #f0f5fa; border-left-color: #334155; margin-bottom: 15px; font-size: 14px; border-bottom: 1px solid #e0e5e9; padding-bottom: 15px; }
 .aiohm-scan-progress { margin-top: 15px; }
 .progress-info { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; color: #555; }
 .progress-bar-wrapper { background-color: #e9ecef; border-radius: 4px; height: 12px; overflow: hidden; }
@@ -129,136 +135,7 @@ jQuery(document).ready(function($) {
         }, 5000);
     }
 
-    $('#scan-website-btn').on('click', function() {
-        if ($(this).is(':disabled')) return;
-        const $btn = $(this);
-        $btn.prop('disabled', true).text('Scanning...');
-        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_find', nonce: nonce })
-        .done(response => { 
-            if (response.success) { 
-                renderItemsTable(response.data.items, '#pending-content-area', '#scan-results-container', 'items[]', true); 
-            } 
-        })
-        .always(() => { $btn.prop('disabled', false).text('Find Posts & Pages'); });
-    });
-    
-    $('#add-selected-to-kb-btn').on('click', function() {
-        if ($(this).is(':disabled')) return;
-        const $addBtn = $(this);
-        const selectedIds = $('#scan-results-container input:checkbox:checked').map(function() { return this.value; }).get();
-        if (selectedIds.length === 0) {
-            showAdminNotice('Please select at least one item.', 'error');
-            return;
-        }
-        
-        $addBtn.prop('disabled', true);
-        const $progress = $('#website-scan-progress');
-        const $progressBar = $progress.find('.progress-bar-inner');
-        const $progressPercentage = $progress.find('.progress-percentage');
-        $progress.show();
-        $progressBar.css('width', '0%');
-        $progressPercentage.text('0%');
-
-        let processedCount = 0;
-        const batchSize = 5;
-
-        function processBatch(batch) {
-            if (batch.length === 0) {
-                showAdminNotice('All selected items processed successfully.', 'success');
-                $addBtn.prop('disabled', false);
-                setTimeout(() => { 
-                    $progress.fadeOut();
-                }, 1000);
-                return;
-            }
-
-            const currentBatch = batch.slice(0, batchSize);
-            const remainingBatch = batch.slice(batchSize);
-
-            $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_add', item_ids: currentBatch, nonce: nonce })
-            .done(response => {
-                if (response.success) {
-                    processedCount += currentBatch.length;
-                    let percentage = Math.round((processedCount / selectedIds.length) * 100);
-                    $progressBar.css('width', percentage + '%');
-                    $progressPercentage.text(percentage + '%');
-                    renderItemsTable(response.data.all_items, '#pending-content-area', '#scan-results-container', 'items[]', true);
-                    processBatch(remainingBatch);
-                } else {
-                    showAdminNotice(response.data.message, 'error');
-                    $addBtn.prop('disabled', false);
-                }
-            }).fail(() => {
-                showAdminNotice('An unexpected server error occurred.', 'error');
-                $addBtn.prop('disabled', false);
-            });
-        }
-        processBatch(selectedIds);
-    });
-
-    $('#scan-uploads-btn').on('click', function() {
-        if ($(this).is(':disabled')) return;
-        const $btn = $(this);
-        $btn.prop('disabled', true).text('Scanning Uploads...');
-        
-        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_find', nonce: nonce })
-        .done(function(response) {
-            if (response.success) {
-                renderItemsTable(response.data.items, '#pending-uploads-area', '#scan-uploads-container', 'upload_items[]', false);
-            }
-        })
-        .always(function() {
-            $btn.prop('disabled', false).text('Find Uploads');
-        });
-    });
-
-    $('#add-uploads-to-kb-btn').on('click', function() {
-        if ($(this).is(':disabled')) return;
-        const $addBtn = $(this);
-        const selectedIds = $('#scan-uploads-container input:checkbox:checked').map(function() { return this.value; }).get();
-        if (selectedIds.length === 0) {
-            showAdminNotice('Please select at least one file.', 'error');
-            return;
-        }
-        $addBtn.prop('disabled', true).text('Adding...');
-        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_add', item_ids: selectedIds, nonce: nonce })
-        .done(function(response) {
-            if (response.success) {
-                showAdminNotice(response.data.processed_items.length + ' file(s) processed.', 'success');
-                renderItemsTable(response.data.items, '#pending-uploads-area', '#scan-uploads-container', 'upload_items[]', false);
-            } else {
-                showAdminNotice(response.data.message, 'error');
-            }
-        })
-        .always(function() {
-            $addBtn.prop('disabled', false).text('Add Selected Uploads to KB');
-        });
-    });
-
-    $('#scan-results-container').on('click', '.add-single-item-link', function(e) {
-        e.preventDefault();
-        const $link = $(this);
-        const itemId = $link.data('id');
-        if (!itemId) return;
-        $link.replaceWith('<span class="spinner is-active" style="float:none;"></span>');
-        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_add', item_ids: [itemId], nonce: nonce })
-        .done(response => {
-            if (response.success) {
-                showAdminNotice('1 item processed successfully.', 'success');
-                renderItemsTable(response.data.all_items, '#pending-content-area', '#scan-results-container', 'items[]', true);
-            } else {
-                showAdminNotice(response.data.message, 'error');
-                $link.closest('td').html(`<span class="status-ready-to-add"><a href="#" class="add-single-item-link" data-id="${itemId}">Ready to Add</a></span>`);
-            }
-        })
-        .fail(() => {
-            showAdminNotice('An unexpected server error occurred.', 'error');
-            $link.closest('td').html(`<span class="status-ready-to-add"><a href="#" class="add-single-item-link" data-id="${itemId}">Ready to Add</a></span>`);
-        });
-    });
-
-    function renderItemsTable(items, areaSelector, containerSelector, checkboxName, showStatusColumn) {
-        const $area = $(areaSelector);
+    function renderItemsTable(items, containerSelector, checkboxName, showStatusColumn) {
         const $container = $(containerSelector);
         $container.empty();
         if (items && items.length > 0) {
@@ -286,22 +163,139 @@ jQuery(document).ready(function($) {
             table += `</tbody></table>`;
             $container.html(table);
         } else {
-            $container.html('<p style="padding: 15px; background-color: #f8f9fa;">No new items found.</p>');
+            $container.html('<p style="padding: 15px; background-color: #f8f9fa;">Click the button above to scan for content.</p>');
         }
-        $area.show();
     }
+
+    $('#scan-website-btn').on('click', function() {
+        if ($(this).is(':disabled')) return;
+        const $btn = $(this);
+        $btn.prop('disabled', true).text('Scanning...');
+        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_find', nonce: nonce })
+        .done(response => { 
+            if (response.success) { 
+                renderItemsTable(response.data.items, '#scan-results-container', 'items[]', true); 
+            } 
+        })
+        .always(() => { $btn.prop('disabled', false).text('Re-Scan Posts & Pages'); });
+    });
+    
+    $('#add-selected-to-kb-btn').on('click', function() {
+        if ($(this).is(':disabled')) return;
+        const $addBtn = $(this);
+        const selectedIds = $('#scan-results-container input:checkbox:checked').map(function() { return this.value; }).get();
+        if (selectedIds.length === 0) {
+            showAdminNotice('Please select at least one item.', 'error');
+            return;
+        }
+        
+        $addBtn.prop('disabled', true);
+        const $progress = $('#website-scan-progress');
+        const $progressBar = $progress.find('.progress-bar-inner');
+        const $progressPercentage = $progress.find('.progress-percentage');
+        $progress.show();
+        $progressBar.css('width', '0%');
+        $progressPercentage.text('0%');
+        let processedCount = 0;
+        const batchSize = 5;
+
+        function processBatch(batch) {
+            if (batch.length === 0) {
+                showAdminNotice('All selected items processed successfully.', 'success');
+                $addBtn.prop('disabled', false);
+                setTimeout(() => { $progress.fadeOut(); }, 1000);
+                return;
+            }
+            const currentBatch = batch.slice(0, batchSize);
+            const remainingBatch = batch.slice(batchSize);
+
+            $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_add', item_ids: currentBatch, nonce: nonce })
+            .done(response => {
+                if (response.success) {
+                    processedCount += currentBatch.length;
+                    let percentage = Math.round((processedCount / selectedIds.length) * 100);
+                    $progressBar.css('width', percentage + '%');
+                    $progressPercentage.text(percentage + '%');
+                    renderItemsTable(response.data.all_items, '#scan-results-container', 'items[]', true);
+                    processBatch(remainingBatch);
+                } else {
+                    showAdminNotice(response.data.message, 'error');
+                    $addBtn.prop('disabled', false);
+                }
+            }).fail(() => {
+                showAdminNotice('An unexpected server error occurred.', 'error');
+                $addBtn.prop('disabled', false);
+            });
+        }
+        processBatch(selectedIds);
+    });
+
+    $('#scan-uploads-btn').on('click', function() {
+        if ($(this).is(':disabled')) return;
+        const $btn = $(this);
+        $btn.prop('disabled', true).text('Scanning Uploads...');
+        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_find', nonce: nonce })
+        .done(function(response) {
+            if (response.success) {
+                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', false);
+            }
+        })
+        .always(function() {
+            $btn.prop('disabled', false).text('Re-Scan Uploads');
+        });
+    });
+
+    $('#add-uploads-to-kb-btn').on('click', function() {
+        if ($(this).is(':disabled')) return;
+        const $addBtn = $(this);
+        const selectedIds = $('#scan-uploads-container input:checkbox:checked').map(function() { return this.value; }).get();
+        if (selectedIds.length === 0) {
+            showAdminNotice('Please select at least one file.', 'error');
+            return;
+        }
+        $addBtn.prop('disabled', true).text('Adding...');
+        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_add', item_ids: selectedIds, nonce: nonce })
+        .done(function(response) {
+            if (response.success) {
+                showAdminNotice(response.data.processed_items.length + ' file(s) processed.', 'success');
+                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', false);
+            } else {
+                showAdminNotice(response.data.message, 'error');
+            }
+        })
+        .always(function() {
+            $addBtn.prop('disabled', false).text('Add Selected Uploads to KB');
+        });
+    });
+
+    $('#scan-results-container').on('click', '.add-single-item-link', function(e) {
+        e.preventDefault();
+        const $link = $(this);
+        const itemId = $link.data('id');
+        if (!itemId) return;
+        $link.replaceWith('<span class="spinner is-active" style="float:none;"></span>');
+        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_add', item_ids: [itemId], nonce: nonce })
+        .done(response => {
+            if (response.success) {
+                showAdminNotice('1 item processed successfully.', 'success');
+                renderItemsTable(response.data.all_items, '#scan-results-container', 'items[]', true);
+            } else {
+                showAdminNotice(response.data.message, 'error');
+                $link.closest('td').html(`<span class="status-ready-to-add"><a href="#" class="add-single-item-link" data-id="${itemId}">Ready to Add</a></span>`);
+            }
+        })
+        .fail(() => {
+            showAdminNotice('An unexpected server error occurred.', 'error');
+            $link.closest('td').html(`<span class="status-ready-to-add"><a href="#" class="add-single-item-link" data-id="${itemId}">Ready to Add</a></span>`);
+        });
+    });
     
     $(document).on('click', '.aiohm-scan-section thead input:checkbox', function(){
         $(this).closest('table').find('tbody input:checkbox:not(:disabled)').prop('checked', this.checked);
     });
 
-    const initialWebsiteItems = <?php echo json_encode($pending_website_items ?? []); ?>;
-    if (initialWebsiteItems && initialWebsiteItems.length > 0) {
-        renderItemsTable(initialWebsiteItems, '#pending-content-area', '#scan-results-container', 'items[]', true);
-    }
-    const initialUploadItems = <?php echo json_encode($pending_upload_items ?? []); ?>;
-    if (initialUploadItems && initialUploadItems.length > 0) {
-        renderItemsTable(initialUploadItems, '#pending-uploads-area', '#scan-uploads-container', 'upload_items[]', false);
-    }
+    // Initial render on page load from data passed by PHP
+    renderItemsTable(<?php echo json_encode($pending_website_items); ?>, '#scan-results-container', 'items[]', true);
+    renderItemsTable(<?php echo json_encode($pending_upload_items); ?>, '#scan-uploads-container', 'upload_items[]', false);
 });
 </script>

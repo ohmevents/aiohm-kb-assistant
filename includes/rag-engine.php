@@ -1,7 +1,7 @@
 <?php
 /**
  * RAG (Retrieval-Augmented Generation) Engine.
- * Final version with all advanced management functions.
+ * This version fixes the deletion logic to correctly update post meta status.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -55,9 +55,43 @@ class AIOHM_KB_RAG_Engine {
         return (int) $wpdb->get_var("SELECT COUNT(DISTINCT content_id) FROM {$this->table_name}");
     }
 
+    /**
+     * Deletes an entry by its content ID and also removes the '_aiohm_indexed' post meta
+     * from the original post or attachment to keep the status in sync.
+     */
     public function delete_entry_by_content_id($content_id) {
         global $wpdb;
-        return $wpdb->delete($this->table_name, ['content_id' => $content_id], ['%s']);
+
+        // First, find the metadata from one of the chunks before we delete them.
+        $metadata_json = $wpdb->get_var($wpdb->prepare(
+            "SELECT metadata FROM {$this->table_name} WHERE content_id = %s LIMIT 1",
+            $content_id
+        ));
+
+        // Delete the entries from our custom knowledge base table.
+        $deleted = $wpdb->delete($this->table_name, ['content_id' => $content_id], ['%s']);
+
+        // If deletion was successful and we found metadata, update the original item's status.
+        if ($deleted > 0 && !empty($metadata_json)) {
+            $metadata = json_decode($metadata_json, true);
+            
+            // Determine the original item's ID (could be a post or an attachment).
+            $original_item_id = null;
+            if (isset($metadata['post_id'])) {
+                $original_item_id = (int) $metadata['post_id'];
+            } elseif (isset($metadata['attachment_id'])) {
+                $original_item_id = (int) $metadata['attachment_id'];
+            }
+
+            if ($original_item_id) {
+                // Remove the indexed flag.
+                delete_post_meta($original_item_id, '_aiohm_indexed');
+                // Clear the cache for this item to ensure the change is reflected immediately.
+                clean_post_cache($original_item_id);
+            }
+        }
+
+        return $deleted;
     }
 
     private function generate_entry_id($title, $content) {

@@ -1,7 +1,7 @@
 <?php
 /**
  * Handles the display and processing of the "Manage Knowledge Base" admin page.
- * This version fixes the fatal error by restoring the RAG engine initialization.
+ * This is the complete and final version of this file.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -14,8 +14,6 @@ class AIOHM_KB_List_Table extends WP_List_Table {
 
     function __construct() {
         parent::__construct(['singular' => 'kb_entry', 'plural' => 'kb_entries', 'ajax' => false]);
-        
-        // ** THE FIX IS HERE: This essential line was missing. It has been restored. **
         $this->rag_engine = new AIOHM_KB_RAG_Engine();
     }
 
@@ -40,7 +38,6 @@ class AIOHM_KB_List_Table extends WP_List_Table {
     function column_scope_toggle($item) {
         $action_links_html = [];
         $current_user_id = get_current_user_id();
-
         $is_global = ($item['user_id'] == 0);
         $is_mine = ($item['user_id'] == $current_user_id);
         if ($is_global || $is_mine) {
@@ -53,16 +50,13 @@ class AIOHM_KB_List_Table extends WP_List_Table {
                 $button_text
             );
         }
-
         $metadata = isset($item['metadata']) ? json_decode($item['metadata'], true) : null;
         if (is_array($metadata) && isset($metadata['post_id']) && get_post_type($metadata['post_id'])) {
             $action_links_html[] = sprintf('<a href="%s" target="_blank" class="button button-secondary button-small">View</a>', get_permalink($metadata['post_id']));
         }
-        
         $delete_nonce = wp_create_nonce('aiohm_delete_entry_nonce');
         $delete_url = sprintf('?page=%s&action=delete&content_id=%s&_wpnonce=%s', esc_attr($_REQUEST['page']), esc_attr($item['content_id']), $delete_nonce);
         $action_links_html[] = sprintf('<a href="%s" onclick="return confirm(\'Are you sure?\')" class="button-link-delete" style="vertical-align: middle;">Delete</a>', $delete_url);
-        
         return '<div style="display: flex; gap: 8px; align-items: center;">' . implode('', $action_links_html) . '</div>';
     }
 
@@ -86,10 +80,8 @@ class AIOHM_KB_List_Table extends WP_List_Table {
         $this->_column_headers = [$this->get_columns(), [], []];
         $per_page = 20;
         $current_page = $this->get_pagenum();
-        
         $total_items = $this->rag_engine->get_total_entries_count();
         $total_items = $total_items ?? 0;
-
         $this->set_pagination_args(['total_items' => (int) $total_items, 'per_page' => $per_page]);
         $this->items = $this->rag_engine->get_all_entries_paginated($per_page, $current_page);
     }
@@ -109,18 +101,20 @@ class AIOHM_KB_Manager {
         $this->handle_actions();
         $list_table = $this->list_table;
         $list_table->prepare_items();
-        
         $settings = AIOHM_KB_Assistant::get_settings();
-
         include_once AIOHM_KB_PLUGIN_DIR . 'templates/admin-manage-kb.php';
     }
 
     private function handle_actions() {
         $current_action = $this->list_table->current_action();
+        $user_id = get_current_user_id();
 
         if ('delete' === $current_action && isset($_GET['content_id']) && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'aiohm_delete_entry_nonce')) {
-            $this->rag_engine->delete_entry_by_content_id(sanitize_text_field($_GET['content_id']));
-            echo '<div class="notice notice-success is-dismissible"><p>Entry deleted successfully.</p></div>';
+            if ($this->rag_engine->delete_entry_by_content_id(sanitize_text_field($_GET['content_id']))) {
+                delete_transient('aiohm_pending_items_website_' . $user_id);
+                delete_transient('aiohm_pending_items_uploads_' . $user_id);
+                echo '<div class="notice notice-success is-dismissible"><p>Entry deleted successfully.</p></div>';
+            }
         }
 
         if ('bulk-delete' === $current_action && isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'bulk-' . $this->list_table->_args['plural'])) {
@@ -132,6 +126,8 @@ class AIOHM_KB_Manager {
                     }
                 }
                 if ($deleted_count > 0) {
+                    delete_transient('aiohm_pending_items_website_' . $user_id);
+                    delete_transient('aiohm_pending_items_uploads_' . $user_id);
                     echo '<div class="notice notice-success is-dismissible"><p>' . sprintf('%d entries deleted successfully.', $deleted_count) . '</p></div>';
                 }
             }
