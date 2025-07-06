@@ -117,5 +117,19 @@ class AIOHM_KB_Assistant {
             'scan_schedule' => 'none',
         ], '', 'no');
     }
+
+    /**
+     * Custom logging function for the plugin.
+     * Logs messages to the debug log if WP_DEBUG_LOG is enabled.
+     *
+     * @param string $message The message to log.
+     * @param string $level The log level (e.g., 'info', 'warning', 'error').
+     */
+    public static function log($message, $level = 'info') {
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG === true) {
+            $log_prefix = '[AIOHM_KB_Assistant] ' . strtoupper($level) . ': ';
+            error_log($log_prefix . $message);
+        }
+    }
 }
 AIOHM_KB_Assistant::get_instance();
