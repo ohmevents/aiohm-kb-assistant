@@ -40,8 +40,12 @@ class AIOHM_KB_Settings_Page {
         $site_stats = $site_crawler->get_scan_stats();
         $uploads_stats = $uploads_crawler->get_stats();
 
-        $pending_website_items = $site_crawler->find_all_content();
-        $pending_upload_items = $uploads_crawler->find_pending_attachments();
+        // Get all supported uploads with their status for rendering
+        $all_upload_items = $uploads_crawler->find_all_supported_attachments(); 
+        AIOHM_KB_Assistant::log('Settings Page: $all_upload_items count: ' . count($all_upload_items)); // Added log
+        AIOHM_KB_Assistant::log('Settings Page: $all_upload_items content: ' . print_r($all_upload_items, true)); // Added log
+
+        $pending_website_items = $site_crawler->find_all_content(); // This already returns all with status
 
         include AIOHM_KB_PLUGIN_DIR . 'templates/scan-website.php';
     }
