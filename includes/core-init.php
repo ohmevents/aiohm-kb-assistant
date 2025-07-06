@@ -22,57 +22,41 @@ class AIOHM_KB_Core_Init {
         if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
             wp_die('Security check failed');
         }
-
         try {
             $scan_type = sanitize_text_field($_POST['scan_type']);
-            $user_id = get_current_user_id();
-
             switch ($scan_type) {
                 case 'website_find':
                     $crawler = new AIOHM_KB_Site_Crawler();
                     $all_items = $crawler->find_all_content();
-                    set_transient('aiohm_pending_items_website_' . $user_id, $all_items, 12 * HOUR_IN_SECONDS);
                     wp_send_json_success(['items' => $all_items]);
                     break;
-
                 case 'website_add':
                     $item_ids = isset($_POST['item_ids']) ? array_map('intval', $_POST['item_ids']) : [];
                     if (empty($item_ids)) throw new Exception('No item IDs provided.');
-                    
                     $crawler = new AIOHM_KB_Site_Crawler();
                     $results = $crawler->add_items_to_kb($item_ids);
-                    
                     $errors = array_filter($results, function($r) { return $r['status'] === 'error'; });
-
                     if (!empty($errors)) {
                         $error_messages = array_map(function($e) { return $e['title'] . ': ' . $e['error_message']; }, $errors);
                         wp_send_json_error(['message' => "Some items failed to process:\n" . implode("\n", $error_messages)]);
                     } else {
                         $all_items = $crawler->find_all_content();
-                        set_transient('aiohm_pending_items_website_' . $user_id, $all_items, 12 * HOUR_IN_SECONDS);
                         wp_send_json_success(['processed_items' => $results, 'all_items' => $all_items]);
                     }
                     break;
-                
                 case 'uploads_find':
                     $crawler = new AIOHM_KB_Uploads_Crawler();
                     $pending_files = $crawler->find_pending_attachments();
-                    set_transient('aiohm_pending_items_uploads_' . $user_id, $pending_files, 12 * HOUR_IN_SECONDS);
                     wp_send_json_success(['items' => $pending_files]);
                     break;
-
                 case 'uploads_add':
                     $item_ids = isset($_POST['item_ids']) ? array_map('intval', $_POST['item_ids']) : [];
                     if (empty($item_ids)) throw new Exception('No item IDs provided.');
-
                     $crawler = new AIOHM_KB_Uploads_Crawler();
                     $results = $crawler->add_attachments_to_kb($item_ids);
-                    
                     $pending_files = $crawler->find_pending_attachments();
-                    set_transient('aiohm_pending_items_uploads_' . $user_id, $pending_files, 12 * HOUR_IN_SECONDS);
                     wp_send_json_success(['processed_items' => $results, 'items' => $pending_files]);
                     break;
-
                 default:
                     throw new Exception('Invalid scan type specified.');
             }
@@ -123,8 +107,6 @@ class AIOHM_KB_Core_Init {
         $wpdb->query("DELETE FROM {$wpdb->postmeta} WHERE meta_key = '_aiohm_indexed'");
         $table_name = $wpdb->prefix . 'aiohm_vector_entries';
         $wpdb->query("TRUNCATE TABLE {$table_name}");
-        delete_transient('aiohm_pending_items_website_' . get_current_user_id());
-        delete_transient('aiohm_pending_items_uploads_' . get_current_user_id());
         wp_send_json_success(['message' => 'The knowledge base has been successfully reset.']);
     }
 

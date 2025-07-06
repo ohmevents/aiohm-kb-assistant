@@ -34,14 +34,12 @@ class AIOHM_KB_Settings_Page {
     }
     
     public function render_scan_page() {
-        // ** THE FIX IS HERE: Always fetch fresh data on page load, no more transients. **
         $site_crawler = new AIOHM_KB_Site_Crawler();
         $uploads_crawler = new AIOHM_KB_Uploads_Crawler();
         
         $site_stats = $site_crawler->get_scan_stats();
         $uploads_stats = $uploads_crawler->get_stats();
 
-        // These variables now contain the fresh list of items for the template to use.
         $pending_website_items = $site_crawler->find_all_content();
         $pending_upload_items = $uploads_crawler->find_pending_attachments();
 

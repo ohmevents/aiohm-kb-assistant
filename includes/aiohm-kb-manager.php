@@ -88,7 +88,6 @@ class AIOHM_KB_List_Table extends WP_List_Table {
 }
 
 class AIOHM_KB_Manager {
-    
     private $rag_engine;
     private $list_table;
 
@@ -107,16 +106,11 @@ class AIOHM_KB_Manager {
 
     private function handle_actions() {
         $current_action = $this->list_table->current_action();
-        $user_id = get_current_user_id();
-
         if ('delete' === $current_action && isset($_GET['content_id']) && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'aiohm_delete_entry_nonce')) {
             if ($this->rag_engine->delete_entry_by_content_id(sanitize_text_field($_GET['content_id']))) {
-                delete_transient('aiohm_pending_items_website_' . $user_id);
-                delete_transient('aiohm_pending_items_uploads_' . $user_id);
                 echo '<div class="notice notice-success is-dismissible"><p>Entry deleted successfully.</p></div>';
             }
         }
-
         if ('bulk-delete' === $current_action && isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'bulk-' . $this->list_table->_args['plural'])) {
             if (isset($_POST['entry_ids']) && is_array($_POST['entry_ids'])) {
                 $deleted_count = 0;
@@ -126,8 +120,6 @@ class AIOHM_KB_Manager {
                     }
                 }
                 if ($deleted_count > 0) {
-                    delete_transient('aiohm_pending_items_website_' . $user_id);
-                    delete_transient('aiohm_pending_items_uploads_' . $user_id);
                     echo '<div class="notice notice-success is-dismissible"><p>' . sprintf('%d entries deleted successfully.', $deleted_count) . '</p></div>';
                 }
             }

@@ -1,7 +1,7 @@
 <?php
 /**
  * Scan website content template.
- * This is the final, complete, and correct version of the file.
+ * This version restores the top stats box with the requested two-column layout.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -15,8 +15,8 @@ $site_stats = $site_crawler->get_scan_stats();
 $uploads_stats = $uploads_crawler->get_stats();
 
 $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['total'] ?? 0);
-$pending_website_items = get_transient('aiohm_pending_items_website_' . get_current_user_id()) ?: [];
-$pending_upload_items = get_transient('aiohm_pending_items_uploads_' . get_current_user_id()) ?: [];
+$pending_website_items = $site_crawler->find_all_content();
+$pending_upload_items = $uploads_crawler->find_pending_attachments();
 ?>
 <div class="wrap" id="aiohm-scan-page">
     <h1><?php _e('Build Your Knowledge Base', 'aiohm-kb-assistant'); ?></h1>
@@ -31,13 +31,13 @@ $pending_upload_items = get_transient('aiohm_pending_items_uploads_' . get_curre
         </div>
     <?php endif; ?>
 
-    <div class="aiohm-scan-columns-wrapper">
-        <div class="aiohm-scan-column">
-            <div class="aiohm-scan-section">
-                <h2><?php _e('Website Content Scanner', 'aiohm-kb-assistant'); ?></h2>
-                <p><?php _e('Scan your website for all published posts and pages.', 'aiohm-kb-assistant'); ?></p>
-                
+    <div class="aiohm-scan-section-wrapper" style="margin-bottom: 20px;">
+        <div class="aiohm-scan-section">
+            <h2><?php _e('Content Stats', 'aiohm-kb-assistant'); ?></h2>
+            <p><?php _e('An overview of all scannable content.', 'aiohm-kb-assistant'); ?></p>
+            <div class="aiohm-stats-split">
                 <div class="stat-group">
+                    <h4><?php _e('Website Content Breakdown', 'aiohm-kb-assistant'); ?></h4>
                     <div class="stat-item total-stat">
                         <strong><?php _e('Total Website Content:', 'aiohm-kb-assistant'); ?></strong>
                         <span><?php echo esc_html($total_links); ?> (Posts + Pages)</span>
@@ -51,30 +51,8 @@ $pending_upload_items = get_transient('aiohm_pending_items_uploads_' . get_curre
                          <span><?php printf(__('%d total, %d indexed, %d pending', 'aiohm-kb-assistant'), $site_stats['pages']['total'] ?? 0, $site_stats['pages']['indexed'] ?? 0, $site_stats['pages']['pending'] ?? 0); ?></span>
                     </div>
                 </div>
-
-                <button type="button" class="button button-primary" id="scan-website-btn" <?php disabled(!$api_key_exists); ?>><?php _e('Find Posts & Pages', 'aiohm-kb-assistant'); ?></button>
-                <div id="pending-content-area" style="margin-top: 20px;">
-                    <h3><?php _e("Scan Results", 'aiohm-kb-assistant'); ?></h3>
-                    <div id="scan-results-container"></div>
-                    <button type="button" class="button button-primary" id="add-selected-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected to KB', 'aiohm-kb-assistant'); ?></button>
-                    <div id="website-scan-progress" class="aiohm-scan-progress" style="display: none;">
-                        <div class="progress-info">
-                            <span class="progress-label">Processing...</span>
-                            <span class="progress-percentage">0%</span>
-                        </div>
-                        <div class="progress-bar-wrapper">
-                            <div class="progress-bar-inner"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="aiohm-scan-column">
-            <div class="aiohm-scan-section">
-                <h2><?php _e('Uploaded Files Scanner', 'aiohm-kb-assistant'); ?></h2>
-                <p><?php _e('Scan for <strong>.txt, .json, .csv,</strong> and <strong>.pdf</strong> files. For PDFs, the Title, Caption, and Description fields will be used as the content.', 'aiohm-kb-assistant'); ?></p>
-                
                 <div class="stat-group">
+                    <h4><?php _e('Uploaded Files Breakdown', 'aiohm-kb-assistant'); ?></h4>
                     <?php
                     if (!empty($uploads_stats['by_type'])) {
                         foreach($uploads_stats['by_type'] as $type => $data) {
@@ -87,11 +65,67 @@ $pending_upload_items = get_transient('aiohm_pending_items_uploads_' . get_curre
                     }
                     ?>
                 </div>
+            </div>
+        </div>
+    </div>
 
+    <div class="aiohm-scan-columns-wrapper">
+        <div class="aiohm-scan-column">
+            <div class="aiohm-scan-section">
+                <h2><?php _e('Website Content Scanner', 'aiohm-kb-assistant'); ?></h2>
+                <p><?php _e('Use the button to find or re-scan your posts and pages.', 'aiohm-kb-assistant'); ?></p>
+                <button type="button" class="button button-primary" id="scan-website-btn" <?php disabled(!$api_key_exists); ?>><?php _e('Find Posts & Pages', 'aiohm-kb-assistant'); ?></button>
+                <div id="pending-content-area" style="margin-top: 20px;">
+                    <h3><?php _e("Scan Results", 'aiohm-kb-assistant'); ?></h3>
+                    <div id="scan-results-container">
+                        <?php
+                        if (!empty($pending_website_items)) {
+                            echo '<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th><th>Status</th></tr></thead><tbody>';
+                            foreach ($pending_website_items as $item) {
+                                $status_class = strtolower(str_replace(' ', '-', $item['status']));
+                                $status_content = $item['status'] === 'Ready to Add' ? sprintf('<a href="#" class="add-single-item-link" data-id="%d">%s</a>', $item['id'], $item['status']) : $item['status'];
+                                echo sprintf(
+                                    '<tr><th scope="row" class="check-column"><input type="checkbox" name="items[]" value="%d"></th><td><a href="%s" target="_blank">%s</a></td><td><span class="type-%s">%s</span></td><td><span class="status-%s">%s</span></td></tr>',
+                                    $item['id'], esc_url($item['link']), esc_html($item['title']), esc_attr($item['type']), esc_html($item['type']), esc_attr($status_class), $status_content
+                                );
+                            }
+                            echo '</tbody></table>';
+                        } else {
+                            echo '<p style="padding: 15px; background-color: #f8f9fa;">Click the button above to scan for content.</p>';
+                        }
+                        ?>
+                    </div>
+                    <button type="button" class="button button-primary" id="add-selected-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected to KB', 'aiohm-kb-assistant'); ?></button>
+                    <div id="website-scan-progress" class="aiohm-scan-progress" style="display: none;">
+                        <div class="progress-info"><span class="progress-label">Processing...</span><span class="progress-percentage">0%</span></div>
+                        <div class="progress-bar-wrapper"><div class="progress-bar-inner"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="aiohm-scan-column">
+            <div class="aiohm-scan-section">
+                <h2><?php _e('Uploaded Files Scanner', 'aiohm-kb-assistant'); ?></h2>
+                <p><?php _e('Scan for <strong>.txt, .json, .csv,</strong> and <strong>.pdf</strong> files. For PDFs, the Title, Caption, and Description fields will be used as the content.', 'aiohm-kb-assistant'); ?></p>
                 <button type="button" class="button button-primary" id="scan-uploads-btn" <?php disabled(!$api_key_exists); ?>><?php _e('Find Uploads', 'aiohm-kb-assistant'); ?></button>
                 <div id="pending-uploads-area" style="margin-top: 20px;">
                     <h3><?php _e("Uploads Scan Results", 'aiohm-kb-assistant'); ?></h3>
-                    <div id="scan-uploads-container"></div>
+                    <div id="scan-uploads-container">
+                        <?php
+                        if (!empty($pending_upload_items)) {
+                            echo '<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th></tr></thead><tbody>';
+                            foreach ($pending_upload_items as $item) {
+                                echo sprintf(
+                                    '<tr><th scope="row" class="check-column"><input type="checkbox" name="upload_items[]" value="%d"></th><td><a href="%s" target="_blank">%s</a></td><td>%s</td></tr>',
+                                    $item['id'], esc_url($item['link']), esc_html($item['title']), esc_html($item['type'])
+                                );
+                            }
+                            echo '</tbody></table>';
+                        } else {
+                             echo '<p style="padding: 15px; background-color: #f8f9fa;">Click the button above to scan for supported files.</p>';
+                        }
+                        ?>
+                    </div>
                     <button type="button" class="button button-primary" id="add-uploads-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected Uploads to KB', 'aiohm-kb-assistant'); ?></button>
                 </div>
             </div>
@@ -102,10 +136,12 @@ $pending_upload_items = get_transient('aiohm_pending_items_uploads_' . get_curre
 <style>
 .aiohm-scan-columns-wrapper { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 @media (max-width: 960px) { .aiohm-scan-columns-wrapper { grid-template-columns: 1fr; } }
+.aiohm-scan-section-wrapper { max-width: 100%; }
 .aiohm-scan-section { background: #fff; padding: 25px; border: 1px solid #dcdcde; border-radius: 4px; height: 100%; }
-.stat-group { margin-bottom: 20px; }
+.aiohm-stats-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; }
+.stat-group h4 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }
 .stat-item { margin-bottom: 8px; padding: 10px; background: #f8f9fa; border-left: 3px solid #007cba; }
-.stat-item.total-stat { background-color: #f0f5fa; border-left-color: #334155; margin-bottom: 15px; font-size: 14px; border-bottom: 1px solid #e0e5e9; padding-bottom: 15px; }
+.stat-item.total-stat { background-color: #f0f5fa; border-left-color: #334155; margin-bottom: 15px; font-size: 14px; border-bottom: 1px solid #e0e5e9; padding-bottom: 10px; }
 .aiohm-scan-progress { margin-top: 15px; }
 .progress-info { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; color: #555; }
 .progress-bar-wrapper { background-color: #e9ecef; border-radius: 4px; height: 12px; overflow: hidden; }
@@ -163,7 +199,7 @@ jQuery(document).ready(function($) {
             table += `</tbody></table>`;
             $container.html(table);
         } else {
-            $container.html('<p style="padding: 15px; background-color: #f8f9fa;">Click the button above to scan for content.</p>');
+            $container.html('<p style="padding: 15px; background-color: #f8f9fa;">No new items found.</p>');
         }
     }
 
@@ -188,22 +224,18 @@ jQuery(document).ready(function($) {
             showAdminNotice('Please select at least one item.', 'error');
             return;
         }
-        
         $addBtn.prop('disabled', true);
         const $progress = $('#website-scan-progress');
         const $progressBar = $progress.find('.progress-bar-inner');
         const $progressPercentage = $progress.find('.progress-percentage');
-        $progress.show();
-        $progressBar.css('width', '0%');
-        $progressPercentage.text('0%');
-        let processedCount = 0;
-        const batchSize = 5;
+        $progress.show(); $progressBar.css('width', '0%'); $progressPercentage.text('0%');
+        let processedCount = 0; const batchSize = 5;
 
         function processBatch(batch) {
             if (batch.length === 0) {
                 showAdminNotice('All selected items processed successfully.', 'success');
                 $addBtn.prop('disabled', false);
-                setTimeout(() => { $progress.fadeOut(); }, 1000);
+                setTimeout(() => { $progress.fadeOut(); location.reload(); }, 1000); // Reload the page to show new stats
                 return;
             }
             const currentBatch = batch.slice(0, batchSize);
@@ -214,8 +246,7 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     processedCount += currentBatch.length;
                     let percentage = Math.round((processedCount / selectedIds.length) * 100);
-                    $progressBar.css('width', percentage + '%');
-                    $progressPercentage.text(percentage + '%');
+                    $progressBar.css('width', percentage + '%'); $progressPercentage.text(percentage + '%');
                     renderItemsTable(response.data.all_items, '#scan-results-container', 'items[]', true);
                     processBatch(remainingBatch);
                 } else {
@@ -236,23 +267,16 @@ jQuery(document).ready(function($) {
         $btn.prop('disabled', true).text('Scanning Uploads...');
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_find', nonce: nonce })
         .done(function(response) {
-            if (response.success) {
-                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', false);
-            }
+            if (response.success) { renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', false); }
         })
-        .always(function() {
-            $btn.prop('disabled', false).text('Re-Scan Uploads');
-        });
+        .always(function() { $btn.prop('disabled', false).text('Re-Scan Uploads'); });
     });
 
     $('#add-uploads-to-kb-btn').on('click', function() {
         if ($(this).is(':disabled')) return;
         const $addBtn = $(this);
         const selectedIds = $('#scan-uploads-container input:checkbox:checked').map(function() { return this.value; }).get();
-        if (selectedIds.length === 0) {
-            showAdminNotice('Please select at least one file.', 'error');
-            return;
-        }
+        if (selectedIds.length === 0) { showAdminNotice('Please select at least one file.', 'error'); return; }
         $addBtn.prop('disabled', true).text('Adding...');
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_add', item_ids: selectedIds, nonce: nonce })
         .done(function(response) {
@@ -263,9 +287,7 @@ jQuery(document).ready(function($) {
                 showAdminNotice(response.data.message, 'error');
             }
         })
-        .always(function() {
-            $addBtn.prop('disabled', false).text('Add Selected Uploads to KB');
-        });
+        .always(function() { $addBtn.prop('disabled', false).text('Add Selected Uploads to KB'); });
     });
 
     $('#scan-results-container').on('click', '.add-single-item-link', function(e) {
@@ -281,21 +303,17 @@ jQuery(document).ready(function($) {
                 renderItemsTable(response.data.all_items, '#scan-results-container', 'items[]', true);
             } else {
                 showAdminNotice(response.data.message, 'error');
-                $link.closest('td').html(`<span class="status-ready-to-add"><a href="#" class="add-single-item-link" data-id="${itemId}">Ready to Add</a></span>`);
+                $link.closest('td').find('.spinner').replaceWith(`<a href="#" class="add-single-item-link" data-id="${itemId}">Ready to Add</a>`);
             }
         })
         .fail(() => {
             showAdminNotice('An unexpected server error occurred.', 'error');
-            $link.closest('td').html(`<span class="status-ready-to-add"><a href="#" class="add-single-item-link" data-id="${itemId}">Ready to Add</a></span>`);
+            $link.closest('td').find('.spinner').replaceWith(`<a href="#" class="add-single-item-link" data-id="${itemId}">Ready to Add</a>`);
         });
     });
     
     $(document).on('click', '.aiohm-scan-section thead input:checkbox', function(){
         $(this).closest('table').find('tbody input:checkbox:not(:disabled)').prop('checked', this.checked);
     });
-
-    // Initial render on page load from data passed by PHP
-    renderItemsTable(<?php echo json_encode($pending_website_items); ?>, '#scan-results-container', 'items[]', true);
-    renderItemsTable(<?php echo json_encode($pending_upload_items); ?>, '#scan-uploads-container', 'upload_items[]', false);
 });
 </script>
