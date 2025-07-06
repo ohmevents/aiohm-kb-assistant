@@ -1,12 +1,12 @@
 <?php
 /**
- * Plugin Name: OHM Knowledge Assistant
+ * Plugin Name: AIOHM Knowledge Assistant
  * Plugin URI: https://aiohm.app
  * Description: A soul-aligned AI assistant for WordPress — integrates your knowledge base, voice, and strategy into a deeply intelligent and customizable chat experience.
- * Version: 1.2.0
- * Author: AIOHM
+ * Version: 1.1.3
+ * Author: OHM Events Agency
  * Author URI: https://aiohm.app
- * Text Domain: ohm-knowledge-assistant
+ * Text Domain: aiohm-knowledge-assistant
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires at least: 5.8
@@ -17,7 +17,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('AIOHM_KB_VERSION', '1.1.2');
+define('AIOHM_KB_VERSION', '1.1.3');
 define('AIOHM_KB_PLUGIN_FILE', __FILE__);
 define('AIOHM_KB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AIOHM_KB_INCLUDES_DIR', AIOHM_KB_PLUGIN_DIR . 'includes/');
