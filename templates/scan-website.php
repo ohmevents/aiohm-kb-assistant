@@ -1,20 +1,33 @@
 <?php
 /**
  * Scan website content template.
- * This version restores the user-approved single-column layout and ensures all JavaScript is complete and functional.
+ * This version adds a warning if the API key is not set.
  */
 if (!defined('ABSPATH')) exit;
+
+// ** NEW: Get settings to check for the API key **
+$settings = AIOHM_KB_Assistant::get_settings();
+$api_key_exists = !empty($settings['openai_api_key']);
 
 // Get data for the page
 $pending_items = get_transient('aiohm_pending_items_website_' . get_current_user_id()) ?: [];
 $site_stats = $site_stats ?? ['posts' => ['total' => 0, 'indexed' => 0, 'pending' => 0], 'pages' => ['total' => 0, 'indexed' => 0, 'pending' => 0]];
 ?>
 <div class="wrap" id="aiohm-scan-page">
-    <h1><?php _e('Scan Content', 'aiohm-kb-assistant'); ?></h1>
+    <h1><?php _e('Build Your Knowledge Base', 'aiohm-kb-assistant'); ?></h1>
+
+    <?php // ** NEW: API Key Check and Warning Box **
+    if (!$api_key_exists) : ?>
+        <div class="notice notice-warning" style="padding: 15px; border-left-width: 4px;">
+            <h3 style="margin-top: 0;"><?php _e('Action Required: Add Your API Key', 'aiohm-kb-assistant'); ?></h3>
+            <p><?php _e('Content scanning is disabled because your OpenAI API key has not been configured. Please add your key to enable this feature.', 'aiohm-kb-assistant'); ?></p>
+            <a href="<?php echo admin_url('admin.php?page=aiohm-settings'); ?>" class="button button-primary"><?php _e('Go to Settings', 'aiohm-kb-assistant'); ?></a>
+        </div>
+    <?php endif; ?>
 
     <div class="aiohm-scan-section-wrapper">
         <div class="aiohm-scan-section">
-            <h2><?php _e('Website Content (Posts & Pages)', 'aiohm-kb-assistant'); ?></h2>
+            <h2><?php _e('Step 1: Find Content on Your Website', 'aiohm-kb-assistant'); ?></h2>
             <p><?php _e('Scan your website to find all posts and pages. You can then select which items to add or re-add to the knowledge base.', 'aiohm-kb-assistant'); ?></p>
             
             <div class="aiohm-stats">
@@ -32,12 +45,13 @@ $site_stats = $site_stats ?? ['posts' => ['total' => 0, 'indexed' => 0, 'pending
                 </div>
             </div>
             
-            <button type="button" class="button button-primary" id="scan-website-btn">
-                <?php _e('Scan Website', 'aiohm-kb-assistant'); ?>
+            <button type="button" class="button button-primary" id="scan-website-btn" <?php disabled(!$api_key_exists); ?>>
+                <?php _e('Find All Posts & Pages', 'aiohm-kb-assistant'); ?>
             </button>
             
             <div id="pending-content-area" style="<?php echo empty($pending_items) ? 'display: none;' : ''; ?> margin-top: 20px;">
-                <h3><?php _e('Scan Results', 'aiohm-kb-assistant'); ?></h3>
+                <h3><?php _e("Step 2: Add Content to the Knowledge Base", 'aiohm-kb-assistant'); ?></h3>
+                <p><?php _e("Select the content you want your AI to learn from, then click the button below.", 'aiohm-kb-assistant'); ?></p>
                 <div id="scan-results-container">
                      <table class="wp-list-table widefat striped">
                         <thead>
@@ -49,11 +63,10 @@ $site_stats = $site_stats ?? ['posts' => ['total' => 0, 'indexed' => 0, 'pending
                             </tr>
                         </thead>
                         <tbody id="pending-content-list">
-                            <!-- JS renders rows here -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
-                <button type="button" class="button button-primary" id="add-selected-to-kb-btn" style="margin-top: 15px;"><?php _e('Add / Re-index Selected', 'aiohm-kb-assistant'); ?></button>
+                <button type="button" class="button button-primary" id="add-selected-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected to Knowledge Base', 'aiohm-kb-assistant'); ?></button>
             </div>
             
             <div id="website-scan-progress" class="aiohm-scan-progress" style="display: none;"></div>
@@ -120,14 +133,16 @@ jQuery(document).ready(function($) {
     }
 
     $('#scan-website-btn').on('click', function() {
+        if ($(this).is(':disabled')) return;
         const $btn = $(this);
         $btn.prop('disabled', true).text('Scanning...');
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_find', nonce: nonce })
         .done(response => { if (response.success) { renderItemsTable(response.data.items); } })
-        .always(() => { $btn.prop('disabled', false).text('Scan Website'); });
+        .always(() => { $btn.prop('disabled', false).text('Find All Posts & Pages'); });
     });
     
     $('#add-selected-to-kb-btn').on('click', function() {
+        if ($(this).is(':disabled')) return;
         const $addBtn = $(this);
         const selectedIds = $('#pending-content-list input:checkbox:checked').map(function() { return this.value; }).get();
         if (selectedIds.length === 0) { alert('Please select at least one item.'); return; }

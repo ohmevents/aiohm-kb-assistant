@@ -1,18 +1,14 @@
 <?php
 /**
  * Handles the display and processing of the "Manage Knowledge Base" admin page.
- * This version fixes the "Undefined array key" warning.
+ * This version adds a fix for the number_format deprecated notice.
  */
 if (!defined('ABSPATH')) exit;
 
-// We need to extend the WP_List_Table class to display our data
 if (!class_exists('WP_List_Table')) {
     require_once(ABSPATH . 'wp-admin/includes/class-wp-list-table.php');
 }
 
-/**
- * AIOHM_KB_List_Table class to display KB entries in a WordPress-style table.
- */
 class AIOHM_KB_List_Table extends WP_List_Table {
     private $rag_engine;
 
@@ -26,8 +22,8 @@ class AIOHM_KB_List_Table extends WP_List_Table {
             'cb'           => '<input type="checkbox" />',
             'title'        => __('Title', 'aiohm-kb-assistant'),
             'content_type' => __('Content Type', 'aiohm-kb-assistant'),
-            'user_id'      => __('Scope', 'aiohm-kb-assistant'),
-            'content_id'   => __('Entry ID', 'aiohm-kb-assistant'),
+            'user_id'      => __('Visibility', 'aiohm-kb-assistant'),
+            'scope_toggle' => __('Actions', 'aiohm-kb-assistant'),
         ];
     }
     
@@ -36,19 +32,36 @@ class AIOHM_KB_List_Table extends WP_List_Table {
     }
 
     function column_title($item) {
-        $actions = [];
-        $delete_nonce = wp_create_nonce('aiohm_delete_entry_nonce');
-        $delete_url = sprintf('?page=%s&action=delete&content_id=%s&_wpnonce=%s', esc_attr($_REQUEST['page']), esc_attr($item['content_id']), $delete_nonce);
-        
-        // ** THE FIX IS HERE: Safely check if metadata and post_id exist before creating the link **
+        return sprintf('<strong>%s</strong>', esc_html($item['title']));
+    }
+
+    function column_scope_toggle($item) {
+        $action_links_html = [];
+        $current_user_id = get_current_user_id();
+
+        $is_global = ($item['user_id'] == 0);
+        $is_mine = ($item['user_id'] == $current_user_id);
+        if ($is_global || $is_mine) {
+            $new_scope = $is_global ? 'private' : 'public';
+            $button_text = $is_global ? 'Make Private' : 'Make Public';
+            $action_links_html[] = sprintf(
+                '<button type="button" class="button button-secondary button-small scope-toggle-btn" data-content-id="%s" data-new-scope="%s">%s</button>',
+                esc_attr($item['content_id']),
+                $new_scope,
+                $button_text
+            );
+        }
+
         $metadata = isset($item['metadata']) ? json_decode($item['metadata'], true) : null;
         if (is_array($metadata) && isset($metadata['post_id']) && get_post_type($metadata['post_id'])) {
-            $actions['edit'] = sprintf('<a href="%s">Edit</a>', get_edit_post_link($metadata['post_id']));
+            $action_links_html[] = sprintf('<a href="%s" target="_blank" class="button button-secondary button-small">View</a>', get_permalink($metadata['post_id']));
         }
         
-        $actions['delete'] = sprintf('<a href="%s" onclick="return confirm(\'Are you sure you want to delete all chunks for this entry?\')" style="color:#a00;">Delete</a>', $delete_url);
+        $delete_nonce = wp_create_nonce('aiohm_delete_entry_nonce');
+        $delete_url = sprintf('?page=%s&action=delete&content_id=%s&_wpnonce=%s', esc_attr($_REQUEST['page']), esc_attr($item['content_id']), $delete_nonce);
+        $action_links_html[] = sprintf('<a href="%s" onclick="return confirm(\'Are you sure?\')" class="button-link-delete" style="vertical-align: middle;">Delete</a>', $delete_url);
         
-        return sprintf('<strong>%1$s</strong>%2$s', esc_html($item['title']), $this->row_actions($actions));
+        return '<div style="display: flex; gap: 8px; align-items: center;">' . implode('', $action_links_html) . '</div>';
     }
 
     function get_bulk_actions() {
@@ -58,10 +71,10 @@ class AIOHM_KB_List_Table extends WP_List_Table {
     function column_default($item, $column_name) {
         switch ($column_name) {
             case 'content_type':
-            case 'content_id':
                 return '<code>' . esc_html($item[$column_name]) . '</code>';
             case 'user_id':
-                return $item[$column_name] == 0 ? 'Global' : 'Personal (User #' . $item[$column_name] . ')';
+                $visibility = $item[$column_name] == 0 ? 'Public' : 'Private';
+                return sprintf('<span class="visibility-text">%s</span>', $visibility);
             default:
                 return '';
         }
@@ -71,17 +84,18 @@ class AIOHM_KB_List_Table extends WP_List_Table {
         $this->_column_headers = [$this->get_columns(), [], []];
         $per_page = 20;
         $current_page = $this->get_pagenum();
+        
         $total_items = $this->rag_engine->get_total_entries_count();
-        $this->set_pagination_args(['total_items' => $total_items, 'per_page' => $per_page]);
+        
+        // ** THE FIX IS HERE: Ensure total_items is never null before passing it to the pagination function. **
+        // This prevents the deprecated notice by providing a default value of 0 if the database returns null.
+        $total_items = $total_items ?? 0;
+
+        $this->set_pagination_args(['total_items' => (int) $total_items, 'per_page' => $per_page]);
         $this->items = $this->rag_engine->get_all_entries_paginated($per_page, $current_page);
     }
 }
 
-
-/**
- * AIOHM_KB_Manager class.
- * This is the main controller for the "Manage KB" page.
- */
 class AIOHM_KB_Manager {
     
     private $rag_engine;
@@ -96,6 +110,9 @@ class AIOHM_KB_Manager {
         $this->handle_actions();
         $list_table = $this->list_table;
         $list_table->prepare_items();
+        
+        $settings = AIOHM_KB_Assistant::get_settings();
+
         include_once AIOHM_KB_PLUGIN_DIR . 'templates/admin-manage-kb.php';
     }
 

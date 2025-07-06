@@ -27,7 +27,7 @@ $settings = wp_parse_args($settings, [
                     <th scope="row"><label for="personal_api_key"><?php _e('Personal AIOHM API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
                         <input type="password" id="personal_api_key" name="aiohm_kb_settings[personal_api_key]" value="<?php echo esc_attr($settings['personal_api_key']); ?>" class="regular-text">
-                        <p class="description"><?php _e('Get this key from your account dashboard on aiohm.app after joining the Tribe.', 'aiohm-kb-assistant'); ?></p>
+                        <p class="description"><?php _e("Enter the key from your aiohm.app account. <strong>This unlocks personal AI features, like the 'Brand Soul' questionnaire.</strong>", 'aiohm-kb-assistant'); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -44,7 +44,7 @@ $settings = wp_parse_args($settings, [
                             </button>
                             <span class="spinner"></span>
                         </div>
-                        <p class="description" id="aiohm-api-status"></p>
+                        <p class="description" id="aiohm-api-status"><?php _e("<strong>This key is required for your AI to think and generate responses.</strong> It connects your site to the OpenAI language models.", 'aiohm-kb-assistant'); ?></p>
                     </td>
                 </tr>
             </table>
@@ -52,29 +52,13 @@ $settings = wp_parse_args($settings, [
 
         <div class="aiohm-settings-section">
             <h2><?php _e('Assistant Personality', 'aiohm-kb-assistant'); ?></h2>
-            <p><?php _e('Give your AI its unique voice and instructions.', 'aiohm-kb-assistant'); ?></p>
+            <p><?php _e("Give your AI its unique voice and instructions. This tells the AI how to behave.", 'aiohm-kb-assistant'); ?></p>
              <table class="form-table">
                 <tr>
                     <th scope="row"><label for="system_prompt"><?php _e('Custom Instructions', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
                         <textarea id="system_prompt" name="aiohm_kb_settings[system_prompt]" rows="8" class="large-text"><?php echo esc_textarea($settings['system_prompt']); ?></textarea>
-                    </td>
-                </tr>
-            </table>
-        </div>
-
-        <div class="aiohm-settings-section">
-            <h2><?php _e('Knowledge Base Automation', 'aiohm-kb-assistant'); ?></h2>
-            <table class="form-table">
-                 <tr>
-                    <th scope="row"><label for="scan_schedule"><?php _e('Automatic Scan Schedule', 'aiohm-kb-assistant'); ?></label></th>
-                    <td>
-                        <select id="scan_schedule" name="aiohm_kb_settings[scan_schedule]">
-                            <option value="none" <?php selected($settings['scan_schedule'], 'none'); ?>><?php _e('None (Manual Only)', 'aiohm-kb-assistant'); ?></option>
-                            <option value="daily" <?php selected($settings['scan_schedule'], 'daily'); ?>><?php _e('Once a day', 'aiohm-kb-assistant'); ?></option>
-                            <option value="weekly" <?php selected($settings['scan_schedule'], 'weekly'); ?>><?php _e('Once a week', 'aiohm-kb-assistant'); ?></option>
-                        </select>
-                        <p class="description"><?php _e('Automatically scan your website content to keep the knowledge base updated.', 'aiohm-kb-assistant'); ?></p>
+                        <p class="description"><?php _e("<em>Example: You are a friendly and encouraging support assistant for a company called 'Peak Performance' that sells hiking gear. Always keep your answers brief and end with a positive message.</em>", "aiohm-kb-assistant"); ?></p>
                     </td>
                 </tr>
             </table>

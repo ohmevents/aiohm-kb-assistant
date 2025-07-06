@@ -3,7 +3,7 @@
  * Plugin Name: AIOHM Assistant
  * Plugin URI: https://aiohm.com
  * Description: AI-powered knowledge base with personal, private AI assistants for creators.
- * Version: 1.1.1
+ * Version: 1.1.2
  * Author: AIOHM
  * Author URI: https://aiohm.com
  * Text Domain: aiohm-kb-assistant
@@ -12,7 +12,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('AIOHM_KB_VERSION', '1.6.3');
+define('AIOHM_KB_VERSION', '1.1.2');
 define('AIOHM_KB_PLUGIN_FILE', __FILE__);
 define('AIOHM_KB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AIOHM_KB_INCLUDES_DIR', AIOHM_KB_PLUGIN_DIR . 'includes/');

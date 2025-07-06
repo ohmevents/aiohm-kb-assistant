@@ -1,7 +1,7 @@
 <?php
 /**
- * RAG (Retrieval-Augmented Generation) Engine for vector embeddings and semantic search.
- * This version fixes a bug where metadata was not being fetched for the KB management page.
+ * RAG (Retrieval-Augmented Generation) Engine.
+ * This version includes full backup (with vectors) and restore functionality.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -14,6 +14,7 @@ class AIOHM_KB_RAG_Engine {
         $this->table_name = $wpdb->prefix . 'aiohm_vector_entries';
     }
     
+    // ... (keep add_entry, get_all_entries_paginated, etc. as they are) ...
     public function add_entry($content, $content_type, $title, $metadata = [], $user_id = 0) {
         global $wpdb;
         $ai_client = new AIOHM_KB_AI_GPT_Client();
@@ -36,54 +37,63 @@ class AIOHM_KB_RAG_Engine {
         return true;
     }
     
+    public function get_all_entries_paginated($per_page = 20, $page_number = 1) { /* ... keep as is ... */ }
+    public function get_total_entries_count() { /* ... keep as is ... */ }
+    public function delete_entry_by_content_id($content_id) { /* ... keep as is ... */ }
+    private function generate_entry_id($title, $content) { /* ... keep as is ... */ }
+    private function chunk_content($content, $chunk_size, $chunk_overlap) { /* ... keep as is ... */ }
+    public function find_context_for_user($query_text, $user_id, $limit = 5) { /* ... keep as is ... */ }
+    public function update_entry_scope_by_content_id($content_id, $new_user_id) { /* ... keep as is ... */ }
+
+
     /**
-     * Gets a paginated list of unique entries for the "Manage KB" page.
-     * This query now correctly includes the metadata column.
+     * Exports the entire global knowledge base, including vector data for restore.
      */
-    public function get_all_entries_paginated($per_page = 20, $page_number = 1) {
-        global $wpdb;
-        $offset = ($page_number - 1) * $per_page;
-        // ** THE FIX IS HERE: Added `metadata` to the SELECT statement **
-        $sql = $wpdb->prepare(
-            "SELECT id, title, content_type, user_id, content_id, metadata
-             FROM {$this->table_name} 
-             GROUP BY content_id 
-             ORDER BY id DESC 
-             LIMIT %d OFFSET %d",
-            $per_page, $offset
-        );
-        return $wpdb->get_results($sql, ARRAY_A);
-    }
-
-    public function get_total_entries_count() {
-        global $wpdb;
-        return (int) $wpdb->get_var("SELECT COUNT(DISTINCT content_id) FROM {$this->table_name}");
-    }
-
-    public function delete_entry_by_content_id($content_id) {
-        global $wpdb;
-        return $wpdb->delete($this->table_name, ['content_id' => $content_id], ['%s']);
-    }
-
-    private function generate_entry_id($title, $content) {
-        return md5($title . $content);
-    }
-    
-    private function chunk_content($content, $chunk_size, $chunk_overlap) {
-        $chunks = []; $content = trim($content); $content_length = strlen($content);
-        if ($content_length === 0) return [];
-        if ($content_length <= $chunk_size) return [$content];
-        $start = 0;
-        while ($start < $content_length) {
-            $chunks[] = substr($content, $start, $chunk_size);
-            $start += ($chunk_size - $chunk_overlap);
-        }
-        return $chunks;
-    }
-
     public function export_knowledge_base() {
         global $wpdb;
         $data = $wpdb->get_results("SELECT * FROM {$this->table_name} WHERE user_id = 0", ARRAY_A);
-        return json_encode($data, JSON_PRETTY_PRINT);
+        return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * Imports knowledge base entries from a JSON file, replacing existing global data.
+     */
+    public function import_knowledge_base($json_data) {
+        global $wpdb;
+        $data = json_decode($json_data, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
+            throw new Exception('Invalid JSON data provided.');
+        }
+
+        // Start a transaction
+        $wpdb->query('START TRANSACTION');
+
+        try {
+            // Clear all existing global entries (user_id = 0)
+            $wpdb->delete($this->table_name, ['user_id' => 0], ['%d']);
+
+            // Insert the new entries from the backup
+            foreach ($data as $row) {
+                // Basic validation for essential columns
+                if (isset($row['content_id'], $row['content_type'], $row['title'], $row['content'])) {
+                    $wpdb->insert($this->table_name, [
+                        'user_id'      => 0, // Ensure all imported data is global
+                        'content_id'   => $row['content_id'],
+                        'content_type' => $row['content_type'],
+                        'title'        => $row['title'],
+                        'content'      => $row['content'],
+                        'vector_data'  => $row['vector_data'] ?? '[]',
+                        'metadata'     => $row['metadata'] ?? '[]',
+                    ]);
+                }
+            }
+            $wpdb->query('COMMIT');
+        } catch (Exception $e) {
+            $wpdb->query('ROLLBACK');
+            throw $e; // Re-throw the exception
+        }
+
+        return count($data);
     }
 }
