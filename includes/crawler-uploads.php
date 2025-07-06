@@ -1,7 +1,7 @@
 <?php
 /**
  * Media Library (Uploads) Crawler.
- * Final version with PDF metadata scanning.
+ * This version fixes the logic for stats calculation to correctly identify all supported files.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -14,7 +14,24 @@ class AIOHM_KB_Uploads_Crawler {
         $this->rag_engine = new AIOHM_KB_RAG_Engine();
     }
 
-    public function get_stats() { /* ... function content ... */ }
+    public function get_stats() {
+        $stats = ['total_files' => 0, 'by_type' => []];
+        $all_files = $this->get_supported_attachments(true);
+
+        $stats['total_files'] = count($all_files);
+
+        foreach ($all_files as $file_info) {
+            if (file_exists($file_info['path'])) {
+                $ext = strtolower(pathinfo($file_info['path'], PATHINFO_EXTENSION));
+                if (!isset($stats['by_type'][$ext])) {
+                    $stats['by_type'][$ext] = ['count' => 0, 'size' => 0];
+                }
+                $stats['by_type'][$ext]['count']++;
+                $stats['by_type'][$ext]['size'] += filesize($file_info['path']);
+            }
+        }
+        return $stats;
+    }
 
     public function find_pending_attachments() {
         $pending_items = [];
@@ -24,6 +41,7 @@ class AIOHM_KB_Uploads_Crawler {
             'post_status'    => 'inherit',
             'meta_query'     => [['key' => '_aiohm_indexed', 'compare' => 'NOT EXISTS']]
         ]);
+
         foreach ($attachments as $attachment) {
             $file_path = get_attached_file($attachment->ID);
             if ($file_path && file_exists($file_path)) {
@@ -67,7 +85,25 @@ class AIOHM_KB_Uploads_Crawler {
         return $processed;
     }
     
-    private function get_supported_attachments($get_all_for_stats = false) { /* ... function content ... */ }
+    private function get_supported_attachments($get_all_for_stats = false) {
+        $attachments = get_posts(['post_type' => 'attachment', 'posts_per_page' => -1, 'post_status' => 'inherit']);
+        $file_infos = [];
+
+        // ** THE FIX IS HERE: This logic is simplified to be consistent. **
+        // When getting stats, we check ALL readable types.
+        $extensions_to_check = $get_all_for_stats ? $this->readable_extensions : $this->readable_extensions;
+
+        foreach ($attachments as $attachment) {
+            $path = get_attached_file($attachment->ID);
+            if ($path && file_exists($path)) {
+                 $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+                 if (in_array($ext, $extensions_to_check)) {
+                     $file_infos[] = ['path' => $path, 'id' => $attachment->ID];
+                 }
+            }
+        }
+        return $file_infos;
+    }
 
     private function process_file($file_path, $attachment_id) {
         if (!file_exists($file_path) || !is_readable($file_path)) {
