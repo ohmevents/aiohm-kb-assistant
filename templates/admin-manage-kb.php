@@ -161,23 +161,27 @@ jQuery(document).ready(function($) {
 
     // Function to display admin notices
     function showAdminNotice(message, type = 'success') {
-        const $noticeDiv = $('#aiohm-admin-notice');
+        let $noticeDiv = $('#aiohm-admin-notice');
         if ($noticeDiv.length === 0) {
             // Create the notice div if it doesn't exist
-            $('<div id="aiohm-admin-notice" class="notice is-dismissible" style="margin-top: 10px;"><p></p></div>').insertAfter('h1');
+            $('<div id="aiohm-admin-notice" class="notice is-dismissible" style="margin-top: 10px;"><p></p></div>').insertAfter('h1.wp-heading-inline');
             $noticeDiv = $('#aiohm-admin-notice');
         }
         $noticeDiv.removeClass('notice-success notice-error notice-warning').addClass('notice-' + type);
         $noticeDiv.find('p').html(message);
         $noticeDiv.fadeIn();
-        // Automatically hide the notice after 5 seconds
+        // Automatically hide the notice after 5 seconds, or on dismiss
+        $noticeDiv.on('click', '.notice-dismiss', function() {
+            $noticeDiv.fadeOut();
+        });
         setTimeout(() => $noticeDiv.fadeOut(), 5000);
     }
 
 
     $('#export-kb-btn').on('click', function(){
         const $btn = $(this);
-        $btn.prop('disabled', true).after('<span class="spinner is-active" style="vertical-align: middle;"></span>');
+        const originalText = $btn.html(); // Store original button text/html
+        $btn.prop('disabled', true).html('<span class="spinner is-active" style="float: none; margin-top: 0; vertical-align: middle;"></span> Exporting...');
 
         $.post(ajaxurl, {
             action: 'aiohm_export_kb',
@@ -203,30 +207,36 @@ jQuery(document).ready(function($) {
         }).fail(function(){
             showAdminNotice('An unexpected server error occurred during export.', 'error');
         }).always(function(){
-            $btn.prop('disabled', false).next('.spinner').remove();
+            $btn.prop('disabled', false).html(originalText); // Restore original button text
         });
     });
 
     $('#reset-kb-btn').on('click', function(){
-        if (!confirm('<?php _e('Are you absolutely sure you want to delete all knowledge base data? This cannot be undone.', 'aiohm-kb-assistant'); ?>')) return;
+        // Replaced native confirm with showAdminNotice for consistency
+        showAdminNotice('Are you absolutely sure you want to delete all knowledge base data? This cannot be undone. <button id="confirm-reset-kb" class="button button-small" style="margin-left: 10px;">Confirm Reset</button>', 'warning');
 
-        const $btn = $(this);
-        $btn.prop('disabled', true).after('<span class="spinner is-active" style="vertical-align: middle;"></span>');
+        $('#confirm-reset-kb').on('click', function() {
+            const $btn = $(this);
+            const originalText = $('#reset-kb-btn').html(); // Store original button text/html
+            $('#reset-kb-btn').prop('disabled', true).html('<span class="spinner is-active" style="float: none; margin-top: 0; vertical-align: middle;"></span> Resetting...');
+            $('#aiohm-admin-notice').fadeOut(); // Hide the confirmation notice
 
-        $.post(ajaxurl, {
-            action: 'aiohm_reset_kb',
-            nonce: nonce
-        }).done(function(response){
-            if (response.success) {
-                showAdminNotice(response.data.message, 'success');
-                window.location.reload();
-            } else {
-                showAdminNotice('Error: ' + response.data.message, 'error');
-            }
-        }).fail(function(){
-            showAdminNotice('An unexpected server error occurred.', 'error');
-        }).always(function(){
-            $btn.prop('disabled', false).next('.spinner').remove();
+            $.post(ajaxurl, {
+                action: 'aiohm_reset_kb',
+                nonce: nonce
+            }).done(function(response){
+                if (response.success) {
+                    showAdminNotice(response.data.message, 'success');
+                    // Reload the page to reflect the reset data, as all entries are removed.
+                    window.location.reload();
+                } else {
+                    showAdminNotice('Error: ' + response.data.message, 'error');
+                }
+            }).fail(function(){
+                showAdminNotice('An unexpected server error occurred.', 'error');
+            }).always(function(){
+                $('#reset-kb-btn').prop('disabled', false).html(originalText); // Restore original button text
+            });
         });
     });
 
@@ -238,6 +248,7 @@ jQuery(document).ready(function($) {
         const newScope = $btn.data('new-scope');
         const $row = $btn.closest('tr');
         const $visibilityCell = $row.find('.column-user_id .visibility-text');
+        const originalBtnText = $btn.text(); // Store original button text
 
         $btn.prop('disabled', true).text('Saving...');
 
@@ -257,12 +268,53 @@ jQuery(document).ready(function($) {
                 showAdminNotice('Entry scope updated to ' + response.data.new_visibility_text + '.', 'success');
             } else {
                 showAdminNotice('Error: ' + (response.data.message || 'Could not update scope.'), 'error');
-                $btn.text(newScope === 'private' ? 'Make Private' : 'Make Public'); // Revert button text
+                $btn.text(originalBtnText); // Revert button text on error
             }
         }).fail(function(){
             showAdminNotice('An unexpected server error occurred.', 'error');
+            $btn.text(originalBtnText); // Revert button text on failure
         }).always(function(){
             $btn.prop('disabled', false);
+        });
+    });
+
+    // Handle single delete link
+    // Delegated event listener for dynamically loaded content
+    $(document).on('click', 'a.button-link-delete', function(e) {
+        e.preventDefault();
+        const $link = $(this);
+        const contentId = $link.closest('tr').find('input[name="entry_ids[]"]').val(); // Get content_id from checkbox
+
+        // Replaced native confirm with showAdminNotice for consistency
+        showAdminNotice('Are you sure you want to delete this entry? <button id="confirm-delete-entry" class="button button-small" style="margin-left: 10px;">Confirm Delete</button>', 'warning');
+
+        $('#confirm-delete-entry').on('click', function() {
+            const $row = $link.closest('tr');
+            const originalLinkText = $link.text();
+
+            $link.prop('disabled', true).text('Deleting...');
+            $('#aiohm-admin-notice').fadeOut(); // Hide the confirmation notice
+
+            // Perform AJAX request for delete
+            $.post(ajaxurl, {
+                action: 'aiohm_delete_kb_entry', // This action is now handled in core-init.php
+                nonce: nonce, // Use the main admin nonce
+                content_id: contentId
+            }).done(function(response) {
+                if (response.success) {
+                    $row.fadeOut(300, function() {
+                        $(this).remove();
+                        showAdminNotice('Entry deleted successfully!', 'success');
+                        // Optionally update pagination/total count here if needed without reload
+                    });
+                } else {
+                    showAdminNotice('Error: ' + (response.data.message || 'Could not delete entry.'), 'error');
+                    $link.prop('disabled', false).text(originalLinkText); // Revert link text on error
+                }
+            }).fail(function() {
+                showAdminNotice('An unexpected server error occurred during deletion.', 'error');
+                $link.prop('disabled', false).text(originalLinkText); // Revert link text on failure
+            });
         });
     });
 
@@ -281,64 +333,102 @@ jQuery(document).ready(function($) {
     });
 
     $('#restore-kb-btn').on('click', function() {
-        if (!confirm('<?php _e('Are you sure you want to restore? This will overwrite all current global knowledge base entries.', 'aiohm-kb-assistant'); ?>')) return;
+        // Replaced native confirm with showAdminNotice for consistency
+        showAdminNotice('Are you sure you want to restore? This will overwrite all current global knowledge base entries. <button id="confirm-restore-kb" class="button button-small" style="margin-left: 10px;">Confirm Restore</button>', 'warning');
+        
+        $('#confirm-restore-kb').on('click', function() {
+            const $btn = $('#restore-kb-btn');
+            const file = $('#restore-kb-file')[0].files[0];
+            const reader = new FileReader();
+            const originalText = $btn.html(); // Store original button text/html
 
-        const $btn = $(this);
-        const file = $('#restore-kb-file')[0].files[0];
-        const reader = new FileReader();
+            $btn.prop('disabled', true).html('<span class="spinner is-active" style="float: none; margin-top: 0; vertical-align: middle;"></span> Restoring...');
+            $('#aiohm-admin-notice').fadeOut(); // Hide the confirmation notice
 
-        $btn.prop('disabled', true).after('<span class="spinner is-active" style="vertical-align: middle;"></span>');
+            reader.onload = function(e) {
+                const jsonData = e.target.result;
+                $.post(ajaxurl, {
+                    action: 'aiohm_restore_kb',
+                    nonce: nonce,
+                    json_data: jsonData
+                }).done(function(response){
+                    if (response.success) {
+                        showAdminNotice(response.data.message, 'success');
+                        // Reload the page to reflect the restored data, which might involve many new/changed entries
+                        window.location.reload();
+                    } else {
+                        showAdminNotice('Error: ' + (response.data.message || 'Could not restore.'), 'error');
+                    }
+                }).fail(function(){
+                    showAdminNotice('An unexpected server error occurred during restore.', 'error');
+                }).always(function(){
+                    $btn.prop('disabled', false).html(originalText); // Restore original button text
+                });
+            };
 
-        reader.onload = function(e) {
-            const jsonData = e.target.result;
-            $.post(ajaxurl, {
-                action: 'aiohm_restore_kb',
-                nonce: nonce,
-                json_data: jsonData
-            }).done(function(response){
-                if (response.success) {
-                    showAdminNotice(response.data.message, 'success');
-                    window.location.reload();
-                } else {
-                    showAdminNotice('Error: ' + (response.data.message || 'Could not restore.'), 'error');
-                }
-            }).fail(function(){
-                showAdminNotice('An unexpected server error occurred during restore.', 'error');
-            }).always(function(){
-                $btn.prop('disabled', false).next('.spinner').remove();
-            });
-        };
-
-        reader.readAsText(file);
+            if (file) {
+                reader.readAsText(file);
+            } else {
+                showAdminNotice('No file selected for restore.', 'error');
+                $btn.prop('disabled', false).html(originalText);
+            }
+        });
     });
 
     // Bulk actions
-    $('#doaction, #doaction2').on('click', function() {
+    // Note: For bulk actions, a full page reload is typically acceptable
+    // due to the potential for many changes impacting pagination and filtering.
+    $('#doaction, #doaction2').on('click', function(e) {
+        e.preventDefault(); // Prevent default form submission
         const action = $(this).siblings('select[name^="action"]').val();
-        if (action === 'make-public' || action === 'make-private') {
-            const selectedIds = $('input[name="entry_ids[]"]:checked').map(function() {
-                return $(this).val();
-            }).get();
+        
+        // Only proceed if a specific bulk action is chosen (not '-1')
+        if (action === '-1') {
+            showAdminNotice('Please select a bulk action from the dropdown.', 'warning');
+            return false;
+        }
 
-            if (selectedIds.length === 0) {
-                showAdminNotice('Please select at least one entry for bulk action.', 'warning');
-                return false;
-            }
+        const selectedIds = $('input[name="entry_ids[]"]:checked').map(function() {
+            return $(this).val();
+        }).get();
 
-            if (!confirm('Are you sure you want to ' + action.replace('-', ' ') + ' the selected entries?')) {
-                return false;
-            }
+        if (selectedIds.length === 0) {
+            showAdminNotice('Please select at least one entry for bulk action.', 'warning');
+            return false;
+        }
 
+        let confirmationMessage = '';
+        let confirmBtnText = '';
+        let ajaxAction = '';
+
+        if (action === 'bulk-delete') {
+            confirmationMessage = 'Are you sure you want to delete the selected entries? This cannot be undone.';
+            confirmBtnText = 'Confirm Delete';
+            ajaxAction = 'aiohm_bulk_delete_kb'; // Assuming this action exists
+        } else if (action === 'make-public' || action === 'make-private') {
+            confirmationMessage = 'Are you sure you want to ' + action.replace('-', ' ') + ' the selected entries?';
+            confirmBtnText = 'Confirm ' + action.replace('-', ' ');
+            ajaxAction = 'aiohm_bulk_toggle_kb_scope';
+        } else {
+            // Should not happen if select value is validated
+            showAdminNotice('Invalid bulk action selected.', 'error');
+            return false;
+        }
+        
+        // Replaced native confirm with showAdminNotice for consistency
+        showAdminNotice(`${confirmationMessage} <button id="confirm-bulk-action" class="button button-small" style="margin-left: 10px;">${confirmBtnText}</button>`, 'warning');
+
+        $('#confirm-bulk-action').on('click', function() {
             const $btn = $(this);
-            $btn.prop('disabled', true);
-            const originalBtnText = $btn.val();
-            $btn.val('Processing...');
+            const originalBtnText = $('#doaction').val(); // Get text from top bulk action button
+            $('#doaction, #doaction2').prop('disabled', true).val('Processing...'); // Disable both bulk action buttons
+            $('#aiohm-admin-notice').fadeOut(); // Hide the confirmation notice
 
             $.post(ajaxurl, {
-                action: 'aiohm_bulk_toggle_kb_scope',
+                action: ajaxAction,
                 nonce: nonce,
                 content_ids: selectedIds,
-                new_scope: action === 'make-public' ? 'public' : 'private'
+                new_scope: (action === 'make-public' || action === 'make-private') ? action.replace('make-', '') : undefined // Only send new_scope for toggle actions
             }).done(function(response) {
                 if (response.success) {
                     showAdminNotice(response.data.message, 'success');
@@ -349,11 +439,10 @@ jQuery(document).ready(function($) {
             }).fail(function() {
                 showAdminNotice('An unexpected server error occurred during bulk action.', 'error');
             }).always(function() {
-                $btn.prop('disabled', false).val(originalBtnText);
+                $('#doaction, #doaction2').prop('disabled', false).val(originalBtnText); // Re-enable and restore text
             });
-            return false; // Prevent default form submission
-        }
+        });
+        return false; // Prevent default form submission initially
     });
-
 });
 </script>

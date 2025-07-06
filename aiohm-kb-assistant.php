@@ -23,6 +23,9 @@ define('AIOHM_KB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AIOHM_KB_INCLUDES_DIR', AIOHM_KB_PLUGIN_DIR . 'includes/');
 define('AIOHM_KB_PLUGIN_URL', plugin_dir_url(__FILE__));
 
+// Define the WP-Cron hook name
+define('AIOHM_KB_SCHEDULED_SCAN_HOOK', 'aiohm_scheduled_scan');
+
 class AIOHM_KB_Assistant {
     
     private static $instance = null;
@@ -45,6 +48,12 @@ class AIOHM_KB_Assistant {
         add_action('init', array($this, 'init_plugin'));
         // Add this line to call the method that adds the settings link
         add_filter('plugin_action_links_' . plugin_basename(AIOHM_KB_PLUGIN_FILE), array($this, 'add_settings_link'));
+
+        // WP-Cron setup
+        add_filter('cron_schedules', array($this, 'add_custom_cron_intervals'));
+        add_action(AIOHM_KB_SCHEDULED_SCAN_HOOK, array($this, 'run_scheduled_scan'));
+        // Hook to save/update the schedule when settings are updated
+        add_action('update_option_aiohm_kb_settings', array($this, 'handle_scan_schedule_change'), 10, 2);
     }
     
     public function load_dependencies() {
@@ -73,10 +82,16 @@ class AIOHM_KB_Assistant {
         $this->create_tables();
         $this->set_default_options();
         flush_rewrite_rules();
+
+        // Schedule the initial scan event on activation if a schedule is set
+        $settings = self::get_settings();
+        if ($settings['scan_schedule'] !== 'none') {
+            $this->schedule_scan_event($settings['scan_schedule']);
+        }
     }
 
     public function deactivate() {
-        wp_clear_scheduled_hook('aiohm_scheduled_scan');
+        wp_clear_scheduled_hook(AIOHM_KB_SCHEDULED_SCAN_HOOK);
         flush_rewrite_rules();
     }
     
@@ -86,7 +101,7 @@ class AIOHM_KB_Assistant {
             'openai_api_key'   => '',
             'chat_enabled'     => true, // Added and defaulted to true
             'show_floating_chat' => false, // Added and defaulted to false
-            'scan_schedule'    => 'none',
+            'scan_schedule'    => 'none', // Default to no schedule
             'chunk_size'       => 1000,
             'chunk_overlap'    => 200,
         ];
@@ -119,9 +134,9 @@ class AIOHM_KB_Assistant {
         add_option('aiohm_kb_settings', [
             'personal_api_key' => '',
             'openai_api_key' => '',
-            'chat_enabled' => true, // Set default to true for activation
-            'show_floating_chat' => false, // Set default to false for activation
-            'scan_schedule' => 'none',
+            'chat_enabled' => true,
+            'show_floating_chat' => false,
+            'scan_schedule' => 'none', // Set default to 'none' on first activation
         ], '', 'no');
     }
 
@@ -147,6 +162,110 @@ class AIOHM_KB_Assistant {
         if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG === true) {
             $log_prefix = '[AIOHM_KB_Assistant] ' . strtoupper($level) . ': ';
             error_log($log_prefix . $message);
+        }
+    }
+
+    /**
+     * Adds custom cron intervals for weekly and monthly.
+     * @param array $schedules Existing WP-Cron schedules.
+     * @return array Modified schedules.
+     */
+    public function add_custom_cron_intervals($schedules) {
+        $schedules['weekly'] = array(
+            'interval' => WEEK_IN_SECONDS,
+            'display'  => __('Once Weekly', 'aiohm-kb-assistant'),
+        );
+        $schedules['monthly'] = array(
+            'interval' => MONTH_IN_SECONDS,
+            'display'  => __('Once Monthly', 'aiohm-kb-assistant'),
+        );
+        return $schedules;
+    }
+
+    /**
+     * The callback function for the scheduled scan event.
+     * This function will re-index all "Ready to Add" website content
+     * and "Ready to Add" uploads.
+     */
+    public function run_scheduled_scan() {
+        self::log('Running scheduled content scan.', 'info');
+
+        // Check if OpenAI API key is set before running scan
+        $settings = self::get_settings();
+        if (empty($settings['openai_api_key'])) {
+            self::log('Scheduled scan skipped: OpenAI API key is not configured.', 'warning');
+            return;
+        }
+
+        // Scan and add website content (posts and pages)
+        try {
+            $site_crawler = new AIOHM_KB_Site_Crawler();
+            $all_website_items = $site_crawler->find_all_content();
+            $website_item_ids_to_add = array_map(function($item) {
+                return $item['id'];
+            }, array_filter($all_website_items, function($item) {
+                return $item['status'] === 'Ready to Add';
+            }));
+
+            if (!empty($website_item_ids_to_add)) {
+                $site_crawler->add_items_to_kb($website_item_ids_to_add);
+                self::log('Processed ' . count($website_item_ids_to_add) . ' pending website items during scheduled scan.', 'info');
+            } else {
+                self::log('No pending website items to process during scheduled scan.', 'info');
+            }
+        } catch (Exception $e) {
+            self::log('Error during scheduled website content scan: ' . $e->getMessage(), 'error');
+        }
+
+        // Scan and add uploads
+        try {
+            $uploads_crawler = new AIOHM_KB_Uploads_Crawler();
+            $pending_uploads = $uploads_crawler->find_pending_attachments();
+            $upload_item_ids_to_add = array_map(function($item) {
+                return $item['id'];
+            }, $pending_uploads);
+
+            if (!empty($upload_item_ids_to_add)) {
+                $uploads_crawler->add_attachments_to_kb($upload_item_ids_to_add);
+                self::log('Processed ' . count($upload_item_ids_to_add) . ' pending upload items during scheduled scan.', 'info');
+            } else {
+                self::log('No pending upload items to process during scheduled scan.', 'info');
+            }
+        } catch (Exception $e) {
+            self::log('Error during scheduled uploads scan: ' . $e->getMessage(), 'error');
+        }
+
+        self::log('Scheduled content scan finished.', 'info');
+    }
+
+    /**
+     * Handles updating the WP-Cron schedule when the plugin settings are saved.
+     * @param array $old_value Old settings.
+     * @param array $new_value New settings.
+     */
+    public function handle_scan_schedule_change($old_value, $new_value) {
+        $old_schedule = $old_value['scan_schedule'] ?? 'none';
+        $new_schedule = $new_value['scan_schedule'] ?? 'none';
+
+        // Clear any existing scheduled event first
+        wp_clear_scheduled_hook(AIOHM_KB_SCHEDULED_SCAN_HOOK);
+
+        // If a new schedule is selected (not 'none'), schedule the event
+        if ($new_schedule !== 'none') {
+            $this->schedule_scan_event($new_schedule);
+            self::log('Scan schedule updated to: ' . $new_schedule, 'info');
+        } else {
+            self::log('Scheduled scan cleared.', 'info');
+        }
+    }
+
+    /**
+     * Schedules the WP-Cron event for content scanning.
+     * @param string $schedule The desired schedule interval (e.g., 'daily', 'weekly', 'monthly').
+     */
+    private function schedule_scan_event($schedule) {
+        if (!wp_next_scheduled(AIOHM_KB_SCHEDULED_SCAN_HOOK) && $schedule !== 'none') {
+            wp_schedule_event(time(), $schedule, AIOHM_KB_SCHEDULED_SCAN_HOOK);
         }
     }
 }

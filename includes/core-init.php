@@ -16,6 +16,8 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_brand_assistant_chat', array(__CLASS__, 'handle_brand_assistant_ajax'));
         add_action('wp_ajax_aiohm_toggle_kb_scope', array(__CLASS__, 'handle_toggle_kb_scope_ajax'));
         add_action('wp_ajax_aiohm_restore_kb', array(__CLASS__, 'handle_restore_kb_ajax'));
+        // NEW: Add handler for single KB entry deletion
+        add_action('wp_ajax_aiohm_delete_kb_entry', array(__CLASS__, 'handle_delete_kb_entry_ajax'));
     }
 
     public static function handle_progressive_scan_ajax() {
@@ -165,6 +167,23 @@ class AIOHM_KB_Core_Init {
             wp_send_json_success(['message' => $count . ' entries have been successfully restored. The page will now reload.']);
         } catch (Exception $e) {
             wp_send_json_error(['message' => 'Restore failed: ' . $e->getMessage()]);
+        }
+    }
+
+    // NEW: Handles single KB entry deletion via AJAX
+    public static function handle_delete_kb_entry_ajax() {
+        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+        if (!isset($_POST['content_id']) || empty($_POST['content_id'])) {
+            wp_send_json_error(['message' => 'Content ID is missing for deletion.']);
+        }
+        $content_id = sanitize_text_field($_POST['content_id']);
+        $rag_engine = new AIOHM_KB_RAG_Engine();
+        if ($rag_engine->delete_entry_by_content_id($content_id)) {
+            wp_send_json_success(['message' => 'Entry successfully deleted.']);
+        } else {
+            wp_send_json_error(['message' => 'Failed to delete entry.']);
         }
     }
 }

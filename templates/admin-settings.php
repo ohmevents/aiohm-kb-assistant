@@ -10,6 +10,7 @@ $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
     'openai_api_key' => '',
     'chat_enabled' => true, // Added chat_enabled setting
     'show_floating_chat' => false, // Added show_floating_chat setting
+    'scan_schedule' => 'none', // NEW: Default for scan schedule
 ]);
 ?>
 <div class="wrap aiohm-settings-page">
@@ -69,6 +70,38 @@ $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
                             <input type="checkbox" id="show_floating_chat" name="aiohm_kb_settings[show_floating_chat]" value="1" <?php checked(1, $settings['show_floating_chat']); ?> />
                             <?php _e('Check this box to display a floating chat widget on all pages.', 'aiohm-kb-assistant'); ?>
                         </label>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="aiohm-settings-section">
+            <h2><?php _e('Scheduled Content Scan', 'aiohm-kb-assistant'); ?></h2>
+            <p class="description"><?php _e('Automate scanning and indexing of new or updated posts, pages, and supported media files (TXT, JSON, CSV, PDF). This will add any new pending content to your Knowledge Base.', 'aiohm-kb-assistant'); ?></p>
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="scan_schedule"><?php _e('Scan Frequency', 'aiohm-kb-assistant'); ?></label></th>
+                    <td>
+                        <select id="scan_schedule" name="aiohm_kb_settings[scan_schedule]">
+                            <option value="none" <?php selected($settings['scan_schedule'], 'none'); ?>><?php _e('None', 'aiohm-kb-assistant'); ?></option>
+                            <option value="daily" <?php selected($settings['scan_schedule'], 'daily'); ?>><?php _e('Once Daily', 'aiohm-kb-assistant'); ?></option>
+                            <option value="weekly" <?php selected($settings['scan_schedule'], 'weekly'); ?>><?php _e('Once Weekly', 'aiohm-kb-assistant'); ?></option>
+                            <option value="monthly" <?php selected($settings['scan_schedule'], 'monthly'); ?>><?php _e('Once Monthly', 'aiohm-kb-assistant'); ?></option>
+                        </select>
+                        <p class="description"><?php _e('Choose how often the plugin should automatically scan and add new content to your Knowledge Base.', 'aiohm-kb-assistant'); ?></p>
+                        <?php
+                            $next_scheduled = wp_next_scheduled(AIOHM_KB_SCHEDULED_SCAN_HOOK);
+                            if ($next_scheduled) {
+                                echo '<p class="description">';
+                                printf(
+                                    __('Next scheduled scan: %s', 'aiohm-kb-assistant'),
+                                    date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $next_scheduled)
+                                );
+                                echo '</p>';
+                            } else if ($settings['scan_schedule'] !== 'none') {
+                                echo '<p class="description">' . __('Scheduled event is not set. Save settings to initiate.', 'aiohm-kb-assistant') . '</p>';
+                            }
+                        ?>
                     </td>
                 </tr>
             </table>

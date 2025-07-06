@@ -13,6 +13,8 @@ class AIOHM_KB_Settings_Page {
             self::$instance = new self();
         }
         add_action('admin_menu', array(self::$instance, 'register_admin_pages'));
+        // NEW: Enqueue admin styles for specific AIOHM pages
+        add_action('admin_enqueue_scripts', array(self::$instance, 'enqueue_admin_styles'));
     }
 
     public function register_admin_pages() {
@@ -22,6 +24,21 @@ class AIOHM_KB_Settings_Page {
         add_submenu_page('aiohm-dashboard', 'Manage Knowledge Base', 'Manage KB', 'manage_options', 'aiohm-manage-kb', array($this, 'render_manage_kb_page'));
         add_submenu_page('aiohm-dashboard', 'AIOHM Settings', 'Settings', 'manage_options', 'aiohm-settings', array($this, 'render_form_settings_page'));
         add_action('admin_init', array($this, 'register_settings'));
+    }
+
+    // NEW: Method to enqueue styles conditionally in admin
+    public function enqueue_admin_styles($hook) {
+        // Load styles only on AIOHM plugin pages
+        // The $hook variable will be something like 'toplevel_page_aiohm-dashboard'
+        // or 'aiohm-assistant_page_aiohm-settings'
+        if (strpos($hook, 'aiohm-') !== false || strpos($hook, '_page_aiohm-') !== false) {
+            wp_enqueue_style(
+                'aiohm-admin-styles',
+                AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-chat.css', // This CSS contains the desired styles
+                array(),
+                AIOHM_KB_VERSION
+            );
+        }
     }
 
     public function render_dashboard_page() {
@@ -42,8 +59,8 @@ class AIOHM_KB_Settings_Page {
 
         // Get all supported uploads with their status for rendering
         $all_upload_items = $uploads_crawler->find_all_supported_attachments(); 
-        AIOHM_KB_Assistant::log('Settings Page: $all_upload_items count: ' . count($all_upload_items)); // Added log
-        AIOHM_KB_Assistant::log('Settings Page: $all_upload_items content: ' . print_r($all_upload_items, true)); // Added log
+        AIOHM_KB_Assistant::log('Settings Page: $all_upload_items count: ' . count($all_upload_items));
+        AIOHM_KB_Assistant::log('Settings Page: $all_upload_items content: ' . print_r($all_upload_items, true));
 
         $pending_website_items = $site_crawler->find_all_content(); // This already returns all with status
 
@@ -64,9 +81,13 @@ class AIOHM_KB_Settings_Page {
         if (isset($input['personal_api_key'])) { $sanitized['personal_api_key'] = sanitize_text_field(trim($input['personal_api_key'])); }
         if (isset($input['openai_api_key'])) { $sanitized['openai_api_key'] = sanitize_text_field(trim($input['openai_api_key'])); }
         // Removed 'system_prompt'
-        if (isset($input['scan_schedule'])) { $sanitized['scan_schedule'] = sanitize_key($input['scan_schedule']); }
-        $sanitized['chat_enabled'] = isset($input['chat_enabled']) ? (bool) $input['chat_enabled'] : false; // Added chat_enabled
-        $sanitized['show_floating_chat'] = isset($input['show_floating_chat']) ? (bool) $input['show_floating_chat'] : false; // Added show_floating_chat
+        if (isset($input['scan_schedule'])) { 
+            // Ensure scan_schedule is one of the allowed values
+            $allowed_schedules = ['none', 'daily', 'weekly', 'monthly'];
+            $sanitized['scan_schedule'] = in_array($input['scan_schedule'], $allowed_schedules) ? sanitize_key($input['scan_schedule']) : 'none'; 
+        }
+        $sanitized['chat_enabled'] = isset($input['chat_enabled']) ? (bool) $input['chat_enabled'] : false;
+        $sanitized['show_floating_chat'] = isset($input['show_floating_chat']) ? (bool) $input['show_floating_chat'] : false;
         return $sanitized;
     }
 }
