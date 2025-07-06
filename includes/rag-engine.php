@@ -14,6 +14,14 @@ class AIOHM_KB_RAG_Engine {
         $this->table_name = $wpdb->prefix . 'aiohm_vector_entries';
     }
     
+    /**
+     * Returns the full table name for the knowledge base entries.
+     * @return string
+     */
+    public function get_table_name() {
+        return $this->table_name;
+    }
+
     public function add_entry($content, $content_type, $title, $metadata = [], $user_id = 0) {
         global $wpdb;
         $ai_client = new AIOHM_KB_AI_GPT_Client();
@@ -40,7 +48,7 @@ class AIOHM_KB_RAG_Engine {
         global $wpdb;
         $offset = ($page_number - 1) * $per_page;
         $sql = $wpdb->prepare(
-            "SELECT id, title, content_type, user_id, content_id, metadata
+            "SELECT id, title, content_type, user_id, content_id, metadata, created_at
              FROM {$this->table_name} 
              GROUP BY content_id 
              ORDER BY id DESC 

@@ -20,20 +20,36 @@ class AIOHM_KB_List_Table extends WP_List_Table {
     function get_columns() {
         return [
             'cb'           => '<input type="checkbox" />',
-            'title'        => __('Title', 'aiohm-kb-assistant'),
-            'content_type' => __('Content Type', 'aiohm-kb-assistant'),
-            'user_id'      => __('Visibility', 'aiohm-kb-assistant'),
+            'title'        => __('Title', 'aiohm-kb-assistant'), // Correct: simple string label
+            'content_type' => __('Content Type', 'aiohm-kb-assistant'), // Correct: simple string label
+            'user_id'      => __('Visibility', 'aiohm-kb-assistant'), // Correct: simple string label
+            'last_updated' => __('Last Updated', 'aiohm-kb-assistant'), // Correct: simple string label
             'scope_toggle' => __('Actions', 'aiohm-kb-assistant'),
         ];
     }
     
+    /**
+     * Defines which columns are sortable.
+     *
+     * @return array
+     */
+    protected function get_sortable_columns() {
+        $sortable_columns = [
+            'title'        => ['title', false],          // Column slug => array(db column name, boolean initial order)
+            'content_type' => ['content_type', false],
+            'user_id'      => ['user_id', false],
+            'last_updated' => ['created_at', true],      // default descending (newest first)
+        ];
+        return $sortable_columns;
+    }
+
     function column_cb($item) {
         return sprintf('<input type="checkbox" name="entry_ids[]" value="%s" />', esc_attr($item['content_id']));
     }
 
-    function column_title($item) {
-        return sprintf('<strong>%s</strong>', esc_html($item['title']));
-    }
+    // `column_title` is not needed as column_default will handle it based on the column name.
+    // function column_title($item) { return sprintf('<strong>%s</strong>', esc_html($item['title'])); }
+
 
     function column_scope_toggle($item) {
         $action_links_html = [];
@@ -81,68 +97,213 @@ class AIOHM_KB_List_Table extends WP_List_Table {
     }
 
     function get_bulk_actions() {
-        return ['bulk-delete' => __('Delete', 'aiohm-kb-assistant')];
+        return [
+            'bulk-delete' => __('Delete', 'aiohm-kb-assistant'),
+            'make-public' => __('Make Selected Public', 'aiohm-kb-assistant'),
+            'make-private' => __('Make Selected Private', 'aiohm-kb-assistant'),
+        ];
     }
 
     function column_default($item, $column_name) {
+        // $column_name will now always be a string (the column slug)
         switch ($column_name) {
             case 'content_type':
-                $type = esc_html($item[$column_name]);
+                $type = esc_html($item['content_type']);
                 $display_type = $type;
                 $type_class = '';
 
                 // Enhance display for common types and assign classes
-                if (strpos($type, 'application/') === 0) {
-                    $sub_type = explode('/', $type)[1];
-                    if ($sub_type === 'pdf') {
-                        $display_type = 'PDF';
-                        $type_class = 'type-application'; // Consistent with scan-website.php for PDFs
-                    } elseif ($sub_type === 'json') {
-                        $display_type = 'JSON';
-                        $type_class = 'type-application'; // Using 'application' as a base type
-                    }
-                } elseif (strpos($type, 'text/') === 0) {
-                    $sub_type = explode('/', $type)[1];
-                     if ($sub_type === 'plain') {
-                        $display_type = 'TXT';
-                        $type_class = 'type-text'; // Consistent with scan-website.php for TXT
-                    } elseif ($sub_type === 'csv') {
-                        $display_type = 'CSV';
-                        $type_class = 'type-text'; // Consistent with scan-website.php for CSV
-                    }
+                if ($type === 'application/pdf') {
+                    $display_type = 'PDF';
+                    $type_class = 'type-pdf';
+                } elseif ($type === 'application/json') {
+                    $display_type = 'JSON';
+                    $type_class = 'type-json';
+                } elseif ($type === 'text/plain') {
+                    $display_type = 'TXT';
+                    $type_class = 'type-txt';
+                } elseif ($type === 'text/csv') {
+                    $display_type = 'CSV';
+                    $type_class = 'type-csv';
                 } elseif ($type === 'post') {
                     $display_type = 'Post';
                     $type_class = 'type-post';
                 } elseif ($type === 'page') {
                     $display_type = 'Page';
                     $type_class = 'type-page';
-                }
-                
-                // If a specific type class isn't set, try to derive from main mime type part
-                if (empty($type_class) && strpos($type, '/') !== false) {
-                     $main_type = explode('/', $type)[0];
-                     $type_class = 'type-' . esc_attr($main_type);
+                } elseif ($type === 'manual') {
+                    $display_type = 'Manual';
+                    $type_class = 'type-manual';
+                } else {
+                    if (strpos($type, '/') !== false) {
+                        $main_type = explode('/', $type)[0];
+                        $type_class = 'type-' . esc_attr($main_type);
+                        $display_type = strtoupper($main_type);
+                    } else {
+                        $type_class = 'type-default';
+                    }
                 }
                 
                 return sprintf('<span class="aiohm-content-type-badge %s">%s</span>', $type_class, $display_type);
 
             case 'user_id':
-                $visibility = $item[$column_name] == 0 ? 'Public' : 'Private';
-                $visibility_class = $item[$column_name] == 0 ? 'visibility-public' : 'visibility-private';
+                $visibility = $item['user_id'] == 0 ? 'Public' : 'Private';
+                $visibility_class = $item['user_id'] == 0 ? 'visibility-public' : 'visibility-private';
                 return sprintf('<span class="visibility-text %s">%s</span>', esc_attr($visibility_class), $visibility);
+
+            case 'last_updated':
+                return isset($item['created_at']) ? esc_html(date('Y-m-d H:i', strtotime($item['created_at']))) : 'N/A';
+            case 'title': // Explicitly handle 'title' for its bold formatting
+                return sprintf('<strong>%s</strong>', esc_html($item['title']));
             default:
-                return '';
+                // For any other column not explicitly handled, just return the item's value
+                return isset($item[$column_name]) ? esc_html($item[$column_name]) : '';
         }
     }
 
+    /**
+     * Renders the custom filters in the table nav area.
+     *
+     * @param string $which The part of the table nav to render (top or bottom).
+     */
+    function extra_tablenav($which) {
+        // Render filters at the top, on the same line as bulk actions
+        if ($which === 'top') {
+            ?>
+            <div class="alignleft actions filters-block">
+                <label for="filter-content-type" class="screen-reader-text">Filter by Content Type</label>
+                <select name="content_type" id="filter-content-type">
+                    <option value=""><?php _e('All Types', 'aiohm-kb-assistant'); ?></option>
+                    <option value="post" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'post'); ?>><?php _e('Posts', 'aiohm-kb-assistant'); ?></option>
+                    <option value="page" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'page'); ?>><?php _e('Pages', 'aiohm-kb-assistant'); ?></option>
+                    <option value="application/pdf" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'application/pdf'); ?>><?php _e('PDFs', 'aiohm-kb-assistant'); ?></option>
+                    <option value="text/plain" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'text/plain'); ?>><?php _e('TXT', 'aiohm-kb-assistant'); ?></option>
+                    <option value="text/csv" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'text/csv'); ?>><?php _e('CSV', 'aiohm-kb-assistant'); ?></option>
+                    <option value="application/json" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'application/json'); ?>><?php _e('JSON', 'aiohm-kb-assistant'); ?></option>
+                    <option value="manual" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'manual'); ?>><?php _e('Manual Entries', 'aiohm-kb-assistant'); ?></option>
+                </select>
+
+                <label for="filter-visibility" class="screen-reader-text">Filter by Visibility</label>
+                <select name="visibility" id="filter-visibility">
+                    <option value=""><?php _e('All Visibility', 'aiohm-kb-assistant'); ?></option>
+                    <option value="public" <?php selected(isset($_GET['visibility']) ? $_GET['visibility'] : '', 'public'); ?>><?php _e('Public', 'aiohm-kb-assistant'); ?></option>
+                    <option value="private" <?php selected(isset($_GET['visibility']) ? $_GET['visibility'] : '', 'private'); ?>><?php _e('Private', 'aiohm-kb-assistant'); ?></option>
+                </select>
+
+                <label for="filter-date-range" class="screen-reader-text">Filter by Date Range</label>
+                <select name="date_range" id="filter-date-range">
+                    <option value=""><?php _e('All Dates', 'aiohm-kb-assistant'); ?></option>
+                    <option value="last_7_days" <?php selected(isset($_GET['date_range']) ? $_GET['date_range'] : '', 'last_7_days'); ?>><?php _e('Last 7 Days', 'aiohm-kb-assistant'); ?></option>
+                    <option value="last_30_days" <?php selected(isset($_GET['date_range']) ? $_GET['date_range'] : '', 'last_30_days'); ?>><?php _e('Last 30 Days', 'aiohm-kb-assistant'); ?></option>
+                    <option value="this_month" <?php selected(isset($_GET['date_range']) ? $_GET['date_range'] : '', 'this_month'); ?>><?php _e('This Month', 'aiohm-kb-assistant'); ?></option>
+                    <option value="this_year" <?php selected(isset($_GET['date_range']) ? $_GET['date_range'] : '', 'this_year'); ?>><?php _e('This Year', 'aiohm-kb-assistant'); ?></option>
+                </select>
+
+                <?php submit_button(__('Filter'), 'button', false, false, ['id' => 'post-query-submit']); ?>
+            </div>
+            <?php
+        }
+    }
+
+
     function prepare_items() {
+        global $wpdb;
         $this->_column_headers = [$this->get_columns(), [], []];
         $per_page = 20;
         $current_page = $this->get_pagenum();
-        $total_items = $this->rag_engine->get_total_entries_count();
-        $total_items = $total_items ?? 0;
-        $this->set_pagination_args(['total_items' => (int) $total_items, 'per_page' => $per_page]);
-        $this->items = $this->rag_engine->get_all_entries_paginated($per_page, $current_page);
+
+        $where_clauses = ['1=1'];
+        $query_args = [];
+
+        // Removed search handling as per user request
+        // if (isset($_GET['s']) && !empty($_GET['s'])) { ... }
+
+        if (isset($_GET['content_type']) && !empty($_GET['content_type'])) {
+            $content_type = sanitize_text_field($_GET['content_type']);
+            $where_clauses[] = "content_type = %s";
+            $query_args[] = $content_type;
+        }
+
+        if (isset($_GET['visibility']) && !empty($_GET['visibility'])) {
+            $visibility = sanitize_text_field($_GET['visibility']);
+            if ($visibility === 'public') {
+                $where_clauses[] = "user_id = 0";
+            } elseif ($visibility === 'private') {
+                $where_clauses[] = "user_id = %d";
+                $query_args[] = get_current_user_id();
+            }
+        }
+
+        if (isset($_GET['date_range']) && !empty($_GET['date_range'])) {
+            $date_range = sanitize_text_field($current_time);
+            $current_time = current_time('mysql');
+            switch ($date_range) {
+                case 'last_7_days':
+                    $where_clauses[] = "created_at >= DATE_SUB(%s, INTERVAL 7 DAY)";
+                    $query_args[] = $current_time;
+                    break;
+                case 'last_30_days':
+                    $where_clauses[] = "created_at >= DATE_SUB(%s, INTERVAL 30 DAY)";
+                    $query_args[] = $current_time;
+                    break;
+                case 'this_month':
+                    $where_clauses[] = "YEAR(created_at) = YEAR(%s) AND MONTH(created_at) = MONTH(%s)";
+                    $query_args[] = $current_time;
+                    $query_args[] = $current_time;
+                    break;
+                case 'this_year':
+                    $where_clauses[] = "YEAR(created_at) = YEAR(%s)";
+                    $query_args[] = $current_time;
+                    break;
+            }
+        }
+
+        $where_sql = implode(' AND ', $where_clauses);
+
+        // Determine sorting
+        $orderby = isset($_GET['orderby']) ? sanitize_sql_orderby($_GET['orderby']) : 'id';
+        $order = isset($_GET['order']) ? sanitize_sql_orderby($_GET['order']) : 'DESC';
+
+        // Validate orderby against sortable columns to prevent SQL injection
+        $sortable_columns = $this->get_sortable_columns();
+        if (!array_key_exists($orderby, $sortable_columns)) {
+            $orderby = 'id'; // Fallback to default if invalid orderby is provided
+            $order = 'DESC';
+        } else {
+            $orderby = $sortable_columns[$orderby][0]; // Use the actual database column name
+        }
+
+
+        // Get total items count (respecting filters)
+        $total_items_sql_base = "SELECT COUNT(DISTINCT content_id) FROM {$this->rag_engine->get_table_name()}";
+        $total_items_query_args = $query_args;
+
+        if (!empty($where_clauses)) {
+            $total_items_sql = $total_items_sql_base . " WHERE {$where_sql}";
+        } else {
+            $total_items_sql = $total_items_sql_base;
+        }
+
+        if (empty($total_items_query_args)) {
+            $total_items = (int) $wpdb->get_var($total_items_sql);
+        } else {
+            $total_items = (int) $wpdb->get_var($wpdb->prepare($total_items_sql, $total_items_query_args));
+        }
+
+        $this->set_pagination_args(['total_items' => $total_items, 'per_page' => $per_page]);
+
+        $offset = ($current_page - 1) * $per_page;
+
+        $sql = "SELECT id, title, content_type, user_id, content_id, created_at, metadata, content
+                 FROM {$this->rag_engine->get_table_name()}";
+        if (!empty($where_clauses)) {
+            $sql .= " WHERE {$where_sql}";
+        }
+        $sql .= " GROUP BY content_id ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d";
+
+        array_push($query_args, $per_page, $offset);
+
+        $this->items = $wpdb->get_results($wpdb->prepare($sql, $query_args), ARRAY_A);
     }
 }
 
@@ -165,22 +326,26 @@ class AIOHM_KB_Manager {
 
     private function handle_actions() {
         $current_action = $this->list_table->current_action();
-        if ('delete' === $current_action && isset($_GET['content_id']) && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'aiohm_delete_entry_nonce')) {
+        $nonce = isset($_REQUEST['_wpnonce']) ? sanitize_text_field($_REQUEST['_wpnonce']) : '';
+
+        if ('delete' === $current_action && isset($_GET['content_id']) && wp_verify_nonce($nonce, 'aiohm_delete_entry_nonce')) {
             if ($this->rag_engine->delete_entry_by_content_id(sanitize_text_field($_GET['content_id']))) {
-                echo '<div class="notice notice-success is-dismissible"><p>Entry deleted successfully.</p></div>';
+                // Admin notice handled by JS in admin-manage-kb.php for single actions
+            } else {
+                // Notifying error in JS
             }
-        }
-        if ('bulk-delete' === $current_action && isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'bulk-' . $this->list_table->_args['plural'])) {
-            if (isset($_POST['entry_ids']) && is_array($_POST['entry_ids'])) {
-                $deleted_count = 0;
-                foreach ($_POST['entry_ids'] as $content_id) {
-                    if ($this->rag_engine->delete_entry_by_content_id(sanitize_text_field($content_id))) {
-                        $deleted_count++;
-                    }
+        } 
+        elseif ('bulk-delete' === $current_action && isset($_POST['entry_ids']) && wp_verify_nonce($nonce, 'bulk-' . $this->list_table->_args['plural'])) {
+            $deleted_count = 0;
+            foreach (array_map('sanitize_text_field', $_POST['entry_ids']) as $content_id) {
+                if ($this->rag_engine->delete_entry_by_content_id($content_id)) {
+                    $deleted_count++;
                 }
-                if ($deleted_count > 0) {
-                    echo '<div class="notice notice-success is-dismissible"><p>' . sprintf('%d entries deleted successfully.', $deleted_count) . '</p></div>';
-                }
+            }
+            if ($deleted_count > 0) {
+                // Notifying success in JS
+            } else {
+                // Notifying error in JS
             }
         }
     }
