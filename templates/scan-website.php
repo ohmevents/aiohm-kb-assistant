@@ -1,11 +1,11 @@
 <?php
 /**
  * Scan website content template.
- * This version splits the stats section into two parts for better organization.
+ * This is the complete and final version with all features, styles, and scripts.
  */
 if (!defined('ABSPATH')) exit;
 
-// Get settings and stats for the page
+// Get settings and all necessary stats for the page
 $settings = AIOHM_KB_Assistant::get_settings();
 $api_key_exists = !empty($settings['openai_api_key']);
 
@@ -13,6 +13,8 @@ $site_crawler = new AIOHM_KB_Site_Crawler();
 $uploads_crawler = new AIOHM_KB_Uploads_Crawler();
 $site_stats = $site_crawler->get_scan_stats();
 $uploads_stats = $uploads_crawler->get_stats();
+
+$pending_items = get_transient('aiohm_pending_items_website_' . get_current_user_id()) ?: [];
 ?>
 <div class="wrap" id="aiohm-scan-page">
     <h1><?php _e('Build Your Knowledge Base', 'aiohm-kb-assistant'); ?></h1>
@@ -29,7 +31,6 @@ $uploads_stats = $uploads_crawler->get_stats();
         <div class="aiohm-scan-section">
             <h2><?php _e('Content Stats', 'aiohm-kb-assistant'); ?></h2>
             <p><?php _e('An overview of all scannable content.', 'aiohm-kb-assistant'); ?></p>
-            
             <div class="aiohm-stats-split">
                 <div class="stat-group">
                     <h4><?php _e('Website Content', 'aiohm-kb-assistant'); ?></h4>
@@ -39,7 +40,7 @@ $uploads_stats = $uploads_crawler->get_stats();
                     </div>
                     <div class="stat-item">
                         <strong><?php _e('Pages:', 'aiohm-kb-assistant'); ?></strong>
-                        <span><?php printf(__('%d total, %d indexed, %d pending', 'aiohm-kb-assistant'), $site_stats['pages']['total'], $site_stats['pages']['indexed'], $site_stats['pages']['pending']); ?></span>
+                         <span><?php printf(__('%d total, %d indexed, %d pending', 'aiohm-kb-assistant'), $site_stats['pages']['total'], $site_stats['pages']['indexed'], $site_stats['pages']['pending']); ?></span>
                     </div>
                 </div>
                 <div class="stat-group">
@@ -60,7 +61,6 @@ $uploads_stats = $uploads_crawler->get_stats();
         </div>
     </div>
 
-
     <div class="aiohm-scan-columns-wrapper">
         <div class="aiohm-scan-column">
             <div class="aiohm-scan-section">
@@ -80,7 +80,7 @@ $uploads_stats = $uploads_crawler->get_stats();
             <div class="aiohm-scan-section">
                 <h2><?php _e('Uploaded Files Scanner', 'aiohm-kb-assistant'); ?></h2>
                 <p><?php _e('Scan for <strong>.txt, .json, .csv,</strong> and <strong>.pdf</strong> files. For PDFs, the Title, Caption, and Description fields will be used as the content.', 'aiohm-kb-assistant'); ?></p>
-                <button type="button" class="button button-primary" id="scan-uploads-btn" <?php disabled(!$api_key_exists); ?>><?php _e('Find Pending Uploads', 'aiohm-kb-assistant'); ?></button>
+                <button type="button" class="button button-primary" id="scan-uploads-btn" <?php disabled(!$api_key_exists); ?>><?php _e('Find Uploads', 'aiohm-kb-assistant'); ?></button>
                 <div id="pending-uploads-area" style="display: none; margin-top: 20px;">
                     <h3><?php _e("Uploads Scan Results", 'aiohm-kb-assistant'); ?></h3>
                     <div id="scan-uploads-container"></div>
@@ -123,7 +123,7 @@ jQuery(document).ready(function($) {
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_find', nonce: nonce })
         .done(response => { 
             if (response.success) { 
-                renderItemsTable(response.data.items, '#pending-content-area', '#scan-results-container', 'items[]'); 
+                renderItemsTable(response.data.items, '#pending-content-area', '#scan-results-container', 'items[]', true); 
             } 
         })
         .always(() => { $btn.prop('disabled', false).text('Find Posts & Pages'); });
@@ -135,22 +135,19 @@ jQuery(document).ready(function($) {
         const selectedIds = $('#scan-results-container input:checkbox:checked').map(function() { return this.value; }).get();
         if (selectedIds.length === 0) { alert('Please select at least one item.'); return; }
         
-        $addBtn.prop('disabled', true);
-        const $progress = $('#website-scan-progress');
-        $progress.show().html('Processing...');
+        $addBtn.prop('disabled', true).text('Processing...');
         
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_add', item_ids: selectedIds, nonce: nonce })
         .done(response => {
             if (response.success) {
                 alert(response.data.processed_items.length + ' item(s) processed.');
-                $('#scan-website-btn').click();
+                renderItemsTable(response.data.all_items, '#pending-content-area', '#scan-results-container', 'items[]', true);
             } else {
                 alert('Error: ' + (response.data.message || 'An error occurred.'));
             }
         })
         .always(() => {
-            $addBtn.prop('disabled', false);
-            $progress.hide();
+            $addBtn.prop('disabled', false).text('Add Selected to KB');
         });
     });
 
@@ -163,11 +160,11 @@ jQuery(document).ready(function($) {
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_find', nonce: nonce })
         .done(function(response) {
             if (response.success) {
-                renderItemsTable(response.data.items, '#pending-uploads-area', '#scan-uploads-container', 'upload_items[]');
+                renderItemsTable(response.data.items, '#pending-uploads-area', '#scan-uploads-container', 'upload_items[]', false);
             }
         })
         .always(function() {
-            $btn.prop('disabled', false).text('Find Pending Uploads');
+            $btn.prop('disabled', false).text('Find Uploads');
         });
     });
 
@@ -183,7 +180,7 @@ jQuery(document).ready(function($) {
         .done(function(response) {
             if (response.success) {
                 alert(response.data.processed_items.length + ' file(s) processed and added to the knowledge base!');
-                $('#scan-uploads-btn').click();
+                renderItemsTable(response.data.items, '#pending-uploads-area', '#scan-uploads-container', 'upload_items[]', false);
             } else {
                 alert('Error: ' + (response.data.message || 'An error occurred.'));
             }
@@ -194,19 +191,22 @@ jQuery(document).ready(function($) {
     });
 
     // Generic function to render a table of items for either scanner
-    function renderItemsTable(items, areaSelector, containerSelector, checkboxName) {
+    function renderItemsTable(items, areaSelector, containerSelector, checkboxName, showStatusColumn) {
         const $area = $(areaSelector);
         const $container = $(containerSelector);
         $container.empty();
 
         if (items && items.length > 0) {
-            let table = `<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th></tr></thead><tbody>`;
+            let statusHeader = showStatusColumn ? '<th>Status</th>' : '';
+            let table = `<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th>${statusHeader}</tr></thead><tbody>`;
             items.forEach(function(item) {
+                let statusCell = showStatusColumn ? `<td>${item.status}</td>` : '';
                 table += `
                     <tr>
                         <th scope="row" class="check-column"><input type="checkbox" name="${checkboxName}" value="${item.id}"></th>
                         <td><a href="${item.link}" target="_blank">${item.title}</a></td>
                         <td>${item.type}</td>
+                        ${statusCell}
                     </tr>`;
             });
             table += `</tbody></table>`;
