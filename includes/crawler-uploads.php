@@ -106,8 +106,9 @@ class AIOHM_KB_Uploads_Crawler {
         if (empty($attachment_ids)) return [];
         $processed = [];
         foreach ($attachment_ids as $attachment_id) {
-            $file_path = get_attached_file($attachment->ID);
-            $file_title = get_the_title($attachment->ID) ?: basename($file_path);
+            // FIX: Use $attachment_id directly instead of undefined $attachment variable
+            $file_path = get_attached_file($attachment_id);
+            $file_title = get_the_title($attachment_id) ?: basename($file_path);
             try {
                 if (!$file_path || !file_exists($file_path)) {
                     throw new Exception('File path not found.');
@@ -190,7 +191,7 @@ class AIOHM_KB_Uploads_Crawler {
 
             } catch (Exception $e) {
                 // Log any errors during PDF parsing and fall back to metadata
-                AIOHM_KB_Assistant::log('Error parsing PDF ' + basename($file_path) + ': ' + $e->getMessage() + '. Falling back to metadata.', 'error');
+                AIOHM_KB_Assistant::log('Error parsing PDF ' . basename($file_path) . ': ' . $e->getMessage() . '. Falling back to metadata.', 'error');
                 $attachment_post = get_post($attachment_id);
                 $content_parts = [];
                 if ($attachment_post) {

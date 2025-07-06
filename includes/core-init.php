@@ -48,16 +48,19 @@ class AIOHM_KB_Core_Init {
                     break;
                 case 'uploads_find':
                     $crawler = new AIOHM_KB_Uploads_Crawler();
-                    $pending_files = $crawler->find_pending_attachments();
-                    wp_send_json_success(['items' => $pending_files]);
+                    // OLD: $pending_files = $crawler->find_pending_attachments();
+                    // NEW: Return all supported attachments to keep indexed files visible
+                    $all_supported_files = $crawler->find_all_supported_attachments(); 
+                    wp_send_json_success(['items' => $all_supported_files]);
                     break;
                 case 'uploads_add':
                     $item_ids = isset($_POST['item_ids']) ? array_map('intval', $_POST['item_ids']) : [];
                     if (empty($item_ids)) throw new Exception('No item IDs provided.');
                     $crawler = new AIOHM_KB_Uploads_Crawler();
                     $results = $crawler->add_attachments_to_kb($item_ids);
-                    $pending_files = $crawler->find_pending_attachments();
-                    wp_send_json_success(['processed_items' => $results, 'items' => $pending_files]);
+                    // After adding, fetch all supported files to update the table correctly
+                    $updated_files_list = $crawler->find_all_supported_attachments(); 
+                    wp_send_json_success(['processed_items' => $results, 'items' => $updated_files_list]);
                     break;
                 default:
                     throw new Exception('Invalid scan type specified.');
