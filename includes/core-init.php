@@ -25,7 +25,7 @@ class AIOHM_KB_Core_Init {
 
         try {
             $scan_type = sanitize_text_field($_POST['scan_type']);
-
+            
             switch ($scan_type) {
                 case 'website_find':
                     $crawler = new AIOHM_KB_Site_Crawler();
@@ -40,8 +40,15 @@ class AIOHM_KB_Core_Init {
                     $crawler = new AIOHM_KB_Site_Crawler();
                     $results = $crawler->add_items_to_kb($item_ids);
                     
-                    $all_items = $crawler->find_all_content();
-                    wp_send_json_success(['processed_items' => $results, 'all_items' => $all_items]);
+                    $errors = array_filter($results, function($r) { return $r['status'] === 'error'; });
+
+                    if (!empty($errors)) {
+                        $error_messages = array_map(function($e) { return $e['title'] . ': ' . $e['error_message']; }, $errors);
+                        wp_send_json_error(['message' => "Some items failed to process:\n" . implode("\n", $error_messages)]);
+                    } else {
+                        $all_items = $crawler->find_all_content();
+                        wp_send_json_success(['processed_items' => $results, 'all_items' => $all_items]);
+                    }
                     break;
                 
                 case 'uploads_find':
@@ -131,7 +138,6 @@ class AIOHM_KB_Core_Init {
                 $context_string .= "Source Title: " . $data['entry']['title'] . "\nContent: " . $data['entry']['content'] . "\n\n";
             }
             $system_prompt = "You are a Brand Strategy Assistant. Your role is to help the user develop their brand by using the provided context, which includes public information and the user's private 'Brand Soul' answers. Synthesize this information to provide creative ideas, answer strategic questions, and help draft content. Always prioritize the private 'Brand Soul' context when available.";
-            // This assumes a method 'generate_chat_response' exists in your AI client.
             $response = "Feature under development. Context found: " . $context_string; // Placeholder
             wp_send_json_success(['response' => $response]);
         } catch (Exception $e) {

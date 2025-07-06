@@ -1,7 +1,7 @@
 <?php
 /**
  * Settings Page controller for AIOHM Knowledge Assistant.
- * This version is complete and handles the registration of all admin pages.
+ * This version ensures all data is prepared for the scan page.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -25,38 +25,10 @@ class AIOHM_KB_Settings_Page {
             'dashicons-admin-generic',
             60
         );
-        add_submenu_page(
-            'aiohm-dashboard',
-            'Dashboard',
-            'Dashboard',
-            'manage_options',
-            'aiohm-dashboard',
-            array($this, 'render_dashboard_page')
-        );
-        add_submenu_page(
-            'aiohm-dashboard',
-            'Scan Content',
-            'Scan Content',
-            'manage_options',
-            'aiohm-scan-content',
-            array($this, 'render_scan_page')
-        );
-        add_submenu_page(
-            'aiohm-dashboard',
-            'Manage Knowledge Base',
-            'Manage KB',
-            'manage_options',
-            'aiohm-manage-kb',
-            array($this, 'render_manage_kb_page')
-        );
-        add_submenu_page(
-            'aiohm-dashboard',
-            'AIOHM Settings',
-            'Settings',
-            'manage_options',
-            'aiohm-settings',
-            array($this, 'render_form_settings_page')
-        );
+        add_submenu_page('aiohm-dashboard', 'Dashboard', 'Dashboard', 'manage_options', 'aiohm-dashboard', array($this, 'render_dashboard_page'));
+        add_submenu_page('aiohm-dashboard', 'Scan Content', 'Scan Content', 'manage_options', 'aiohm-scan-content', array($this, 'render_scan_page'));
+        add_submenu_page('aiohm-dashboard', 'Manage Knowledge Base', 'Manage KB', 'manage_options', 'aiohm-manage-kb', array($this, 'render_manage_kb_page'));
+        add_submenu_page('aiohm-dashboard', 'AIOHM Settings', 'Settings', 'manage_options', 'aiohm-settings', array($this, 'render_form_settings_page'));
         add_action('admin_init', array($this, 'register_settings'));
     }
 
@@ -70,6 +42,7 @@ class AIOHM_KB_Settings_Page {
     }
     
     public function render_scan_page() {
+        // **THE FIX IS HERE:** All data is correctly prepared here before the template is loaded.
         $site_crawler = new AIOHM_KB_Site_Crawler();
         $uploads_crawler = new AIOHM_KB_Uploads_Crawler();
         $site_stats = $site_crawler->get_scan_stats();

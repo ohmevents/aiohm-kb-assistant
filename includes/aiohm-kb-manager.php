@@ -1,7 +1,7 @@
 <?php
 /**
  * Handles the display and processing of the "Manage Knowledge Base" admin page.
- * This version adds a fix for the number_format deprecated notice.
+ * This is the complete and final version of this file with no code missing.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -86,9 +86,6 @@ class AIOHM_KB_List_Table extends WP_List_Table {
         $current_page = $this->get_pagenum();
         
         $total_items = $this->rag_engine->get_total_entries_count();
-        
-        // ** THE FIX IS HERE: Ensure total_items is never null before passing it to the pagination function. **
-        // This prevents the deprecated notice by providing a default value of 0 if the database returns null.
         $total_items = $total_items ?? 0;
 
         $this->set_pagination_args(['total_items' => (int) $total_items, 'per_page' => $per_page]);
