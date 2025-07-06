@@ -56,7 +56,8 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
                             echo '<div class="stat-item"><strong>' . esc_html(strtoupper($type)) . ' Files:</strong> <span>' . sprintf(__('%d total, %d indexed, %d pending (%s)', 'aiohm-kb-assistant'), $data['count'] ?? 0, $data['indexed'] ?? 0, $data['pending'] ?? 0, $size_formatted) . '</span></div>';
                         }
                     } else {
-                        echo '<p>No supported files found in the Media Library.</p>';
+                        // This block now just provides general info, the table will be rendered by JS
+                        echo '<p>Supported files include .txt, .json, .csv, and .pdf from your Media Library.</p>';
                     }
                     ?>
                 </div>
@@ -74,20 +75,9 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
                     <h3><?php _e("Scan Results", 'aiohm-kb-assistant'); ?></h3>
                     <div id="scan-results-container">
                         <?php
-                        if (!empty($pending_website_items)) {
-                            echo '<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th><th>Status</th></tr></thead><tbody>';
-                            foreach ($pending_website_items as $item) {
-                                $status_class = strtolower(str_replace(' ', '-', $item['status']));
-                                $status_content = $item['status'] === 'Ready to Add' ? sprintf('<a href="#" class="add-single-item-link" data-id="%d">%s</a>', $item['id'], $item['status']) : $item['status'];
-                                echo sprintf(
-                                    '<tr><th scope="row" class="check-column"><input type="checkbox" name="items[]" value="%d"></th><td><a href="%s" target="_blank">%s</a></td><td><span class="type-%s">%s</span></td><td><span class="status-%s">%s</span></td></tr>',
-                                    $item['id'], esc_url($item['link']), esc_html($item['title']), esc_attr($item['type']), esc_html($item['type']), esc_attr($status_class), $status_content
-                                );
-                            }
-                            echo '</tbody></table>';
-                        } else {
-                            echo '<p style="padding: 15px; background-color: #f8f9fa;">Click the button above to scan for content.</p>';
-                        }
+                        // The renderItemsTable function will be called by JavaScript
+                        // to populate this on page load or after a scan.
+                        // Initial rendering will happen via JS.
                         ?>
                     </div>
                     <button type="button" class="button button-primary" id="add-selected-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected to KB', 'aiohm-kb-assistant'); ?></button>
@@ -107,32 +97,12 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
                     <h3><?php _e("Uploads Scan Results", 'aiohm-kb-assistant'); ?></h3>
                     <div id="scan-uploads-container">
                         <?php
-                        // Now using $all_upload_items instead of $pending_upload_items
-                        // for rendering the table, which will include status
-                        if (!empty($all_upload_items)) { // Changed variable name
-                            echo '<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th><th>Status</th></tr></thead><tbody>'; // Added Status column
-                            foreach ($all_upload_items as $item) { // Changed variable name
-                                $status_class = strtolower(str_replace(' ', '-', $item['status']));
-                                $status_content = $item['status'] === 'Ready to Add' ? sprintf('<a href="#" class="add-single-item-link" data-id="%d" data-type="upload">%s</a>', $item['id'], $item['status']) : $item['status'];
-                                echo sprintf(
-                                    '<tr><th scope="row" class="check-column"><input type="checkbox" name="upload_items[]" value="%d" %s></th><td><a href="%s" target="_blank">%s</a></td><td><span class="type-%s">%s</span></td><td><span class="status-%s">%s</span></td></tr>', // Added Status column
-                                    $item['id'],
-                                    ($item['status'] === 'Knowledge Base' ? 'disabled' : ''), // Disable checkbox for indexed items
-                                    esc_url($item['link']),
-                                    esc_html($item['title']),
-                                    esc_attr(explode('/', $item['type'])[0]), // Use main MIME type (e.g., 'image', 'application') for styling
-                                    esc_html(ucwords(explode('/', $item['type'])[1])), // Use sub-type for display (e.g., 'pdf', 'json')
-                                    esc_attr($status_class),
-                                    $status_content
-                                );
-                            }
-                            echo '</tbody></table>';
-                        } else {
-                             echo '<p style="padding: 15px; background-color: #f8f9fa;">Click the button above to scan for supported files.</p>';
-                        }
+                        // The renderItemsTable function will be called by JavaScript
+                        // to populate this on page load or after a scan.
+                        // Initial rendering will happen via JS.
                         ?>
                     </div>
-                    <button type="button" class="button button-primary" id="add-uploads-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected Uploads to KB', 'aiohm-kb-assistant'); ?></button>
+                    <button type="button" class="button button-primary" id="add-uploads-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected to KB', 'aiohm-kb-assistant'); ?></button>
                 </div>
             </div>
         </div>
@@ -184,10 +154,12 @@ jQuery(document).ready(function($) {
 
     function renderItemsTable(items, containerSelector, checkboxName, showStatusColumn, isUploads = false) {
         const $container = $(containerSelector);
-        $container.empty();
+        let tableHtml = '';
+        let statusHeader = showStatusColumn ? '<th>Status</th>' : '';
+        
+        tableHtml += `<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th>${statusHeader}</tr></thead><tbody>`;
+        
         if (items && items.length > 0) {
-            let statusHeader = showStatusColumn ? '<th>Status</th>' : '';
-            let table = `<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th>${statusHeader}</tr></thead><tbody>`;
             items.forEach(function(item) {
                 let statusCell = '';
                 let checkboxDisabled = '';
@@ -205,7 +177,7 @@ jQuery(document).ready(function($) {
                 let typeDisplay = isUploads ? item.type.split('/')[1].charAt(0).toUpperCase() + item.type.split('/')[1].slice(1) : item.type;
                 let typeClass = isUploads ? item.type.split('/')[0] : item.type; // Use main MIME type part for class
 
-                table += `
+                tableHtml += `
                     <tr>
                         <th scope="row" class="check-column"><input type="checkbox" name="${checkboxName}" value="${item.id}" ${checkboxDisabled}></th>
                         <td><a href="${item.link}" target="_blank">${item.title}</a></td>
@@ -213,12 +185,33 @@ jQuery(document).ready(function($) {
                         ${statusCell}
                     </tr>`;
             });
-            table += `</tbody></table>`;
-            $container.html(table);
         } else {
-            $container.html('<p style="padding: 15px; background-color: #f8f9fa;">No new items found.</p>');
+            // Always display the table structure, with a row for no items
+            tableHtml += `<tr><td colspan="4" style="text-align: center; padding: 15px; background-color: #f8f9fa;">No supported files found.</td></tr>`;
         }
+        
+        tableHtml += `</tbody></table>`;
+        $container.html(tableHtml);
     }
+
+    // Initial load for Website content table
+    // Fetch initial website content and render the table
+    $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_find', nonce: nonce })
+        .done(response => { 
+            if (response.success) { 
+                renderItemsTable(response.data.items, '#scan-results-container', 'items[]', true); 
+            } 
+        });
+
+    // Initial load for Uploads content table
+    // Fetch initial uploads content and render the table
+    $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_find', nonce: nonce })
+        .done(response => { 
+            if (response.success) { 
+                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', true, true);
+            } 
+        });
+
 
     $('#scan-website-btn').on('click', function() {
         if ($(this).is(':disabled')) return;
@@ -229,6 +222,10 @@ jQuery(document).ready(function($) {
             if (response.success) { 
                 renderItemsTable(response.data.items, '#scan-results-container', 'items[]', true); 
             } 
+            showAdminNotice('Website scan complete.', 'success'); // Indicate scan is done.
+        })
+        .fail(() => {
+            showAdminNotice('Website scan failed. Please check logs for details.', 'error');
         })
         .always(() => { $btn.prop('disabled', false).text('Re-Scan Posts & Pages'); });
     });
@@ -245,12 +242,16 @@ jQuery(document).ready(function($) {
         const $progress = $('#website-scan-progress');
         const $progressBar = $progress.find('.progress-bar-inner');
         const $progressPercentage = $progress.find('.progress-percentage');
-        $progress.show(); $progressBar.css('width', '0%'); $progressPercentage.text('0%');
-        let processedCount = 0; const batchSize = 5;
+        $progress.show(); 
+        $progressBar.css('width', '0%'); 
+        $progressPercentage.text('0%'); // Reset percentage on new batch process
+        let processedCount = 0; 
+        const totalSelected = selectedIds.length; // Store total selected count
+        const batchSize = 5;
 
         function processBatch(batch) {
             if (batch.length === 0) {
-                showAdminNotice('All selected items processed successfully.', 'success');
+                showAdminNotice('All selected website items processed successfully. Reloading page...', 'success');
                 $addBtn.prop('disabled', false);
                 setTimeout(() => { 
                     $progress.fadeOut(); 
@@ -265,17 +266,21 @@ jQuery(document).ready(function($) {
             .done(response => {
                 if (response.success) {
                     processedCount += currentBatch.length;
-                    let percentage = Math.round((processedCount / selectedIds.length) * 100);
-                    $progressBar.css('width', percentage + '%'); $progressPercentage.text(percentage + '%');
-                    renderItemsTable(response.data.all_items, '#scan-results-container', 'items[]', true);
-                    processBatch(remainingBatch);
+                    let percentage = Math.round((processedCount / totalSelected) * 100); // Use totalSelected
+                    $progressBar.css('width', percentage + '%'); 
+                    $progressPercentage.text(percentage + '%');
+                    // We don't re-render the table here with new data directly,
+                    // as the page reloads at the end for consistent state.
+                    processBatch(remainingBatch); // Recursively call for next batch
                 } else {
                     showAdminNotice(response.data.message, 'error');
-                    $addBtn.prop('disabled', false);
+                    $addBtn.prop('disabled', false); // Re-enable button on error
+                    $progress.fadeOut(); // Hide progress bar on error
                 }
             }).fail(() => {
-                showAdminNotice('An unexpected server error occurred.', 'error');
-                $addBtn.prop('disabled', false);
+                showAdminNotice('An unexpected server error occurred during batch processing.', 'error');
+                $addBtn.prop('disabled', false); // Re-enable button on failure
+                $progress.fadeOut(); // Hide progress bar on failure
             });
         }
         processBatch(selectedIds);
@@ -286,11 +291,17 @@ jQuery(document).ready(function($) {
         const $btn = $(this);
         $btn.prop('disabled', true).text('Scanning Uploads...');
         
+        // This AJAX call should return ALL supported uploads, not just pending ones
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_find', nonce: nonce })
         .done(function(response) {
             if (response.success) { 
-                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', true, true); // Added true for showStatusColumn and isUploads
+                // Pass true for showStatusColumn and isUploads
+                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', true, true);
             }
+            showAdminNotice('Uploads scan complete.', 'success'); // Indicate scan is done.
+        })
+        .fail(() => {
+            showAdminNotice('Uploads scan failed. Please check logs for details.', 'error');
         })
         .always(function() { $btn.prop('disabled', false).text('Find Uploads'); }); // Changed button text back
     });
@@ -307,14 +318,17 @@ jQuery(document).ready(function($) {
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_add', item_ids: selectedIds, nonce: nonce })
         .done(function(response) {
             if (response.success) {
-                showAdminNotice(response.data.processed_items.length + ' file(s) processed.', 'success');
-                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', true, true); // Added true for showStatusColumn and isUploads
+                showAdminNotice(response.data.processed_items.length + ' file(s) processed. Reloading page...', 'success');
+                // The page will reload to show updated stats and table.
             } else {
                 showAdminNotice(response.data.message, 'error');
             }
         })
+        .fail(() => {
+            showAdminNotice('An unexpected server error occurred during adding uploads.', 'error');
+        })
         .always(function() {
-            $addBtn.prop('disabled', false).text('Add Selected Uploads to KB');
+            $addBtn.prop('disabled', false).text('Add Selected to KB'); // Changed button text back
             location.reload(); // Reload page to show updated stats
         });
     });
@@ -325,28 +339,29 @@ jQuery(document).ready(function($) {
         const itemId = $link.data('id');
         const itemType = $link.data('type'); // 'website' or 'upload'
         if (!itemId) return;
-        $link.replaceWith('<span class="spinner is-active" style="float:none;"></span>');
-
+        
+        // Replace link with spinner immediately
+        const originalHtml = $link.html();
+        $link.html('<span class="spinner is-active" style="float:none;"></span>');
+        
         const scanType = itemType === 'website' ? 'website_add' : 'uploads_add';
-        const containerSelector = itemType === 'website' ? '#scan-results-container' : '#scan-uploads-container';
-        const checkboxName = itemType === 'website' ? 'items[]' : 'upload_items[]';
-        const isUploads = itemType === 'upload';
 
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: scanType, item_ids: [itemId], nonce: nonce })
         .done(response => {
             if (response.success) {
-                showAdminNotice('1 item processed successfully.', 'success');
-                // Use the correct `all_items` or `items` key based on scanType
-                const updatedItems = response.data.all_items || response.data.items; 
-                renderItemsTable(updatedItems, containerSelector, checkboxName, true, isUploads);
+                showAdminNotice('1 item processed successfully. Reloading page...', 'success');
+                // Reload the page to ensure all stats and tables are updated consistently.
+                location.reload();
             } else {
                 showAdminNotice(response.data.message, 'error');
-                $link.closest('td').find('.spinner').replaceWith(`<a href="#" class="add-single-item-link" data-id="${itemId}" data-type="${itemType}">Ready to Add</a>`);
+                // Restore link on error
+                $link.html(originalHtml);
             }
         })
         .fail(() => {
             showAdminNotice('An unexpected server error occurred.', 'error');
-            $link.closest('td').find('.spinner').replaceWith(`<a href="#" class="add-single-item-link" data-id="${itemId}" data-type="${itemType}">Ready to Add</a>`);
+            // Restore link on failure
+            $link.html(originalHtml);
         });
     });
     
