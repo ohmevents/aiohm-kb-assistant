@@ -56,6 +56,9 @@ class AIOHM_KB_Assistant {
     public function init_plugin() {
         AIOHM_KB_Core_Init::init();
         AIOHM_KB_Settings_Page::init();
+        AIOHM_KB_Shortcode_Chat::init(); // Ensure chat shortcode is initialized
+        AIOHM_KB_Shortcode_Search::init(); // Ensure search shortcode is initialized
+        AIOHM_KB_Frontend_Widget::init(); // Ensure frontend widget is initialized
     }
     
     public function activate() {
@@ -72,9 +75,13 @@ class AIOHM_KB_Assistant {
     
     public static function get_settings() {
         $default_settings = [
-            'personal_api_key' => '', 'openai_api_key'   => '',
-            'system_prompt'    => 'You are a helpful AI assistant.', 'scan_schedule'    => 'none',
-            'chunk_size'       => 1000, 'chunk_overlap'    => 200,
+            'personal_api_key' => '',
+            'openai_api_key'   => '',
+            'chat_enabled'     => true, // Added and defaulted to true
+            'show_floating_chat' => false, // Added and defaulted to false
+            'scan_schedule'    => 'none',
+            'chunk_size'       => 1000,
+            'chunk_overlap'    => 200,
         ];
         return wp_parse_args(get_option('aiohm_kb_settings', []), $default_settings);
     }
@@ -103,8 +110,11 @@ class AIOHM_KB_Assistant {
     
     private function set_default_options() {
         add_option('aiohm_kb_settings', [
-            'personal_api_key' => '', 'openai_api_key' => '',
-            'system_prompt' => 'You are a helpful AI assistant.', 'scan_schedule' => 'none',
+            'personal_api_key' => '',
+            'openai_api_key' => '',
+            'chat_enabled' => true, // Set default to true for activation
+            'show_floating_chat' => false, // Set default to false for activation
+            'scan_schedule' => 'none',
         ], '', 'no');
     }
 }

@@ -44,12 +44,16 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
                 </div>
                 <div class="stat-group">
                     <h4><?php _e('Media Library Breakdown', 'aiohm-kb-assistant'); ?></h4>
+                    <div class="stat-item total-stat">
+                        <strong><?php _e('Total Media Files:', 'aiohm-kb-assistant'); ?></strong>
+                        <span><?php echo esc_html($uploads_stats['total_files'] ?? 0); ?> (<?php _e('Indexed:', 'aiohm-kb-assistant'); ?> <?php echo esc_html($uploads_stats['indexed_files'] ?? 0); ?>, <?php _e('Pending:', 'aiohm-kb-assistant'); ?> <?php echo esc_html($uploads_stats['pending_files'] ?? 0); ?>)</span>
+                    </div>
                     <?php
                     if (!empty($uploads_stats['by_type'])) {
                         foreach($uploads_stats['by_type'] as $type => $data) {
                             $size_formatted = size_format($data['size'] ?? 0);
                             $count_formatted = number_format_i18n($data['count'] ?? 0);
-                            echo '<div class="stat-item"><strong>' . esc_html(strtoupper($type)) . ' Files:</strong> <span>' . sprintf('%s files (%s)', $count_formatted, $size_formatted) . '</span></div>';
+                            echo '<div class="stat-item"><strong>' . esc_html(strtoupper($type)) . ' Files:</strong> <span>' . sprintf(__('%d total, %d indexed, %d pending (%s)', 'aiohm-kb-assistant'), $data['count'] ?? 0, $data['indexed'] ?? 0, $data['pending'] ?? 0, $size_formatted) . '</span></div>';
                         }
                     } else {
                         echo '<p>No supported files found in the Media Library.</p>';
@@ -103,12 +107,23 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
                     <h3><?php _e("Uploads Scan Results", 'aiohm-kb-assistant'); ?></h3>
                     <div id="scan-uploads-container">
                         <?php
-                        if (!empty($pending_upload_items)) {
-                            echo '<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th></tr></thead><tbody>';
-                            foreach ($pending_upload_items as $item) {
+                        // Now using $all_upload_items instead of $pending_upload_items
+                        // for rendering the table, which will include status
+                        if (!empty($all_upload_items)) { // Changed variable name
+                            echo '<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th><th>Status</th></tr></thead><tbody>'; // Added Status column
+                            foreach ($all_upload_items as $item) { // Changed variable name
+                                $status_class = strtolower(str_replace(' ', '-', $item['status']));
+                                $status_content = $item['status'] === 'Ready to Add' ? sprintf('<a href="#" class="add-single-item-link" data-id="%d" data-type="upload">%s</a>', $item['id'], $item['status']) : $item['status'];
                                 echo sprintf(
-                                    '<tr><th scope="row" class="check-column"><input type="checkbox" name="upload_items[]" value="%d"></th><td><a href="%s" target="_blank">%s</a></td><td>%s</td></tr>',
-                                    $item['id'], esc_url($item['link']), esc_html($item['title']), esc_html($item['type'])
+                                    '<tr><th scope="row" class="check-column"><input type="checkbox" name="upload_items[]" value="%d" %s></th><td><a href="%s" target="_blank">%s</a></td><td><span class="type-%s">%s</span></td><td><span class="status-%s">%s</span></td></tr>', // Added Status column
+                                    $item['id'],
+                                    ($item['status'] === 'Knowledge Base' ? 'disabled' : ''), // Disable checkbox for indexed items
+                                    esc_url($item['link']),
+                                    esc_html($item['title']),
+                                    esc_attr(explode('/', $item['type'])[0]), // Use main MIME type (e.g., 'image', 'application') for styling
+                                    esc_html(ucwords(explode('/', $item['type'])[1])), // Use sub-type for display (e.g., 'pdf', 'json')
+                                    esc_attr($status_class),
+                                    $status_content
                                 );
                             }
                             echo '</tbody></table>';
@@ -140,6 +155,11 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
 .type-post, .type-page { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
 .type-post { background-color: #e7f5ff; color: #005a87; }
 .type-page { background-color: #f3e7ff; color: #6f42c1; }
+/* Styles for common file types, derive from mime-type primary part */
+.type-image { background-color: #e7ffe7; color: #198754; }
+.type-application { background-color: #ffe7e7; color: #d63384; } /* For PDFs, JSON, etc. */
+.type-text { background-color: #fff8e7; color: #b8860b; } /* For TXT, CSV */
+
 .status-knowledge-base { color: #28a745; font-weight: bold; }
 .status-ready-to-add { color: #007cba; }
 .add-single-item-link { cursor: pointer; text-decoration: underline; }
@@ -162,7 +182,7 @@ jQuery(document).ready(function($) {
         }, 5000);
     }
 
-    function renderItemsTable(items, containerSelector, checkboxName, showStatusColumn) {
+    function renderItemsTable(items, containerSelector, checkboxName, showStatusColumn, isUploads = false) {
         const $container = $(containerSelector);
         $container.empty();
         if (items && items.length > 0) {
@@ -170,20 +190,26 @@ jQuery(document).ready(function($) {
             let table = `<table class="wp-list-table widefat striped"><thead><tr><td class="manage-column column-cb check-column"><input type="checkbox"></td><th>Title</th><th>Type</th>${statusHeader}</tr></thead><tbody>`;
             items.forEach(function(item) {
                 let statusCell = '';
+                let checkboxDisabled = '';
                 if (showStatusColumn) {
                     let statusClass = (item.status || '').toLowerCase().replace(/\s+/g, '-');
                     let statusContent = item.status;
                     if (item.status === 'Ready to Add') {
-                        statusContent = `<a href="#" class="add-single-item-link" data-id="${item.id}">${item.status}</a>`;
+                        statusContent = `<a href="#" class="add-single-item-link" data-id="${item.id}" data-type="${isUploads ? 'upload' : 'website'}">${item.status}</a>`;
+                    } else if (item.status === 'Knowledge Base') {
+                        checkboxDisabled = 'disabled';
                     }
                     statusCell = `<td><span class="status-${statusClass}">${statusContent}</span></td>`;
                 }
-                let typeCell = `<td><span class="type-${item.type}">${item.type}</span></td>`;
+                
+                let typeDisplay = isUploads ? item.type.split('/')[1].charAt(0).toUpperCase() + item.type.split('/')[1].slice(1) : item.type;
+                let typeClass = isUploads ? item.type.split('/')[0] : item.type; // Use main MIME type part for class
+
                 table += `
                     <tr>
-                        <th scope="row" class="check-column"><input type="checkbox" name="${checkboxName}" value="${item.id}"></th>
+                        <th scope="row" class="check-column"><input type="checkbox" name="${checkboxName}" value="${item.id}" ${checkboxDisabled}></th>
                         <td><a href="${item.link}" target="_blank">${item.title}</a></td>
-                        ${typeCell}
+                        <td><span class="type-${typeClass}">${typeDisplay}</span></td>
                         ${statusCell}
                     </tr>`;
             });
@@ -262,9 +288,11 @@ jQuery(document).ready(function($) {
         
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_find', nonce: nonce })
         .done(function(response) {
-            if (response.success) { renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', false); }
+            if (response.success) { 
+                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', true, true); // Added true for showStatusColumn and isUploads
+            }
         })
-        .always(function() { $btn.prop('disabled', false).text('Re-Scan Uploads'); });
+        .always(function() { $btn.prop('disabled', false).text('Find Uploads'); }); // Changed button text back
     });
 
     $('#add-uploads-to-kb-btn').on('click', function() {
@@ -280,35 +308,45 @@ jQuery(document).ready(function($) {
         .done(function(response) {
             if (response.success) {
                 showAdminNotice(response.data.processed_items.length + ' file(s) processed.', 'success');
-                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', false);
+                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', true, true); // Added true for showStatusColumn and isUploads
             } else {
                 showAdminNotice(response.data.message, 'error');
             }
         })
         .always(function() {
             $addBtn.prop('disabled', false).text('Add Selected Uploads to KB');
+            location.reload(); // Reload page to show updated stats
         });
     });
 
-    $('#scan-results-container').on('click', '.add-single-item-link', function(e) {
+    $('#scan-results-container, #scan-uploads-container').on('click', '.add-single-item-link', function(e) { // Combined handler for both tables
         e.preventDefault();
         const $link = $(this);
         const itemId = $link.data('id');
+        const itemType = $link.data('type'); // 'website' or 'upload'
         if (!itemId) return;
         $link.replaceWith('<span class="spinner is-active" style="float:none;"></span>');
-        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_add', item_ids: [itemId], nonce: nonce })
+
+        const scanType = itemType === 'website' ? 'website_add' : 'uploads_add';
+        const containerSelector = itemType === 'website' ? '#scan-results-container' : '#scan-uploads-container';
+        const checkboxName = itemType === 'website' ? 'items[]' : 'upload_items[]';
+        const isUploads = itemType === 'upload';
+
+        $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: scanType, item_ids: [itemId], nonce: nonce })
         .done(response => {
             if (response.success) {
                 showAdminNotice('1 item processed successfully.', 'success');
-                renderItemsTable(response.data.all_items, '#scan-results-container', 'items[]', true);
+                // Use the correct `all_items` or `items` key based on scanType
+                const updatedItems = response.data.all_items || response.data.items; 
+                renderItemsTable(updatedItems, containerSelector, checkboxName, true, isUploads);
             } else {
                 showAdminNotice(response.data.message, 'error');
-                $link.closest('td').find('.spinner').replaceWith(`<a href="#" class="add-single-item-link" data-id="${itemId}">Ready to Add</a>`);
+                $link.closest('td').find('.spinner').replaceWith(`<a href="#" class="add-single-item-link" data-id="${itemId}" data-type="${itemType}">Ready to Add</a>`);
             }
         })
         .fail(() => {
             showAdminNotice('An unexpected server error occurred.', 'error');
-            $link.closest('td').find('.spinner').replaceWith(`<a href="#" class="add-single-item-link" data-id="${itemId}">Ready to Add</a>`);
+            $link.closest('td').find('.spinner').replaceWith(`<a href="#" class="add-single-item-link" data-id="${itemId}" data-type="${itemType}">Ready to Add</a>`);
         });
     });
     

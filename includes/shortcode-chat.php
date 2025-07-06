@@ -22,9 +22,9 @@ class AIOHM_KB_Shortcode_Chat {
      * This is called from init() to run at the correct time.
      */
     public static function setup_floating_chat() {
-        // Corrected line
         $settings = AIOHM_KB_Assistant::get_settings();
-        if (!empty($settings['show_floating_chat'])) {
+        // Check if global chat is enabled AND floating chat specifically is enabled
+        if (($settings['chat_enabled'] ?? true) && ($settings['show_floating_chat'] ?? false)) { // Updated to check show_floating_chat
             add_action('wp_footer', array(__CLASS__, 'add_floating_chat'));
         }
     }
@@ -33,11 +33,10 @@ class AIOHM_KB_Shortcode_Chat {
      * Render chat shortcode
      */
     public static function render_chat_shortcode($atts) {
-        // Corrected line
         $settings = AIOHM_KB_Assistant::get_settings();
         
-        // Check if chat is enabled
-        if (!$settings['chat_enabled']) {
+        // Check if chat is enabled from settings
+        if (!($settings['chat_enabled'] ?? true)) {
             return '<div class="aiohm-chat-disabled">' . __('Chat is currently disabled.', 'aiohm-kb-assistant') . '</div>';
         }
         
@@ -225,11 +224,10 @@ class AIOHM_KB_Shortcode_Chat {
      * Add floating chat to footer
      */
     public static function add_floating_chat() {
-        // Corrected line
         $settings = AIOHM_KB_Assistant::get_settings();
         
         // Only show if chat is enabled and user is not in admin
-        if ($settings['chat_enabled'] && !is_admin() && !wp_is_json_request()) {
+        if (($settings['chat_enabled'] ?? true) && !is_admin() && !wp_is_json_request()) {
             echo self::render_floating_chat();
         }
     }

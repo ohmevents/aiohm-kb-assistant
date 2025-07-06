@@ -8,8 +8,8 @@ if (!defined('ABSPATH')) exit;
 $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
     'personal_api_key' => '',
     'openai_api_key' => '',
-    'system_prompt' => 'You are a helpful AI assistant.',
-    'scan_schedule' => 'none',
+    'chat_enabled' => true, // Added chat_enabled setting
+    'show_floating_chat' => false, // Added show_floating_chat setting
 ]);
 ?>
 <div class="wrap aiohm-settings-page">
@@ -50,14 +50,25 @@ $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
         </div>
 
         <div class="aiohm-settings-section">
-            <h2><?php _e('Assistant Personality', 'aiohm-kb-assistant'); ?></h2>
-            <p><?php _e("Give your AI its unique voice and instructions. This tells the AI how to behave.", 'aiohm-kb-assistant'); ?></p>
-             <table class="form-table">
+            <h2><?php _e('Chat Assistant Settings', 'aiohm-kb-assistant'); ?></h2>
+            <p><?php _e('Configure the behavior of your public-facing AI chat assistant.', 'aiohm-kb-assistant'); ?></p>
+            <table class="form-table">
                 <tr>
-                    <th scope="row"><label for="system_prompt"><?php _e('Custom Instructions', 'aiohm-kb-assistant'); ?></label></th>
+                    <th scope="row"><?php _e('Enable Chat Assistant', 'aiohm-kb-assistant'); ?></th>
                     <td>
-                        <textarea id="system_prompt" name="aiohm_kb_settings[system_prompt]" rows="8" class="large-text"><?php echo esc_textarea($settings['system_prompt']); ?></textarea>
-                        <p class="description"><?php _e("<em>Example: You are a friendly and encouraging support assistant for a company called 'Peak Performance' that sells hiking gear. Always keep your answers brief and end with a positive message.</em>", "aiohm-kb-assistant"); ?></p>
+                        <label for="chat_enabled">
+                            <input type="checkbox" id="chat_enabled" name="aiohm_kb_settings[chat_enabled]" value="1" <?php checked(1, $settings['chat_enabled']); ?> />
+                            <?php _e('Check this box to enable the public-facing chat assistant on your website.', 'aiohm-kb-assistant'); ?>
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('Enable Floating Chat Widget', 'aiohm-kb-assistant'); ?></th>
+                    <td>
+                        <label for="show_floating_chat">
+                            <input type="checkbox" id="show_floating_chat" name="aiohm_kb_settings[show_floating_chat]" value="1" <?php checked(1, $settings['show_floating_chat']); ?> />
+                            <?php _e('Check this box to display a floating chat widget on all pages.', 'aiohm-kb-assistant'); ?>
+                        </label>
                     </td>
                 </tr>
             </table>

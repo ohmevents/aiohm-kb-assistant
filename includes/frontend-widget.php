@@ -15,7 +15,16 @@ class AIOHM_KB_Frontend_Widget {
      * Enqueue frontend assets
      */
     public static function enqueue_frontend_assets() {
-        if (!self::should_load_assets()) {
+        // Load settings to check if chat is enabled
+        $settings = AIOHM_KB_Assistant::get_settings();
+        
+        // Only load assets if chat is enabled or if the search shortcode is present
+        // (Assuming search shortcode also uses aiohm-chat.js and aiohm-chat.css)
+        global $post;
+        $has_chat_shortcode = $post && has_shortcode($post->post_content, 'aiohm_chat');
+        $has_search_shortcode = $post && has_shortcode($post->post_content, 'aiohm_search');
+
+        if (!self::should_load_assets() && !$has_chat_shortcode && !$has_search_shortcode) {
             return;
         }
         
@@ -34,13 +43,12 @@ class AIOHM_KB_Frontend_Widget {
             AIOHM_KB_VERSION
         );
         
-        // ** THE FIX IS HERE: Calling the correct central settings function **
-        $settings = AIOHM_KB_Assistant::get_settings();
-        
+        // Pass chat_enabled setting to frontend JavaScript
         wp_localize_script('aiohm-chat', 'aiohm_config', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('aiohm_chat_nonce'),
-            'chat_enabled' => $settings['chat_enabled'] ?? true,
+            'chat_enabled' => $settings['chat_enabled'] ?? true, // Ensure it's passed
+            'show_floating_chat' => $settings['show_floating_chat'] ?? false, // Ensure it's passed
         ));
     }
     
@@ -53,13 +61,19 @@ class AIOHM_KB_Frontend_Widget {
         }
         
         global $post;
-        if ($post && has_shortcode($post->post_content, 'aiohm_chat')) {
+        // Check for chat shortcode and chat enable setting
+        $settings = AIOHM_KB_Assistant::get_settings();
+        if (($post && has_shortcode($post->post_content, 'aiohm_chat')) && ($settings['chat_enabled'] ?? true)) {
             return true;
         }
         
-        // ** THE FIX IS HERE: Calling the correct central settings function **
-        $settings = AIOHM_KB_Assistant::get_settings();
-        if (!empty($settings['show_floating_chat'])) {
+        // Check for floating chat and chat enable setting
+        if (!empty($settings['show_floating_chat']) && ($settings['chat_enabled'] ?? true)) {
+            return true;
+        }
+        
+        // Check for search shortcode (always load assets for search shortcode)
+        if ($post && has_shortcode($post->post_content, 'aiohm_search')) {
             return true;
         }
         

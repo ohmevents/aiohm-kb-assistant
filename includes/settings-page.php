@@ -59,8 +59,10 @@ class AIOHM_KB_Settings_Page {
         $sanitized = [];
         if (isset($input['personal_api_key'])) { $sanitized['personal_api_key'] = sanitize_text_field(trim($input['personal_api_key'])); }
         if (isset($input['openai_api_key'])) { $sanitized['openai_api_key'] = sanitize_text_field(trim($input['openai_api_key'])); }
-        if (isset($input['system_prompt'])) { $sanitized['system_prompt'] = sanitize_textarea_field($input['system_prompt']); }
+        // Removed 'system_prompt'
         if (isset($input['scan_schedule'])) { $sanitized['scan_schedule'] = sanitize_key($input['scan_schedule']); }
+        $sanitized['chat_enabled'] = isset($input['chat_enabled']) ? (bool) $input['chat_enabled'] : false; // Added chat_enabled
+        $sanitized['show_floating_chat'] = isset($input['show_floating_chat']) ? (bool) $input['show_floating_chat'] : false; // Added show_floating_chat
         return $sanitized;
     }
 }
