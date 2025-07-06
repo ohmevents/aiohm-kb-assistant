@@ -1,7 +1,7 @@
 <?php
 /**
  * Core initialization and configuration.
- * Final version with all working AJAX handlers.
+ * This is the complete and final version with all working AJAX handlers.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -25,11 +25,13 @@ class AIOHM_KB_Core_Init {
 
         try {
             $scan_type = sanitize_text_field($_POST['scan_type']);
-            
+            $user_id = get_current_user_id();
+
             switch ($scan_type) {
                 case 'website_find':
                     $crawler = new AIOHM_KB_Site_Crawler();
                     $all_items = $crawler->find_all_content();
+                    set_transient('aiohm_pending_items_website_' . $user_id, $all_items, 12 * HOUR_IN_SECONDS);
                     wp_send_json_success(['items' => $all_items]);
                     break;
 
@@ -47,6 +49,7 @@ class AIOHM_KB_Core_Init {
                         wp_send_json_error(['message' => "Some items failed to process:\n" . implode("\n", $error_messages)]);
                     } else {
                         $all_items = $crawler->find_all_content();
+                        set_transient('aiohm_pending_items_website_' . $user_id, $all_items, 12 * HOUR_IN_SECONDS);
                         wp_send_json_success(['processed_items' => $results, 'all_items' => $all_items]);
                     }
                     break;
@@ -54,6 +57,7 @@ class AIOHM_KB_Core_Init {
                 case 'uploads_find':
                     $crawler = new AIOHM_KB_Uploads_Crawler();
                     $pending_files = $crawler->find_pending_attachments();
+                    set_transient('aiohm_pending_items_uploads_' . $user_id, $pending_files, 12 * HOUR_IN_SECONDS);
                     wp_send_json_success(['items' => $pending_files]);
                     break;
 
@@ -65,6 +69,7 @@ class AIOHM_KB_Core_Init {
                     $results = $crawler->add_attachments_to_kb($item_ids);
                     
                     $pending_files = $crawler->find_pending_attachments();
+                    set_transient('aiohm_pending_items_uploads_' . $user_id, $pending_files, 12 * HOUR_IN_SECONDS);
                     wp_send_json_success(['processed_items' => $results, 'items' => $pending_files]);
                     break;
 

@@ -1,7 +1,7 @@
 <?php
 /**
  * Website content crawler for posts and pages.
- * Final version with the cache-clearing fix.
+ * This is the final version with the cache-clearing fix and updated status text.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -16,9 +16,15 @@ class AIOHM_KB_Site_Crawler {
     public function find_all_content() {
         $all_items = [];
         $post_types = ['post', 'page'];
+
         foreach ($post_types as $post_type) {
-            $args = ['post_type' => $post_type, 'post_status' => 'publish', 'numberposts' => -1];
+            $args = [
+                'post_type' => $post_type,
+                'post_status' => 'publish',
+                'numberposts' => -1,
+            ];
             $items = get_posts($args);
+
             foreach ($items as $item) {
                 $is_indexed = get_post_meta($item->ID, '_aiohm_indexed', true);
                 $all_items[] = [
@@ -26,7 +32,7 @@ class AIOHM_KB_Site_Crawler {
                     'title'  => $item->post_title,
                     'link'   => get_permalink($item->ID),
                     'type'   => $item->post_type,
-                    'status' => $is_indexed ? 'In Knowledge Base' : 'Ready to Add',
+                    'status' => $is_indexed ? 'Knowledge Base' : 'Ready to Add',
                 ];
             }
         }
@@ -36,8 +42,10 @@ class AIOHM_KB_Site_Crawler {
     public function get_scan_stats() {
         $total_posts = wp_count_posts('post')->publish;
         $total_pages = wp_count_posts('page')->publish;
+        
         $indexed_posts = (new WP_Query(['post_type' => 'post', 'post_status' => 'publish', 'posts_per_page' => -1, 'meta_key' => '_aiohm_indexed', 'fields' => 'ids']))->post_count;
         $indexed_pages = (new WP_Query(['post_type' => 'page', 'post_status' => 'publish', 'posts_per_page' => -1, 'meta_key' => '_aiohm_indexed', 'fields' => 'ids']))->post_count;
+
         return [
             'posts' => ['total' => $total_posts, 'indexed' => $indexed_posts, 'pending' => $total_posts - $indexed_posts],
             'pages' => ['total' => $total_pages, 'indexed' => $indexed_pages, 'pending' => $total_pages - $indexed_pages]
@@ -60,7 +68,10 @@ class AIOHM_KB_Site_Crawler {
                 }
                 $this->rag_engine->add_entry($content_data['content'], $post->post_type, $content_data['title'], $content_data['metadata']);
                 update_post_meta($post->ID, '_aiohm_indexed', time());
+                
+                // Clear the cache for this specific post to ensure status updates immediately.
                 clean_post_cache($post->ID);
+
                 $processed[] = ['id' => $post->ID, 'title' => $content_data['title'], 'status' => 'success'];
             } catch (Exception $e) {
                 AIOHM_KB_Assistant::log('Error processing post ' . $post->ID . ': ' . $e->getMessage(), 'error');
