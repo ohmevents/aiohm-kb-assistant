@@ -1,7 +1,7 @@
 <?php
 /**
  * Settings Page controller for AIOHM Knowledge Assistant.
- * This version fetches fresh data for the scan page on every load.
+ * This version uses header and footer partials.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -14,6 +14,14 @@ class AIOHM_KB_Settings_Page {
         }
         add_action('admin_menu', array(self::$instance, 'register_admin_pages'));
         add_action('admin_enqueue_scripts', array(self::$instance, 'enqueue_admin_styles'));
+    }
+
+    private function include_header() {
+        include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/header.php';
+    }
+
+    private function include_footer() {
+        include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/footer.php';
     }
 
     public function register_admin_pages() {
@@ -29,49 +37,51 @@ class AIOHM_KB_Settings_Page {
 
     public function enqueue_admin_styles($hook) {
         if (strpos($hook, 'aiohm-') !== false || strpos($hook, '_page_aiohm-') !== false) {
-            wp_enqueue_style(
-                'aiohm-admin-styles',
-                AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-chat.css',
-                array(),
-                AIOHM_KB_VERSION
-            );
+            wp_enqueue_style( 'aiohm-admin-styles', AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-chat.css', array(), AIOHM_KB_VERSION );
         }
     }
 
     public function render_dashboard_page() {
+        $this->include_header();
         include AIOHM_KB_PLUGIN_DIR . 'templates/admin-dashboard.php';
+        $this->include_footer();
     }
 
     public function render_form_settings_page() {
-        // This function loads the template where the user can see and change settings.
+        $this->include_header();
         include AIOHM_KB_PLUGIN_DIR . 'templates/admin-settings.php';
+        $this->include_footer();
     }
     
     public function render_scan_page() {
         $site_crawler = new AIOHM_KB_Site_Crawler();
         $uploads_crawler = new AIOHM_KB_Uploads_Crawler();
-        
         $site_stats = $site_crawler->get_scan_stats();
         $uploads_stats = $uploads_crawler->get_stats();
-
         $all_upload_items = $uploads_crawler->find_all_supported_attachments(); 
         $pending_website_items = $site_crawler->find_all_content();
-
+        $this->include_header();
         include AIOHM_KB_PLUGIN_DIR . 'templates/scan-website.php';
+        $this->include_footer();
     }
     
     public function render_manage_kb_page() {
+        $this->include_header();
         $manager = new AIOHM_KB_Manager();
         $manager->display_page();
+        $this->include_footer();
     }
 
     public function render_help_page() {
+        $this->include_header();
         include AIOHM_KB_PLUGIN_DIR . 'templates/admin-help.php';
+        $this->include_footer();
     }
 
     public function render_license_page() {
-        // This function just loads the license page template.
+        $this->include_header();
         include AIOHM_KB_PLUGIN_DIR . 'templates/admin-license.php';
+        $this->include_footer();
     }
 
     public function register_settings() {
@@ -80,23 +90,16 @@ class AIOHM_KB_Settings_Page {
 
     public function sanitize_settings($input) {
         $sanitized = [];
-        
-        // Sanitize API Keys
         if (isset($input['aiohm_personal_bot_id'])) { $sanitized['aiohm_personal_bot_id'] = sanitize_text_field(trim($input['aiohm_personal_bot_id'])); }
         if (isset($input['openai_api_key'])) { $sanitized['openai_api_key'] = sanitize_text_field(trim($input['openai_api_key'])); }
         if (isset($input['gemini_api_key'])) { $sanitized['gemini_api_key'] = sanitize_text_field(trim($input['gemini_api_key'])); }
         if (isset($input['claude_api_key'])) { $sanitized['claude_api_key'] = sanitize_text_field(trim($input['claude_api_key'])); }
-        
-        // Sanitize Scan Schedule
         if (isset($input['scan_schedule'])) { 
             $allowed_schedules = ['none', 'daily', 'weekly', 'monthly'];
             $sanitized['scan_schedule'] = in_array($input['scan_schedule'], $allowed_schedules) ? sanitize_key($input['scan_schedule']) : 'none';
         }
-
-        // Sanitize Checkboxes
         $sanitized['chat_enabled'] = isset($input['chat_enabled']) ? (bool) $input['chat_enabled'] : false;
         $sanitized['show_floating_chat'] = isset($input['show_floating_chat']) ? (bool) $input['show_floating_chat'] : false;
-        
         return $sanitized;
     }
 }
