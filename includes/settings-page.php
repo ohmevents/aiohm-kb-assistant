@@ -88,18 +88,40 @@ class AIOHM_KB_Settings_Page {
         register_setting('aiohm_kb_settings', 'aiohm_kb_settings', array($this, 'sanitize_settings'));
     }
 
-    public function sanitize_settings($input) {
-        $sanitized = [];
-        if (isset($input['aiohm_personal_bot_id'])) { $sanitized['aiohm_personal_bot_id'] = sanitize_text_field(trim($input['aiohm_personal_bot_id'])); }
-        if (isset($input['openai_api_key'])) { $sanitized['openai_api_key'] = sanitize_text_field(trim($input['openai_api_key'])); }
-        if (isset($input['gemini_api_key'])) { $sanitized['gemini_api_key'] = sanitize_text_field(trim($input['gemini_api_key'])); }
-        if (isset($input['claude_api_key'])) { $sanitized['claude_api_key'] = sanitize_text_field(trim($input['claude_api_key'])); }
-        if (isset($input['scan_schedule'])) { 
-            $allowed_schedules = ['none', 'daily', 'weekly', 'monthly'];
-            $sanitized['scan_schedule'] = in_array($input['scan_schedule'], $allowed_schedules) ? sanitize_key($input['scan_schedule']) : 'none';
-        }
-        $sanitized['chat_enabled'] = isset($input['chat_enabled']) ? (bool) $input['chat_enabled'] : false;
-        $sanitized['show_floating_chat'] = isset($input['show_floating_chat']) ? (bool) $input['show_floating_chat'] : false;
-        return $sanitized;
+public function sanitize_settings($input) {
+    // Start with the currently saved settings to preserve any keys not present in the submitted form.
+    $sanitized = get_option('aiohm_kb_settings', []);
+
+    // Merge the submitted input over the existing settings. This allows forms to only submit the fields they control.
+    $input = wp_parse_args($input, $sanitized);
+
+    // --- Sanitize all possible settings ---
+
+    // Sanitize API Keys & Bot ID
+    if (isset($input['aiohm_personal_bot_id'])) {
+        $sanitized['aiohm_personal_bot_id'] = sanitize_text_field(trim($input['aiohm_personal_bot_id']));
     }
+    if (isset($input['openai_api_key'])) {
+        $sanitized['openai_api_key'] = sanitize_text_field(trim($input['openai_api_key']));
+    }
+    if (isset($input['gemini_api_key'])) {
+        $sanitized['gemini_api_key'] = sanitize_text_field(trim($input['gemini_api_key']));
+    }
+    if (isset($input['claude_api_key'])) {
+        $sanitized['claude_api_key'] = sanitize_text_field(trim($input['claude_api_key']));
+    }
+    
+    // Sanitize Scan Schedule
+    if (isset($input['scan_schedule'])) { 
+        $allowed_schedules = ['none', 'daily', 'weekly', 'monthly'];
+        $sanitized['scan_schedule'] = in_array($input['scan_schedule'], $allowed_schedules) ? sanitize_key($input['scan_schedule']) : 'none';
+    }
+
+    // Sanitize Checkboxes
+    $sanitized['chat_enabled'] = isset($input['chat_enabled']) ? (bool) $input['chat_enabled'] : false;
+    $sanitized['show_floating_chat'] = isset($input['show_floating_chat']) ? (bool) $input['show_floating_chat'] : false;
+    $sanitized['enable_private_assistant'] = isset($input['enable_private_assistant']) ? (bool) $input['enable_private_assistant'] : false;
+    
+    return $sanitized;
+}
 }
