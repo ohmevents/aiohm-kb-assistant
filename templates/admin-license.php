@@ -23,7 +23,25 @@ if ($current_user_id) {
     $user_armember_access_level = $user_profile['access_level'] ?? 'basic';
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aiohm_register'])) {
+    include_once plugin_dir_path(__FILE__) . '../includes/api-client-app.php';
+
+    $name  = sanitize_text_field($_POST['aiohm_name'] ?? '');
+    $email = sanitize_email($_POST['aiohm_email'] ?? '');
+
+    $result = aiohm_register_tribe_member($name, $email);
+
+    if (is_wp_error($result)) {
+        echo '<div class="notice notice-error"><p>' . esc_html($result->get_error_message()) . '</p></div>';
+    } else {
+        echo '<div class="notice notice-success"><p>🎉 Successfully registered and connected to aiohm.app!</p></div>';
+    }
+}
+
+
 ?>
+
+
 
 <div class="wrap">
     <h1><?php _e('AIOHM License & Tribe Membership', 'aiohm-kb-assistant'); ?></h1>
