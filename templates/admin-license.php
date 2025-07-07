@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin License page template - Final version.
- * This version rearranges the boxes and updates the copy.
+ * This version corrects the error display logic to ensure messages always appear in the correct location.
  */
 
 // Prevent direct access
@@ -11,7 +11,11 @@ if (!defined('ABSPATH')) exit;
 $settings = AIOHM_KB_Assistant::get_settings();
 $personal_api_key = $settings['aiohm_personal_bot_id'] ?? '';
 $is_user_linked = !empty($personal_api_key);
-$user_plans_details = []; $username = null; $has_tribe_plan = false; $has_club_plan = false;
+$user_plans_details = []; 
+$username = null; 
+$has_tribe_plan = false; 
+$has_club_plan = false;
+
 if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
     $api_client = new AIOHM_App_API_Client();
     $profile_response = $api_client->get_member_details($personal_api_key);
@@ -35,37 +39,47 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
 <div class="wrap aiohm-license-page">
     <h1><?php _e('AIOHM Membership & Features', 'aiohm-kb-assistant'); ?></h1>
     <p class="description"><?php _e('Connect your account to see the features available with your membership tier.', 'aiohm-kb-assistant'); ?></p>
+    
     <div class="aiohm-feature-grid">
         
-<div class="aiohm-feature-box <?php echo $has_tribe_plan ? 'plan-active' : 'plan-inactive'; ?>">
-    <div class="box-icon">
-        <img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="OHM Logo" class="ohm-logo-icon">
-    </div>
-    <h3><?php _e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
-    <h4 class="plan-price"><?php _e('This free tier is where brand resonance begins.', 'aiohm-kb-assistant'); ?></h4>
-    <p><?php _e('Root into your why. Begin with deep reflection and intentional alignment. Access your personal Brand Soul Map through our guided questionnaire and shape your AI with the truths that matter most to you.', 'aiohm-kb-assistant'); ?></p>
-    
-    <a href="https://www.aiohm.app/tribe" target="_blank" class="button button-primary" style="margin-top: auto;">🔓 <?php _e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
-</div>
+        <div class="aiohm-feature-box <?php echo $has_tribe_plan ? 'plan-active' : 'plan-inactive'; ?>">
+            <div class="box-icon">
+                <img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="OHM Logo" class="ohm-logo-icon">
+            </div>
+            <h3><?php _e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
+            <h4 class="plan-price"><?php _e('This free tier is where brand resonance begins.', 'aiohm-kb-assistant'); ?></h4>
+            <p><?php _e('Root into your why. Begin with deep reflection and intentional alignment. Access your personal Brand Soul Map through our guided questionnaire and shape your AI with the truths that matter most to you.', 'aiohm-kb-assistant'); ?></p>
+            <a href="https://www.aiohm.app/tribe" target="_blank" class="button button-primary" style="margin-top: auto;">🔓 <?php _e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
+        </div>
 
         <div class="aiohm-feature-box">
              <?php if ($is_user_linked) : ?>
                 <div class="box-icon">👤</div>
                 <h3><?php echo $username ? esc_html($username) : __('Account Connected', 'aiohm-kb-assistant'); ?></h3>
-                <p><?php _e('Link your site to your AIOHM Tribe profile and unlock personal features like the AI Brand Soul questionnaire and custom chat experiences.', 'aiohm-kb-assistant'); ?></p>
-                <p><?php _e('This connection anchors your plugin to your essence—securely and simply.', 'aiohm-kb-assistant'); ?></p>
+                <p><?php _e('Your site is linked to your AIOHM Tribe profile, unlocking personal features like the AI Brand Soul questionnaire and custom chat experiences.', 'aiohm-kb-assistant'); ?></p>
                 <form method="post" action="options.php" class="aiohm-disconnect-form">
                     <?php settings_fields('aiohm_kb_settings'); ?>
                     <input type="hidden" name="aiohm_kb_settings[aiohm_personal_bot_id]" value="">
-                    <?php foreach ($settings as $key => $value) { if ($key !== 'aiohm_personal_bot_id') { echo '<input type="hidden" name="aiohm_kb_settings[' . esc_attr($key) . ']" value="' . esc_attr($value) . '">'; } } ?>
+                    <?php foreach ($settings as $key => $value) { if ($key !== 'aiohm_personal_bot_id') { echo '<input type="hidden" name="aiohm_kb_settings[' . esc_attr($key) . ']" value="' . esc_attr(is_array($value) ? json_encode($value) : $value) . '">'; } } ?>
                     <button type="submit" class="button button-primary button-disconnect"><?php _e('Disconnect Account', 'aiohm-kb-assistant'); ?></button>
                 </form>
              <?php else : ?>
                 <div class="box-icon">🔑</div>
                 <h3><?php _e('Connect Your Account', 'aiohm-kb-assistant'); ?></h3>
-                <p><?php _e('Link your site to your AIOHM Tribe profile and unlock personal features like the AI Brand Soul questionnaire and custom chat experiences.', 'aiohm-kb-assistant'); ?></p>
-                <p><?php _e('This connection anchors your plugin to your essence—securely and simply.', 'aiohm-kb-assistant'); ?></p>
-                <a href="<?php echo admin_url('admin.php?page=aiohm-settings'); ?>" class="button button-primary" style="margin-top: auto;"><?php _e('Connect Account', 'aiohm-kb-assistant'); ?></a>
+                <p><?php _e('Enter your AIOHM User ID below to link your site and unlock personal features. You can find this in your AIOHM member profile.', 'aiohm-kb-assistant'); ?></p>
+                
+                <div class="aiohm-connect-form-wrapper">
+                    <form id="aiohm-check-id-form">
+                        <input type="text" id="aiohm_personal_bot_id_check" placeholder="Enter Your AIOHM User ID" required>
+                        <button type="submit" id="check-aiohm-id-btn" class="button button-secondary"><?php _e('Verify & Connect', 'aiohm-kb-assistant'); ?></button>
+                    </form>
+                    <form method="post" action="options.php" id="aiohm-save-id-form" style="display:none;">
+                         <?php settings_fields('aiohm_kb_settings'); ?>
+                         <input type="hidden" id="aiohm_personal_bot_id_save" name="aiohm_kb_settings[aiohm_personal_bot_id]" value="">
+                         <?php foreach ($settings as $key => $value) { if ($key !== 'aiohm_personal_bot_id') { echo '<input type="hidden" name="aiohm_kb_settings[' . esc_attr($key) . ']" value="' . esc_attr(is_array($value) ? json_encode($value) : $value) . '">'; } } ?>
+                         <button type="submit" class="button button-primary"><?php _e('Save and Activate Connection', 'aiohm-kb-assistant'); ?></button>
+                    </form>
+                </div>
              <?php endif; ?>
         </div>
         
@@ -81,6 +95,9 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
             <?php endif; ?>
         </div>
     </div>
+    
+    <div id="aiohm-admin-notice" class="notice" style="display:none; margin-top: 20px;"><p></p></div>
+
 </div>
 
 <style>
@@ -96,7 +113,9 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
     .aiohm-license-page .aiohm-feature-box p { flex-grow: 1; font-family: var(--ohm-font-secondary); color: var(--ohm-dark); font-size: 1em; line-height: 1.6; margin-bottom: 15px; }
     .aiohm-license-page .button-primary { background-color: var(--ohm-primary); border-color: var(--ohm-dark-accent); color: #fff; font-family: var(--ohm-font-primary); font-weight: bold; }
     .aiohm-license-page .button-primary:hover { background-color: var(--ohm-dark-accent); border-color: var(--ohm-dark-accent); }
-    .aiohm-disconnect-form { margin-top: auto; }
+    .aiohm-disconnect-form, .aiohm-connect-form-wrapper { margin-top: auto; }
+    .aiohm-connect-form-wrapper input[type="text"] { width: 100%; padding: 8px; margin-bottom: 10px; }
+    .aiohm-connect-form-wrapper .button { width: 100%; text-align: center; justify-content: center;}
     .button.button-disconnect {
         width: 100%;
         background: var(--ohm-primary) !important;
@@ -107,9 +126,57 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
         background: var(--ohm-dark-accent) !important;
     }
     .aiohm-license-page .box-icon .ohm-logo-icon {
-    max-height: 100%; /* Ensures the logo fits within the icon container */
-    width: auto;
-    display: inline-block;
-    vertical-align: middle;
-}
+        max-height: 100%;
+        width: auto;
+        display: inline-block;
+        vertical-align: middle;
+    }
 </style>
+
+<script>
+jQuery(document).ready(function($) {
+    const nonce = '<?php echo wp_create_nonce("aiohm_admin_nonce"); ?>';
+
+    // This simplified function reliably targets the notice div that is now permanently in the HTML.
+    function showAdminNotice(message, type = 'error') {
+        const $noticeDiv = $('#aiohm-admin-notice');
+        
+        $noticeDiv.removeClass('notice-success notice-error notice-warning is-dismissible').addClass('notice-' + type).addClass('is-dismissible');
+        $noticeDiv.find('p').html(message);
+        $noticeDiv.fadeIn();
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => $noticeDiv.fadeOut(), 5000);
+    }
+
+    $('#aiohm-check-id-form').on('submit', function(e) {
+        e.preventDefault();
+        const $btn = $('#check-aiohm-id-btn');
+        const botId = $('#aiohm_personal_bot_id_check').val();
+        const originalBtnText = $btn.html();
+
+        $btn.prop('disabled', true).html('<span class="spinner is-active" style="float: none; margin-top: 0; vertical-align: middle;"></span> Verifying...');
+
+        $.post(ajaxurl, {
+            action: 'aiohm_check_api_key',
+            nonce: nonce,
+            api_key: botId,
+            key_type: 'aiohm_bot_id'
+        }).done(function(response) {
+            if (response.success) {
+                showAdminNotice(response.data.message, 'success');
+                $('#aiohm_personal_bot_id_save').val(botId);
+                $('#aiohm-check-id-form').hide();
+                $('#aiohm-save-id-form').show();
+            } else {
+                showAdminNotice(response.data.message || 'Verification failed. Please check the ID and try again.', 'error');
+            }
+        }).fail(function(jqXHR, textStatus, errorThrown) {
+            console.error("AJAX Error:", textStatus, errorThrown);
+            showAdminNotice('A server-side error occurred. Please check the browser console for more details.', 'error');
+        }).always(function() {
+            $btn.prop('disabled', false).html(originalBtnText);
+        });
+    });
+});
+</script>

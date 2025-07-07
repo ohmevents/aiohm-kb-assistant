@@ -85,6 +85,20 @@ public static function handle_check_api_key_ajax() {
 
     try {
         switch ($key_type) {
+            case 'aiohm_email':
+                $api_client = new AIOHM_App_API_Client();
+                $result = $api_client->get_member_details_by_email($api_key); // $api_key holds the email here
+                
+                if (!is_wp_error($result) && !empty($result['data']['ID'])) {
+                    wp_send_json_success([
+                        'message' => 'AIOHM.app connection successful!',
+                        'user_id' => $result['data']['ID'] // Send back the user ID to be saved
+                    ]);
+                } else {
+                    $error_message = is_wp_error($result) ? $result->get_error_message() : 'Invalid Email or API error.';
+                    wp_send_json_error(['message' => 'AIOHM.app connection failed: ' . $error_message]);
+                }
+                break;
             case 'aiohm_bot_id':
                 $api_client = new AIOHM_App_API_Client();
                 // Test the Bot ID by fetching the user's details.

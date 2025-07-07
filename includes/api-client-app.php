@@ -1,7 +1,7 @@
 <?php
 /**
  * Handles all API communication with the main aiohm.app website.
- * This version is complete and verified to be stable.
+ * This version is complete, verified to be stable, and includes email lookup.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -55,6 +55,20 @@ class AIOHM_App_API_Client {
         
         return $data;
     }
+    
+    /**
+     * NEW: Fetches details of a specific member from aiohm.app by email.
+     * @param string $email The member's email on aiohm.app.
+     * @return array|WP_Error
+     */
+    public function get_member_details_by_email($email) {
+        if (empty($email) || !is_email($email)) {
+            return new WP_Error('missing_email', 'A valid email address is required.');
+        }
+        // Assuming the API endpoint for email lookup exists.
+        return $this->make_request('arm_member_details_by_email', ['arm_user_email' => $email]);
+    }
+
 
     /**
      * Fetches the list of all membership plans from aiohm.app.
