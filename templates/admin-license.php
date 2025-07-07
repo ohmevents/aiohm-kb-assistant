@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin License page template - Final version.
- * This version corrects the error display logic to ensure messages always appear in the correct location.
+ * This version uses a custom notice container to ensure correct error message placement.
  */
 
 // Prevent direct access
@@ -11,9 +11,9 @@ if (!defined('ABSPATH')) exit;
 $settings = AIOHM_KB_Assistant::get_settings();
 $personal_api_key = $settings['aiohm_personal_bot_id'] ?? '';
 $is_user_linked = !empty($personal_api_key);
-$user_plans_details = []; 
-$username = null; 
-$has_tribe_plan = false; 
+$user_plans_details = [];
+$username = null;
+$has_tribe_plan = false;
 $has_club_plan = false;
 
 if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
@@ -39,9 +39,9 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
 <div class="wrap aiohm-license-page">
     <h1><?php _e('AIOHM Membership & Features', 'aiohm-kb-assistant'); ?></h1>
     <p class="description"><?php _e('Connect your account to see the features available with your membership tier.', 'aiohm-kb-assistant'); ?></p>
-    
+
     <div class="aiohm-feature-grid">
-        
+
         <div class="aiohm-feature-box <?php echo $has_tribe_plan ? 'plan-active' : 'plan-inactive'; ?>">
             <div class="box-icon">
                 <img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="OHM Logo" class="ohm-logo-icon">
@@ -67,7 +67,7 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
                 <div class="box-icon">🔑</div>
                 <h3><?php _e('Connect Your Account', 'aiohm-kb-assistant'); ?></h3>
                 <p><?php _e('Enter your AIOHM User ID below to link your site and unlock personal features. You can find this in your AIOHM member profile.', 'aiohm-kb-assistant'); ?></p>
-                
+
                 <div class="aiohm-connect-form-wrapper">
                     <form id="aiohm-check-id-form">
                         <input type="text" id="aiohm_personal_bot_id_check" placeholder="Enter Your AIOHM User ID" required>
@@ -82,7 +82,7 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
                 </div>
              <?php endif; ?>
         </div>
-        
+
         <div class="aiohm-feature-box <?php echo $has_club_plan ? 'plan-active' : 'plan-inactive'; ?>">
             <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="OHM Logo" class="ohm-logo-icon"></div><h3><?php _e('AIOHM Club', 'aiohm-kb-assistant'); ?></h3>
             <?php if ($has_club_plan) : ?>
@@ -95,8 +95,8 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
             <?php endif; ?>
         </div>
     </div>
-    
-    <div id="aiohm-admin-notice" class="notice" style="display:none; margin-top: 20px;"><p></p></div>
+
+    <div id="aiohm-connection-status" style="display:none; margin-top: 20px;"></div>
 
 </div>
 
@@ -131,22 +131,39 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
         display: inline-block;
         vertical-align: middle;
     }
+    /* Custom styles for our connection status message */
+    .aiohm-status-message {
+        padding: 10px 15px;
+        border-radius: 4px;
+        border-left-width: 4px;
+        border-left-style: solid;
+    }
+    .aiohm-status-message.error {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+    .aiohm-status-message.success {
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
 </style>
 
 <script>
 jQuery(document).ready(function($) {
     const nonce = '<?php echo wp_create_nonce("aiohm_admin_nonce"); ?>';
 
-    // This simplified function reliably targets the notice div that is now permanently in the HTML.
-    function showAdminNotice(message, type = 'error') {
-        const $noticeDiv = $('#aiohm-admin-notice');
+    function showConnectionStatus(message, type = 'error') {
+        const $statusContainer = $('#aiohm-connection-status');
+        const messageClass = (type === 'success') ? 'success' : 'error';
         
-        $noticeDiv.removeClass('notice-success notice-error notice-warning is-dismissible').addClass('notice-' + type).addClass('is-dismissible');
-        $noticeDiv.find('p').html(message);
-        $noticeDiv.fadeIn();
+        // Create the styled message and inject it into our container
+        const messageHtml = `<div class="aiohm-status-message ${messageClass}">${message}</div>`;
+        $statusContainer.html(messageHtml).fadeIn();
 
         // Auto-hide after 5 seconds
-        setTimeout(() => $noticeDiv.fadeOut(), 5000);
+        setTimeout(() => $statusContainer.fadeOut(), 5000);
     }
 
     $('#aiohm-check-id-form').on('submit', function(e) {
@@ -164,16 +181,15 @@ jQuery(document).ready(function($) {
             key_type: 'aiohm_bot_id'
         }).done(function(response) {
             if (response.success) {
-                showAdminNotice(response.data.message, 'success');
+                showConnectionStatus(response.data.message, 'success');
                 $('#aiohm_personal_bot_id_save').val(botId);
                 $('#aiohm-check-id-form').hide();
                 $('#aiohm-save-id-form').show();
             } else {
-                showAdminNotice(response.data.message || 'Verification failed. Please check the ID and try again.', 'error');
+                showConnectionStatus(response.data.message || 'Verification failed. Please check the ID and try again.', 'error');
             }
-        }).fail(function(jqXHR, textStatus, errorThrown) {
-            console.error("AJAX Error:", textStatus, errorThrown);
-            showAdminNotice('A server-side error occurred. Please check the browser console for more details.', 'error');
+        }).fail(function() {
+            showConnectionStatus('An unexpected server error occurred.', 'error');
         }).always(function() {
             $btn.prop('disabled', false).html(originalBtnText);
         });
