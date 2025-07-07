@@ -3,6 +3,23 @@
  * Admin License page template.
  * This file displays license status and options for AIOHM Tribe membership.
  */
+ 
+ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aiohm_register'])) {
+    $name  = sanitize_text_field($_POST['aiohm_name'] ?? '');
+    $email = sanitize_email($_POST['aiohm_email'] ?? '');
+
+    $api = new AIOHM_API();
+    $response = $api->add_member_membership(get_current_user_id(), get_option('aiohm_app_free_plan_id'));
+
+    if (is_wp_error($response)) {
+        echo '<div class="notice notice-error"><p>' . esc_html($response->get_error_message()) . '</p></div>';
+    } else {
+        aiohm_store_user_arm_id(get_current_user_id(), get_current_user_id()); // TEMP ID until API returns real one
+        aiohm_set_access_level(get_current_user_id(), 'basic');
+        echo '<div class="notice notice-success"><p>✅ Registered successfully and joined the Tribe.</p></div>';
+    }
+}
+
 
 // Prevent direct access
 if (!defined('ABSPATH')) {
@@ -11,6 +28,43 @@ if (!defined('ABSPATH')) {
 
 // Variables are passed from render_license_page in AIOHM_KB_Settings_Page
 // $settings, $personal_api_key, $is_user_linked, $is_armember_active are available.
+
+<?php
+$arm_user_id = aiohm_get_user_arm_id();
+$plan_data = [];
+
+if (!empty($arm_user_id)) {
+    $api = new AIOHM_API();
+    $response = $api->request('arm_member_memberships', ['arm_user_id' => $arm_user_id]);
+
+    if (!is_wp_error($response)) {
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+
+        if (!empty($body['data']) && is_array($body['data'])) {
+            foreach ($body['data'] as $plan) {
+                $plan_data[] = [
+                    'name' => $plan['plan_title'] ?? 'Unnamed Plan',
+                    'status' => $plan['status'] ?? 'Active',
+                    'expires' => $plan['expire_date'] ?? 'N/A'
+                ];
+            }
+        }
+    }
+}
+?>
+<div class="wrap">
+    <h2>Your AIOHM Memberships</h2>
+    <?php if (!empty($plan_data)) : ?>
+        <ul>
+            <?php foreach ($plan_data as $p) : ?>
+                <li><strong><?php echo esc_html($p['name']); ?></strong> — <?php echo esc_html($p['status']); ?> (Expires: <?php echo esc_html($p['expires']); ?>)</li>
+            <?php endforeach; ?>
+        </ul>
+    <?php else : ?>
+        <p>You don’t have any active memberships linked to this account.</p>
+    <?php endif; ?>
+</div>
+
 
 // Retrieve the new aiohm_app_arm_user_id setting
 $aiohm_app_arm_user_id = $settings['aiohm_app_arm_user_id'] ?? '';
@@ -37,6 +91,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aiohm_register'])) {
         echo '<div class="notice notice-success"><p>🎉 Successfully registered and connected to aiohm.app!</p></div>';
     }
 }
+
+include plugin_dir_path(__FILE__) . 'templates/license-form.php';
+
+<?php
+$plan_name = 'Unknown';
+$plan_status = 'Not Found';
+$plan_expiration = '—';
+
+$arm_user_id = aiohm_get_user_arm_id();
+
+if (!empty($arm_user_id)) {
+    $api = new AIOHM_API();
+    $response = $api->get_member_details($arm_user_id);
+
+    if (!is_wp_error($response)) {
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+
+        if (!empty($body['plan_title'])) {
+            $plan_name = $body['plan_title'];
+            $plan_status = $body['status'] ?? 'Active';
+            $plan_expiration = $body['expire_date'] ?? 'N/A';
+        }
+    }
+}
+
+include plugin_dir_path(__FILE__) . 'templates/plan-dashboard.php';
+?>
 
 
 ?>

@@ -23,6 +23,10 @@ define('AIOHM_KB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AIOHM_KB_INCLUDES_DIR', AIOHM_KB_PLUGIN_DIR . 'includes/');
 define('AIOHM_KB_PLUGIN_URL', plugin_dir_url(__FILE__));
 
+// Plugin setup and includes
+require_once plugin_dir_path(__FILE__) . 'includes/settings-page.php';
+require_once plugin_dir_path(__FILE__) . 'admin/admin-license.php';
+
 // Define the WP-Cron hook name
 define('AIOHM_KB_SCHEDULED_SCAN_HOOK', 'aiohm_scheduled_scan');
 
