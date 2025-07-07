@@ -20,47 +20,40 @@ class AIOHM_KB_ARMember_Integration {
     public static function init() {
         $instance = new self();
         
-        // Hook into ARMember events
-        add_action('arm_after_user_plan_change', array($instance, 'sync_user_plan_change'), 10, 3);
-        add_action('arm_after_user_register', array($instance, 'sync_new_user'), 10, 2);
-        add_action('arm_after_user_plan_cancel', array($instance, 'sync_plan_cancellation'), 10, 2);
+        // Removed: Hooks into local ARMember events.
+        // These hooks are only relevant if ARMember plugin is installed locally.
+        // add_action('arm_after_user_plan_change', array($instance, 'sync_user_plan_change'), 10, 3);
+        // add_action('arm_after_user_register', array($instance, 'sync_new_user'), 10, 2);
+        // add_action('arm_after_user_plan_cancel', array($instance, 'sync_plan_cancellation'), 10, 2);
         
-        // Add AJAX handlers (bulk sync already exists in Core_Init now)
+        // Add AJAX handlers
         add_action('wp_ajax_aiohm_get_user_access_level', array($instance, 'get_user_access_level'));
         
         // Filter chat responses based on user access
         add_filter('aiohm_filter_context_by_access', array($instance, 'filter_context_by_user_access'), 10, 2);
     }
     
-    /**
-     * Sync user when their plan changes
-     */
-    public function sync_user_plan_change($user_id, $plan_id, $action) {
-        try {
-            $user_data = $this->get_armember_user_data($user_id);
-            $this->update_user_knowledge_access($user_id, $user_data);
-            
-            AIOHM_KB_Assistant::log("Synced user {$user_id} plan change: {$action} for plan {$plan_id}");
-            
-        } catch (Exception $e) {
-            AIOHM_KB_Assistant::log('ARMember sync error: ' . $e->getMessage(), 'error');
-        }
-    }
+    // Removed: sync_user_plan_change method, as it was tied to local ARMember hooks.
+    // public function sync_user_plan_change($user_id, $plan_id, $action) {
+    //     try {
+    //         $user_data = $this->get_armember_user_data($user_id);
+    //         $this->update_user_knowledge_access($user_id, $user_data);
+    //         AIOHM_KB_Assistant::log("Synced user {$user_id} plan change: {$action} for plan {$plan_id}");
+    //     } catch (Exception $e) {
+    //         AIOHM_KB_Assistant::log('ARMember sync error: ' . $e->getMessage(), 'error');
+    //     }
+    // }
     
-    /**
-     * Sync new user registration
-     */
-    public function sync_new_user($user_id, $posted_data) {
-        try {
-            $user_data = $this->get_armember_user_data($user_id);
-            $this->create_user_knowledge_profile($user_id, $user_data);
-            
-            AIOHM_KB_Assistant::log("Created knowledge profile for new user {$user_id}");
-            
-        } catch (Exception $e) {
-            AIOHM_KB_Assistant::log('New user sync error: ' . $e->getMessage(), 'error');
-        }
-    }
+    // Removed: sync_new_user method, as it was tied to local ARMember hooks.
+    // public function sync_new_user($user_id, $posted_data) {
+    //     try {
+    //         $user_data = $this->get_armember_user_data($user_id);
+    //         $this->create_user_knowledge_profile($user_id, $user_data);
+    //         AIOHM_KB_Assistant::log("Created knowledge profile for new user {$user_id}");
+    //     } catch (Exception $e) {
+    //         AIOHM_KB_Assistant::log('New user sync error: ' . $e->getMessage(), 'error');
+    //     }
+    // }
 
     /**
      * Manually trigger sync for a specific user.
@@ -68,84 +61,83 @@ class AIOHM_KB_ARMember_Integration {
      */
     public function sync_user_profile_on_demand($user_id) {
         try {
+            // This method now exclusively uses the aiohm.app API path.
             $user_data = $this->get_armember_user_data($user_id);
             $this->update_user_knowledge_access($user_id, $user_data);
-            AIOHM_KB_Assistant::log("Manually synced ARMember profile for user {$user_id}.", 'info');
+            AIOHM_KB_Assistant::log("Manually synced ARMember profile for user {$user_id} via aiohm.app API.", 'info');
         } catch (Exception $e) {
             throw new Exception("Failed to sync ARMember profile for user {$user_id}: " . $e->getMessage());
         }
     }
 
-    /**
-     * Syncs user on plan cancellation.
-     */
-    public function sync_plan_cancellation($user_id, $plan_id) {
-        try {
-            // After cancellation, re-evaluate user's access based on remaining plans (if any)
-            $user_data = $this->get_armember_user_data($user_id);
-            $this->update_user_knowledge_access($user_id, $user_data);
-            AIOHM_KB_Assistant::log("Synced user {$user_id} plan cancellation for plan {$plan_id}", 'info');
-        } catch (Exception $e) {
-            AIOHM_KB_Assistant::log('ARMember plan cancellation sync error: ' . $e->getMessage(), 'error');
-        }
-    }
+    // Removed: sync_plan_cancellation method, as it was tied to local ARMember hooks.
+    // public function sync_plan_cancellation($user_id, $plan_id) {
+    //     try {
+    //         $user_data = $this->get_armember_user_data($user_id);
+    //         $this->update_user_knowledge_access($user_id, $user_data);
+    //         AIOHM_KB_Assistant::log("Synced user {$user_id} plan cancellation for plan {$plan_id} via aiohm.app API", 'info');
+    //     } catch (Exception $e) {
+    //         AIOHM_KB_Assistant::log('ARMember plan cancellation sync error: ' . $e->getMessage(), 'error');
+    //     }
+    // }
     
     /**
-     * Get ARMember user data either from local plugin or from aiohm.app API.
+     * Get ARMember user data ONLY from aiohm.app API.
+     * The local ARMember plugin detection has been removed.
      * @param int $user_id The local WordPress user ID.
      * @return array Containing user's membership data.
-     * @throws Exception If no ARMember source is available or API call fails.
+     * @throws Exception If aiohm.app API configuration is incomplete or API call fails.
      */
     private function get_armember_user_data($user_id) {
         global $wpdb;
         
-        // Option 1: Integrate with local ARMember plugin
-        if (class_exists('ARMemberLite')) {
-            AIOHM_KB_Assistant::log("Fetching ARMember data from local plugin for user {$user_id}.", 'info');
-            // Get user's current plans
-            $user_plans = get_user_meta($user_id, 'arm_user_plan_ids', true);
-            $user_plans = !empty($user_plans) ? (array)$user_plans : array();
+        // Removed: Option 1: Integrate with local ARMember plugin
+        // if (class_exists('ARMemberLite')) {
+        //     AIOHM_KB_Assistant::log("Fetching ARMember data from local plugin for user {$user_id}.", 'info');
+        //     // Get user's current plans
+        //     $user_plans = get_user_meta($user_id, 'arm_user_plan_ids', true);
+        //     $user_plans = !empty($user_plans) ? (array)$user_plans : array();
             
-            // Get plan details
-            $plan_details = array();
-            if (!empty($user_plans)) {
-                foreach ($user_plans as $plan_id) {
-                    $plan_data = $wpdb->get_row(
-                        $wpdb->prepare(
-                            "SELECT * FROM {$wpdb->prefix}arm_subscription_plans WHERE arm_subscription_plan_id = %d",
-                            $plan_id
-                        ),
-                        ARRAY_A
-                    );
+        //     // Get plan details
+        //     $plan_details = array();
+        //     if (!empty($user_plans)) {
+        //         foreach ($user_plans as $plan_id) {
+        //             $plan_data = $wpdb->get_row(
+        //                 $wpdb->prepare(
+        //                     "SELECT * FROM {$wpdb->prefix}arm_subscription_plans WHERE arm_subscription_plan_id = %d",
+        //                     $plan_id
+        //                 ),
+        //                 ARRAY_A
+        //             );
                     
-                    if ($plan_data) {
-                        $plan_details[] = array(
-                            'plan_id' => $plan_id,
-                            'plan_name' => $plan_data['arm_subscription_plan_name'],
-                            'plan_type' => $plan_data['arm_subscription_plan_type'],
-                            'plan_status' => $plan_data['arm_subscription_plan_status'],
-                            'access_level' => $this->determine_access_level($plan_data)
-                        );
-                    }
-                }
-            }
+        //             if ($plan_data) {
+        //                 $plan_details[] = array(
+        //                     'plan_id' => $plan_id,
+        //                     'plan_name' => $plan_data['arm_subscription_plan_name'],
+        //                     'plan_type' => $plan_data['arm_subscription_plan_type'],
+        //                     'plan_status' => $plan_data['arm_subscription_plan_status'],
+        //                     'access_level' => $this->determine_access_level($plan_data)
+        //                 );
+        //             }
+        //         }
+        //     }
             
-            // Get user's payment history
-            $payment_history = $this->get_user_payment_history($user_id);
+        //     // Get user's payment history
+        //     $payment_history = $this->get_user_payment_history($user_id);
             
-            return array(
-                'user_id' => $user_id,
-                'plans' => $plan_details,
-                'payment_history' => $payment_history,
-                'access_level' => $this->calculate_user_access_level($plan_details),
-                'sync_timestamp' => current_time('mysql')
-            );
-        } 
+        //     return array(
+        //         'user_id' => $user_id,
+        //         'plans' => $plan_details,
+        //         'payment_history' => $payment_history,
+        //         'access_level' => $this->calculate_user_access_level($plan_details),
+        //         'sync_timestamp' => current_time('mysql')
+        //     );
+        // } 
         
-        // Option 2: Fetch data from aiohm.app API if local ARMember is not active
+        // This section (Option 2) now becomes the primary and only method for fetching ARMember data.
         $settings = AIOHM_KB_Assistant::get_settings();
         $aiohm_app_arm_user_id = $settings['aiohm_app_arm_user_id'] ?? '';
-        $personal_api_key_set = !empty($settings['personal_api_key'] ?? ''); // Check general aiohm.app connection
+        $personal_api_key_set = !empty($settings['personal_api_key'] ?? '');
 
         if ($personal_api_key_set && !empty($aiohm_app_arm_user_id)) {
             AIOHM_KB_Assistant::log("Fetching ARMember data from aiohm.app API for user {$user_id} (remote ID: {$aiohm_app_arm_user_id}).", 'info');
@@ -191,9 +183,22 @@ class AIOHM_KB_ARMember_Integration {
             );
         }
 
-        // If neither local ARMember nor aiohm.app API configuration is complete
-        throw new Exception('ARMember integration not configured. Please install local ARMember or set AIOHM.app ARMember User ID and Personal API Key in settings.');
+        // If aiohm.app API configuration is not complete (and local ARMember check is removed)
+        throw new Exception('AIOHM.app API integration for ARMember is not configured. Please set AIOHM.app ARMember User ID and Personal API Key in settings.');
     }
+    
+    // Removed: get_user_payment_history method, as it was only called by the local ARMember path.
+    // private function get_user_payment_history($user_id) {
+    //     global $wpdb;
+    //     $payments = $wpdb->get_results(
+    //         $wpdb->prepare(
+    //             "SELECT * FROM {$wpdb->prefix}arm_payment_log WHERE arm_user_id = %d ORDER BY arm_created_date DESC LIMIT 10",
+    //             $user_id
+    //         ),
+    //         ARRAY_A
+    //     );
+    //     return $payments ? $payments : array();
+    // }
     
     /**
      * Determine access level from plan data
@@ -234,24 +239,6 @@ class AIOHM_KB_ARMember_Integration {
     }
     
     /**
-     * Get user payment history - local only for now. Remote would require separate API call.
-     */
-    private function get_user_payment_history($user_id) {
-        global $wpdb;
-        // This method is called only by local ARMember path in get_armember_user_data.
-        // Remote payment history would need a specific API endpoint from aiohm.app.
-        $payments = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}arm_payment_log WHERE arm_user_id = %d ORDER BY arm_created_date DESC LIMIT 10",
-                $user_id
-            ),
-            ARRAY_A
-        );
-        
-        return $payments ? $payments : array();
-    }
-    
-    /**
      * Create user knowledge profile
      */
     private function create_user_knowledge_profile($user_id, $user_data) {
@@ -263,7 +250,7 @@ class AIOHM_KB_ARMember_Integration {
             'chat_history' => array(),
             'created_at' => current_time('mysql'),
             'updated_at' => current_time('mysql'),
-            'source' => $user_data['source'] ?? 'local_armember', // Indicate source of data
+            'source' => $user_data['source'] ?? 'aiohm.app_api', // Ensure source is always aiohm.app_api
         );
         // Include remote ARMember User ID if applicable
         if(isset($user_data['arm_user_id_on_aiohm_app'])) {
@@ -288,7 +275,7 @@ class AIOHM_KB_ARMember_Integration {
             $existing_profile['access_level'] = $user_data['access_level'];
             $existing_profile['plans'] = $user_data['plans'];
             $existing_profile['updated_at'] = current_time('mysql');
-            $existing_profile['source'] = $user_data['source'] ?? $existing_profile['source'] ?? 'local_armember'; // Update source
+            $existing_profile['source'] = $user_data['source'] ?? 'aiohm.app_api'; // Ensure source is always aiohm.app_api
             if(isset($user_data['arm_user_id_on_aiohm_app'])) {
                 $existing_profile['arm_user_id_on_aiohm_app'] = $user_data['arm_user_id_on_aiohm_app'];
             }
@@ -339,41 +326,16 @@ class AIOHM_KB_ARMember_Integration {
     }
     
     /**
-     * Bulk sync all ARMember users
+     * Bulk sync users (Now explicitly not applicable for local ARMember).
+     * If you need a bulk sync from aiohm.app, a new function would be needed.
      */
     public function bulk_sync_users() {
-        // This method can be integrated into Core_Init's bulk sync handler if needed,
-        // but for now, it's not directly called by a button from the frontend context.
-        // Keeping it here for reference/future expansion.
-        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
-            wp_die('Security check failed');
-        }
-        
-        try {
-            global $wpdb;
-            
-            // Get all users with ARMember data
-            $users_with_plans = $wpdb->get_results(
-                "SELECT DISTINCT user_id FROM {$wpdb->usermeta} WHERE meta_key = 'arm_user_plan_ids'",
-                ARRAY_A
-            );
-            
-            $synced_count = 0;
-            foreach ($users_with_plans as $user_row) {
-                $user_id = $user_row['user_id'];
-                $user_data = $this->get_armember_user_data($user_id);
-                $this->update_user_knowledge_access($user_id, $user_data);
-                $synced_count++;
-            }
-            
-            wp_send_json_success(array(
-                'message' => "Successfully synced {$synced_count} users",
-                'synced_count' => $synced_count
-            ));
-            
-        } catch (Exception $e) {
-            wp_send_json_error('Bulk sync failed: ' . $e->getMessage());
-        }
+        // The original implementation of bulk_sync_users was tied to local ARMember data.
+        // Since the integration is now strictly with aiohm.app, this function's
+        // behavior needs to be re-evaluated or removed if no corresponding
+        // bulk sync mechanism exists or is desired from the aiohm.app API.
+        AIOHM_KB_Assistant::log('Bulk sync users (ARMember Integration): Not applicable in aiohm.app API-only mode.', 'info');
+        wp_send_json_error('Bulk sync not applicable in this configuration (aiohm.app API-only ARMember integration).');
     }
     
     /**
