@@ -1,4 +1,3 @@
-// Existing includes/api-client-app.php
 <?php
 /**
  * Handles all API communication with the main aiohm.app website.
@@ -129,6 +128,4 @@ class AIOHM_App_API_Client {
         ];
         return $this->make_request('arm_check_member_membership', $args);
     }
-
-    // You can add other API methods from the table here as needed, e.g., check_coupon_code, add_plan_to_member, cancel_member_plan.
 }
