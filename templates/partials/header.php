@@ -56,7 +56,7 @@ if (!defined('ABSPATH')) exit;
     /* Header & Menu Styles */
     .aiohm-admin-header {
         background-color: #1f5014; /* OHM Dark Green */
-        padding: 5px 25px; /* Made smaller */
+        padding: 5px 25px;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -64,72 +64,35 @@ if (!defined('ABSPATH')) exit;
         border-bottom: 2px solid #EBEBEB;
     }
     .aiohm-admin-header__logo img {
-        height: 40px; /* Made smaller */
+        height: 40px;
         width: auto;
         display: block;
     }
     .aiohm-admin-header__nav {
         font-family: 'Montserrat', sans-serif;
     }
-    
-    /* New Menu Styles (Branded) */
-    .aiohm-nav ul { 
-        list-style: none; 
-        margin: 0; 
-        padding: 0; 
-    }
-    .aiohm-menu > li { 
-        display: inline-block; 
-        position: relative; 
-        margin-left: 15px; 
-    }
-    .aiohm-menu > li > a { 
-        text-decoration: none; 
-        color: #fff; /* White text for top-level items */
-        font-weight: bold; 
-        font-size: 14px;
-        padding: 10px 15px;
-        display: block;
-        border-radius: 4px;
-        transition: background-color 0.2s ease;
-    }
-    .aiohm-menu > li > a:hover {
-        background-color: rgba(255,255,255,0.1);
-    }
-    .has-submenu:hover .submenu { 
-        display: block; 
-    }
-    .submenu {
-        display: none;
-        position: absolute;
-        top: 100%; 
-        left: 0;
-        background: #fff;
-        border: 1px solid #ddd;
-        border-radius: 0 0 4px 4px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        z-index: 1000;
-        min-width: 200px;
-        padding: 5px 0;
-    }
-    .submenu li { 
-        display: block; 
-        margin: 0; 
-    }
-    .submenu a { 
-        padding: 10px 15px; 
-        display: block; 
-        white-space: nowrap; 
-        color: #272727; /* OHM Dark for submenu text */
-        font-size: 13px;
-        font-weight: normal;
-    }
-    .submenu a:hover { 
-        background: #EBEBEB; /* OHM Light BG for hover */
-    }
+    .aiohm-nav ul { list-style: none; margin: 0; padding: 0; }
+    .aiohm-menu > li { display: inline-block; position: relative; margin-left: 15px; }
+    .aiohm-menu > li > a { text-decoration: none; color: #fff; font-weight: bold; font-size: 14px; padding: 10px 15px; display: block; border-radius: 4px; transition: background-color 0.2s ease; }
+    .aiohm-menu > li > a:hover { background-color: rgba(255,255,255,0.1); }
+    .has-submenu:hover .submenu { display: block; }
+    .submenu { display: none; position: absolute; top: 100%; left: 0; background: #fff; border: 1px solid #ddd; border-radius: 0 0 4px 4px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 1000; min-width: 200px; padding: 5px 0; }
+    .submenu li { display: block; margin: 0; }
+    .submenu a { padding: 10px 15px; display: block; white-space: nowrap; color: #272727; font-size: 13px; font-weight: normal; }
+    .submenu a:hover { background: #EBEBEB; }
 
     /* General Wrapper */
     .aiohm-admin-wrap {
         margin-top: 10px;
+    }
+
+    /* Footer */
+    .aiohm-admin-footer {
+        margin-top: 80px;  /* MODIFIED: Increased top margin to push it down */
+        padding: 20px 0;   /* MODIFIED: Changed padding */
+        border-top: 1px solid #ddd;
+        text-align: center;
+        color: #777;
+        font-family: 'PT Sans', sans-serif;
     }
 </style>

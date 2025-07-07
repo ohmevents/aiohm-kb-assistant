@@ -1,54 +1,26 @@
 <?php
 /**
- * Admin Help page template.
+ * Admin Help page template - Redesigned and Branded.
  */
 
-// Prevent direct access
 if (!defined('ABSPATH')) {
     exit;
 }
 ?>
 
-<div class="wrap">
+<div class="wrap aiohm-help-page">
     <h1><?php _e('Get Help & Resources', 'aiohm-kb-assistant'); ?></h1>
-    <p class="description"><?php _e('Find support, community, and learning materials to make the most of your AIOHM Knowledge Assistant.', 'aiohm-kb-assistant'); ?></p>
+    <p class="page-description"><?php _e('Find support, documentation, and a space to share your ideas.', 'aiohm-kb-assistant'); ?></p>
 
     <div class="aiohm-help-grid">
 
         <div class="aiohm-help-card">
             <div class="aiohm-card-icon">
-                <span class="dashicons dashicons-headset"></span>
+                <span class="dashicons dashicons-heart"></span>
             </div>
-            <h3><?php _e('Support Center', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('Our experienced support team is ready to resolve your issues any time.', 'aiohm-kb-assistant'); ?></p>
-            <a href="https://aiohm.app/support" target="_blank" class="button button-primary"><?php _e('Visit Support', 'aiohm-kb-assistant'); ?></a>
-        </div>
-
-        <div class="aiohm-help-card">
-            <div class="aiohm-card-icon">
-                <span class="dashicons dashicons-groups"></span>
-            </div>
-            <h3><?php _e('Join the Community', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('Join our Facebook group to get 20% discount coupon on premium products. Follow us to get more exciting offers.', 'aiohm-kb-assistant'); ?></p>
-            <a href="https://www.facebook.com/groups/aiohm" target="_blank" class="button button-secondary"><?php _e('Join Group', 'aiohm-kb-assistant'); ?></a>
-        </div>
-
-        <div class="aiohm-help-card">
-            <div class="aiohm-card-icon">
-                <span class="dashicons dashicons-video-alt3"></span>
-            </div>
-            <h3><?php _e('Video Tutorials', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('Learn the step by step process for developing your site easily from video tutorials.', 'aiohm-kb-assistant'); ?></p>
-            <a href="https://aiohm.app/tutorials" target="_blank" class="button button-secondary"><?php _e('Watch Tutorials', 'aiohm-kb-assistant'); ?></a>
-        </div>
-
-        <div class="aiohm-help-card">
-            <div class="aiohm-card-icon">
-                <span class="dashicons dashicons-lightbulb"></span>
-            </div>
-            <h3><?php _e('Request a Feature', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('Have any special feature in mind? Let us know through the feature request.', 'aiohm-kb-assistant'); ?></p>
-            <a href="https://aiohm.app/feature-request" target="_blank" class="button button-secondary"><?php _e('Submit Request', 'aiohm-kb-assistant'); ?></a>
+            <h3><?php _e('Support with Heart', 'aiohm-kb-assistant'); ?></h3>
+            <p><?php _e('Feeling stuck or unsure? Our team honors your vision and is here to help—gently and clearly.', 'aiohm-kb-assistant'); ?></p>
+            <a href="https://www.aiohm.app/contact/" target="_blank" class="button button-primary"><?php _e('→ Reach Out to Support', 'aiohm-kb-assistant'); ?></a>
         </div>
 
         <div class="aiohm-help-card">
@@ -62,14 +34,47 @@ if (!defined('ABSPATH')) {
 
         <div class="aiohm-help-card">
             <div class="aiohm-card-icon">
-                <span class="dashicons dashicons-chart-bar"></span>
+                <span class="dashicons dashicons-lightbulb"></span>
             </div>
-            <h3><?php _e('Public Roadmap', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('Check our upcoming new features, detailed development stories and tasks.', 'aiohm-kb-assistant'); ?></p>
-            <a href="https://aiohm.app/roadmap" target="_blank" class="button button-secondary"><?php _e('View Roadmap', 'aiohm-kb-assistant'); ?></a>
+            <h3><?php _e('Request a Feature', 'aiohm-kb-assistant'); ?></h3>
+            <p><?php _e('Have any special feature in mind? Let us know through the feature request.', 'aiohm-kb-assistant'); ?></p>
+            <a href="https://www.aiohm.app/contact/" target="_blank" class="button button-secondary"><?php _e('Submit Request', 'aiohm-kb-assistant'); ?></a>
         </div>
 
-    </div></div><style>
+    </div>
+</div>
+
+<style>
+    /* OHM Brand Identity */
+    .aiohm-help-page {
+        --ohm-primary: #457d58;
+        --ohm-dark: #272727;
+        --ohm-light-accent: #cbddd1;
+        --ohm-muted-accent: #7d9b76;
+        --ohm-light-bg: #EBEBEB;
+        --ohm-dark-accent: #1f5014;
+        --ohm-font-primary: 'Montserrat', 'Montserrat Alternates', sans-serif;
+        --ohm-font-secondary: 'PT Sans', sans-serif;
+    }
+    
+    /* General Typography & Colors */
+    .aiohm-help-page h1,
+    .aiohm-help-page h3 {
+        font-family: var(--ohm-font-primary);
+        color: var(--ohm-dark-accent);
+    }
+    .aiohm-help-page .page-description,
+    .aiohm-help-page p {
+        font-family: var(--ohm-font-secondary);
+        color: var(--ohm-dark);
+    }
+    .aiohm-help-page .page-description {
+        font-size: 1.1em;
+        padding-bottom: 1em;
+        border-bottom: 1px solid var(--ohm-light-bg);
+    }
+
+    /* Grid and Card Styles */
     .aiohm-help-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -78,68 +83,54 @@ if (!defined('ABSPATH')) {
     }
     .aiohm-help-card {
         background: #fff;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
+        border: 1px solid var(--ohm-light-bg);
+        border-left: 4px solid var(--ohm-light-accent);
+        border-radius: 4px;
         padding: 25px;
         text-align: center;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
-        align-items: center;
-        transition: all 0.2s ease-in-out;
     }
     .aiohm-help-card:hover {
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        transform: translateY(-2px);
+        border-left-color: var(--ohm-primary);
     }
     .aiohm-card-icon {
         font-size: 48px;
         line-height: 1;
-        color: #007cba; /* Primary AIOHM color */
+        color: var(--ohm-primary);
         margin-bottom: 15px;
     }
-    .aiohm-help-card h3 {
-        margin-top: 0;
-        margin-bottom: 10px;
-        font-size: 1.3em;
-        color: #333;
-    }
     .aiohm-help-card p {
-        font-size: 0.9em;
-        color: #666;
+        flex-grow: 1; /* Pushes button to the bottom */
         margin-bottom: 20px;
-        flex-grow: 1; /* Allows paragraph to take up space */
     }
     .aiohm-help-card .button {
-        width: 100%; /* Make buttons full width within the card */
+        width: 100%;
         padding: 10px 15px;
         font-size: 1em;
         line-height: 1.2;
+        font-family: var(--ohm-font-primary);
+        font-weight: bold;
+        text-transform: uppercase;
     }
-    .aiohm-help-card .button-primary {
-        background-color: #007cba;
-        border-color: #007cba;
+    
+    /* Button Styles */
+    .aiohm-help-page .button-primary {
+        background-color: var(--ohm-primary);
+        border-color: var(--ohm-dark-accent);
         color: #fff;
     }
-    .aiohm-help-card .button-primary:hover {
-        background-color: #005a87;
-        border-color: #005a87;
+    .aiohm-help-page .button-primary:hover {
+        background-color: var(--ohm-dark-accent);
+        border-color: var(--ohm-dark-accent);
     }
-    .aiohm-help-card .button-secondary {
-        background-color: #f0f0f0;
-        border-color: #ccc;
-        color: #333;
+    .aiohm-help-page .button-secondary {
+        background-color: transparent;
+        border: 2px solid var(--ohm-muted-accent);
+        color: var(--ohm-dark-accent);
     }
-    .aiohm-help-card .button-secondary:hover {
-        background-color: #e0e0e0;
-        border-color: #bbb;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .aiohm-help-grid {
-            grid-template-columns: 1fr; /* Single column on smaller screens */
-        }
+    .aiohm-help-page .button-secondary:hover {
+        border-color: var(--ohm-primary);
+        background-color: var(--ohm-light-accent);
     }
 </style>

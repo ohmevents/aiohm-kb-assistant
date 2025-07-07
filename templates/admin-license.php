@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin License page template - Final version.
- * This version fixes the disconnect button functionality and style.
+ * This version rearranges the boxes and updates the copy.
  */
 
 // Prevent direct access
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) exit;
 $settings = AIOHM_KB_Assistant::get_settings();
 $personal_api_key = $settings['aiohm_personal_bot_id'] ?? '';
 $is_user_linked = !empty($personal_api_key);
-$user_plans_details = []; $username = null; $has_tribe_plan = false; $has_club_plan = false; $has_private_plan = false;
+$user_plans_details = []; $username = null; $has_tribe_plan = false; $has_club_plan = false;
 if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
     $api_client = new AIOHM_App_API_Client();
     $profile_response = $api_client->get_member_details($personal_api_key);
@@ -26,7 +26,6 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
             if (isset($plan['name'])) {
                 if (stripos($plan['name'], 'Tribe') !== false) { $has_tribe_plan = true; }
                 if (stripos($plan['name'], 'Club') !== false) { $has_club_plan = true; }
-                if (stripos($plan['name'], 'Private') !== false) { $has_private_plan = true; }
             }
         }
     }
@@ -37,11 +36,22 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
     <h1><?php _e('AIOHM Membership & Features', 'aiohm-kb-assistant'); ?></h1>
     <p class="description"><?php _e('Connect your account to see the features available with your membership tier.', 'aiohm-kb-assistant'); ?></p>
     <div class="aiohm-feature-grid">
+        
+        <div class="aiohm-feature-box <?php echo $has_tribe_plan ? 'plan-active' : 'plan-inactive'; ?>">
+            <div class="box-icon">✨</div>
+            <h3><?php _e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
+            <p><?php _e('Root into your why. Begin with deep reflection and intentional alignment.', 'aiohm-kb-assistant'); ?></p>
+            <p><?php _e('Access your personal Brand Soul Map through our guided questionnaire and shape your AI with the truths that matter most to you.', 'aiohm-kb-assistant'); ?></p>
+            <p><?php _e('This free tier is where brand resonance begins.', 'aiohm-kb-assistant'); ?></p>
+            <a href="https://aiohm.app/register" target="_blank" class="button button-primary" style="margin-top: auto;"><?php _e('Join the Tribe', 'aiohm-kb-assistant'); ?></a>
+        </div>
+
         <div class="aiohm-feature-box">
              <?php if ($is_user_linked) : ?>
                 <div class="box-icon">👤</div>
-                <h3><?php echo $username ? esc_html($username) : __('Profile Connected', 'aiohm-kb-assistant'); ?></h3>
-                <p><?php _e('Your site is now beautifully synced with your AIOHM personal account.', 'aiohm-kb-assistant'); ?></p>
+                <h3><?php echo $username ? esc_html($username) : __('Account Connected', 'aiohm-kb-assistant'); ?></h3>
+                <p><?php _e('Link your site to your AIOHM Tribe profile and unlock personal features like the AI Brand Soul questionnaire and custom chat experiences.', 'aiohm-kb-assistant'); ?></p>
+                <p><?php _e('This connection anchors your plugin to your essence—securely and simply.', 'aiohm-kb-assistant'); ?></p>
                 <form method="post" action="options.php" class="aiohm-disconnect-form">
                     <?php settings_fields('aiohm_kb_settings'); ?>
                     <input type="hidden" name="aiohm_kb_settings[aiohm_personal_bot_id]" value="">
@@ -51,20 +61,12 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
              <?php else : ?>
                 <div class="box-icon">🔑</div>
                 <h3><?php _e('Connect Your Account', 'aiohm-kb-assistant'); ?></h3>
-                <p><?php _e('Go to Settings to connect your account.', 'aiohm-kb-assistant'); ?></p>
+                <p><?php _e('Link your site to your AIOHM Tribe profile and unlock personal features like the AI Brand Soul questionnaire and custom chat experiences.', 'aiohm-kb-assistant'); ?></p>
+                <p><?php _e('This connection anchors your plugin to your essence—securely and simply.', 'aiohm-kb-assistant'); ?></p>
                 <a href="<?php echo admin_url('admin.php?page=aiohm-settings'); ?>" class="button button-primary" style="margin-top: auto;"><?php _e('Connect Account', 'aiohm-kb-assistant'); ?></a>
              <?php endif; ?>
         </div>
-        <div class="aiohm-feature-box <?php echo $has_tribe_plan ? 'plan-active' : 'plan-inactive'; ?>">
-            <div class="box-icon">✨</div><h3><?php _e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
-            <?php if ($has_tribe_plan) : ?>
-                <p><?php _e('You have access to the foundational tier for personal brand alignment.', 'aiohm-kb-assistant'); ?></p>
-                <a href="https://aiohm.app" target="_blank" class="button button-secondary" style="margin-top: auto;"><?php _e('Manage Membership', 'aiohm-kb-assistant'); ?></a>
-            <?php else: ?>
-                <p><?php _e('The foundational tier for personal brand alignment. Get access to the AI Brand Soul questionnaire.', 'aiohm-kb-assistant'); ?></p>
-                <a href="https://aiohm.app/register" target="_blank" class="button button-primary" style="margin-top: auto;"><?php _e('Join the Tribe', 'aiohm-kb-assistant'); ?></a>
-            <?php endif; ?>
-        </div>
+        
         <div class="aiohm-feature-box <?php echo $has_club_plan ? 'plan-active' : 'plan-inactive'; ?>">
             <div class="box-icon">🚀</div><h3><?php _e('AIOHM Club', 'aiohm-kb-assistant'); ?></h3>
             <?php if ($has_club_plan) : ?>
@@ -92,7 +94,6 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
     .aiohm-license-page .aiohm-feature-box p { flex-grow: 1; font-family: var(--ohm-font-secondary); color: var(--ohm-dark); font-size: 1em; line-height: 1.6; margin-bottom: 15px; }
     .aiohm-license-page .button-primary { background-color: var(--ohm-primary); border-color: var(--ohm-dark-accent); color: #fff; font-family: var(--ohm-font-primary); font-weight: bold; }
     .aiohm-license-page .button-primary:hover { background-color: var(--ohm-dark-accent); border-color: var(--ohm-dark-accent); }
-    .aiohm-license-page .status-connected { color: var(--ohm-primary); font-weight: bold; }
     .aiohm-disconnect-form { margin-top: auto; }
     .button.button-disconnect {
         width: 100%;
