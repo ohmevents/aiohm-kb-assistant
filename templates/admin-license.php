@@ -37,14 +37,16 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
     <p class="description"><?php _e('Connect your account to see the features available with your membership tier.', 'aiohm-kb-assistant'); ?></p>
     <div class="aiohm-feature-grid">
         
-        <div class="aiohm-feature-box <?php echo $has_tribe_plan ? 'plan-active' : 'plan-inactive'; ?>">
-            <div class="box-icon">✨</div>
-            <h3><?php _e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('Root into your why. Begin with deep reflection and intentional alignment.', 'aiohm-kb-assistant'); ?></p>
-            <p><?php _e('Access your personal Brand Soul Map through our guided questionnaire and shape your AI with the truths that matter most to you.', 'aiohm-kb-assistant'); ?></p>
-            <p><?php _e('This free tier is where brand resonance begins.', 'aiohm-kb-assistant'); ?></p>
-            <a href="https://aiohm.app/register" target="_blank" class="button button-primary" style="margin-top: auto;"><?php _e('Join the Tribe', 'aiohm-kb-assistant'); ?></a>
-        </div>
+<div class="aiohm-feature-box <?php echo $has_tribe_plan ? 'plan-active' : 'plan-inactive'; ?>">
+    <div class="box-icon">
+        <img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="OHM Logo" class="ohm-logo-icon">
+    </div>
+    <h3><?php _e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
+    <h4 class="plan-price"><?php _e('This free tier is where brand resonance begins.', 'aiohm-kb-assistant'); ?></h4>
+    <p><?php _e('Root into your why. Begin with deep reflection and intentional alignment. Access your personal Brand Soul Map through our guided questionnaire and shape your AI with the truths that matter most to you.', 'aiohm-kb-assistant'); ?></p>
+    
+    <a href="https://www.aiohm.app/tribe" target="_blank" class="button button-primary" style="margin-top: auto;">🔓 <?php _e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
+</div>
 
         <div class="aiohm-feature-box">
              <?php if ($is_user_linked) : ?>
@@ -68,14 +70,14 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
         </div>
         
         <div class="aiohm-feature-box <?php echo $has_club_plan ? 'plan-active' : 'plan-inactive'; ?>">
-            <div class="box-icon">🚀</div><h3><?php _e('AIOHM Club', 'aiohm-kb-assistant'); ?></h3>
+            <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="OHM Logo" class="ohm-logo-icon"></div><h3><?php _e('AIOHM Club', 'aiohm-kb-assistant'); ?></h3>
             <?php if ($has_club_plan) : ?>
                 <p><?php _e('You have access to the Club tier. Use the Brand Assistant in your dashboard.', 'aiohm-kb-assistant'); ?></p>
                 <a href="https://aiohm.app/club" target="_blank" class="button button-secondary" style="margin-top: auto;"><?php _e('Manage Membership', 'aiohm-kb-assistant'); ?></a>
             <?php else: ?>
                 <h4 class="plan-price"><?php _e('1 euro per month for first 100 members.', 'aiohm-kb-assistant'); ?></h4>
-                <div class="plan-description"><p>Where clarity meets magic.<br>Club membership unlocks two transformative tools: Mirror way and Muse way.</p></div>
-                <a href="https://www.aiohm.app/club/" target="_blank" class="button button-primary" style="margin-top: auto;">🔓 <?php _e('Join the Club', 'aiohm-kb-assistant'); ?></a>
+                <div class="plan-description"><p>Club members gain exclusive access to Mirror Mode for soul-aligned insights and Muse Mode for idea-rich, emotionally attuned content. This is where your brand’s clarity meets creative flow.</p></div>
+                <a href="https://www.aiohm.app/club/" target="_blank" class="button button-primary" style="margin-top: auto;">🔓 <?php _e('Join AIOHM Club', 'aiohm-kb-assistant'); ?></a>
             <?php endif; ?>
         </div>
     </div>
@@ -104,4 +106,10 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
     .button.button-disconnect:hover {
         background: var(--ohm-dark-accent) !important;
     }
+    .aiohm-license-page .box-icon .ohm-logo-icon {
+    max-height: 100%; /* Ensures the logo fits within the icon container */
+    width: auto;
+    display: inline-block;
+    vertical-align: middle;
+}
 </style>
