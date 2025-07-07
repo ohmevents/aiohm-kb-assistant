@@ -16,8 +16,10 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_brand_assistant_chat', array(__CLASS__, 'handle_brand_assistant_ajax'));
         add_action('wp_ajax_aiohm_toggle_kb_scope', array(__CLASS__, 'handle_toggle_kb_scope_ajax'));
         add_action('wp_ajax_aiohm_restore_kb', array(__CLASS__, 'handle_restore_kb_ajax'));
-        // NEW: Add handler for single KB entry deletion
+        // Add handler for single KB entry deletion
         add_action('wp_ajax_aiohm_delete_kb_entry', array(__CLASS__, 'handle_delete_kb_entry_ajax'));
+        // NEW: Add handler for ARMember single user sync
+        add_action('wp_ajax_aiohm_sync_current_armember_user', array(__CLASS__, 'handle_sync_current_armember_user_ajax'));
     }
 
     public static function handle_progressive_scan_ajax() {
@@ -48,8 +50,7 @@ class AIOHM_KB_Core_Init {
                     break;
                 case 'uploads_find':
                     $crawler = new AIOHM_KB_Uploads_Crawler();
-                    // OLD: $pending_files = $crawler->find_pending_attachments();
-                    // NEW: Return all supported attachments to keep indexed files visible
+                    // Return all supported attachments to keep indexed files visible
                     $all_supported_files = $crawler->find_all_supported_attachments(); 
                     wp_send_json_success(['items' => $all_supported_files]);
                     break;
@@ -173,7 +174,7 @@ class AIOHM_KB_Core_Init {
         }
     }
 
-    // NEW: Handles single KB entry deletion via AJAX
+    // Handles single KB entry deletion via AJAX
     public static function handle_delete_kb_entry_ajax() {
         if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce')) {
             wp_send_json_error(['message' => 'Security check failed.']);
@@ -187,6 +188,35 @@ class AIOHM_KB_Core_Init {
             wp_send_json_success(['message' => 'Entry successfully deleted.']);
         } else {
             wp_send_json_error(['message' => 'Failed to delete entry.']);
+        }
+    }
+
+    // NEW: Handles syncing current user's ARMember profile
+    public static function handle_sync_current_armember_user_ajax() {
+        // Ensure the current user has capability to manage options or at least view their own profile/manage membership
+        if (!current_user_can('read') || !wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+
+        if (!class_exists('AIOHM_KB_ARMember_Integration')) {
+            wp_send_json_error(['message' => 'ARMember Integration class not found. Ensure ARMember is installed and active.']);
+        }
+
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(['message' => 'User not logged in.']);
+        }
+
+        try {
+            // Instantiate ARMember integration and call the sync method
+            $armember_integration = new AIOHM_KB_ARMember_Integration();
+            $armember_integration->sync_user_profile_on_demand($user_id); // This new method will be added to AIOHM_KB_ARMember_Integration
+
+            wp_send_json_success(['message' => 'ARMember membership synced successfully for current user.']);
+
+        } catch (Exception $e) {
+            AIOHM_KB_Assistant::log('ARMember manual sync failed: ' . $e->getMessage(), 'error');
+            wp_send_json_error(['message' => 'ARMember sync failed: ' . $e->getMessage()]);
         }
     }
 }

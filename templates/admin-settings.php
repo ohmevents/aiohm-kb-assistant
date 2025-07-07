@@ -11,6 +11,7 @@ $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
     'chat_enabled' => true, // Added chat_enabled setting
     'show_floating_chat' => false, // Added show_floating_chat setting
     'scan_schedule' => 'none', // NEW: Default for scan schedule
+    'aiohm_app_arm_user_id' => '', // NEW: Default for AIOHM.app ARMember User ID
 ]);
 ?>
 <div class="wrap aiohm-settings-page">
@@ -20,16 +21,9 @@ $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
         <?php settings_fields('aiohm_kb_settings'); ?>
         
         <div class="aiohm-settings-section">
-            <h2><?php _e('API Keys', 'aiohm-kb-assistant'); ?></h2>
-            <p><?php _e('Connect your assistant to the required services.', 'aiohm-kb-assistant'); ?></p>
+            <h2><?php _e('API Keys & AIOHM.app Connection', 'aiohm-kb-assistant'); ?></h2>
+            <p><?php _e('Connect your assistant to the required services and your AIOHM.app account.', 'aiohm-kb-assistant'); ?></p>
             <table class="form-table">
-                <tr>
-                    <th scope="row"><label for="personal_api_key"><?php _e('Personal AIOHM API Key', 'aiohm-kb-assistant'); ?></label></th>
-                    <td>
-                        <input type="password" id="personal_api_key" name="aiohm_kb_settings[personal_api_key]" value="<?php echo esc_attr($settings['personal_api_key']); ?>" class="regular-text">
-                        <p class="description"><?php _e("Enter the key from your aiohm.app account. <strong>This unlocks personal AI features, like the 'Brand Soul' questionnaire.</strong>", 'aiohm-kb-assistant'); ?></p>
-                    </td>
-                </tr>
                 <tr>
                     <th scope="row"><label for="openai_api_key"><?php _e('OpenAI API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
@@ -45,6 +39,22 @@ $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
                             <span class="spinner"></span>
                         </div>
                         <p class="description" id="aiohm-api-status"><?php _e("<strong>This key is required for your AI to think and generate responses.</strong> It connects your site to the OpenAI language models.", 'aiohm-kb-assistant'); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="personal_api_key"><?php _e('Personal AIOHM.app API Key', 'aiohm-kb-assistant'); ?></label></th>
+                    <td>
+                        <input type="password" id="personal_api_key" name="aiohm_kb_settings[personal_api_key]" value="<?php echo esc_attr($settings['personal_api_key']); ?>" class="regular-text">
+                        <p class="description"><?php _e("Enter the key from your aiohm.app account. <strong>This links your plugin to your personal AIOHM.app profile for features like 'Brand Soul'.</strong>", 'aiohm-kb-assistant'); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="aiohm_app_arm_user_id"><?php _e('AIOHM.app ARMember User ID', 'aiohm-kb-assistant'); ?></label></th>
+                    <td>
+                        <input type="text" id="aiohm_app_arm_user_id" name="aiohm_kb_settings[aiohm_app_arm_user_id]" 
+                               value="<?php echo esc_attr($settings['aiohm_app_arm_user_id']); ?>" class="regular-text">
+                        <p class="description"><?php _e("If your AIOHM Tribe membership is managed on aiohm.app (not locally), enter your **ARMember User ID from aiohm.app** here to sync your membership status.", 'aiohm-kb-assistant'); ?></p>
+                        <p class="description"><em><?php _e('You can usually find this ID in your AIOHM.app account profile or membership area.', 'aiohm-kb-assistant'); ?></em></p>
                     </td>
                 </tr>
             </table>
