@@ -230,6 +230,8 @@ jQuery(document).ready(function($) {
         
         tableHtml += `</tbody></table>`;
         $container.html(tableHtml);
+        // Uncheck the "select all" checkbox when re-rendering
+        $container.find('thead input:checkbox').prop('checked', false);
     }
 
     // Initial load for Website content table
@@ -260,7 +262,7 @@ jQuery(document).ready(function($) {
             if (response.success) { 
                 renderItemsTable(response.data.items, '#scan-results-container', 'items[]', true); 
             } 
-            showAdminNotice('Website scan complete.', 'success'); // Indicate scan is done.
+            showAdminNotice('Website scan complete. Check "Scan Results" table below.', 'success'); // Indicate scan is done.
         })
         .fail(() => {
             showAdminNotice('Website scan failed. Please check logs for details.', 'error');
@@ -289,12 +291,23 @@ jQuery(document).ready(function($) {
 
         function processBatch(batch) {
             if (batch.length === 0) {
-                showAdminNotice('All selected website items processed successfully. Reloading page...', 'success');
-                $addBtn.prop('disabled', false);
-                setTimeout(() => { 
+                // NEW: Update table with latest data directly, no full page reload
+                $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_find', nonce: nonce })
+                .done(response => {
+                    if (response.success) {
+                        renderItemsTable(response.data.items, '#scan-results-container', 'items[]', true);
+                        showAdminNotice('All selected website items processed successfully. Table updated.', 'success');
+                    } else {
+                        showAdminNotice('Finished processing, but failed to refresh table: ' + response.data.message, 'error');
+                    }
+                })
+                .fail(() => {
+                    showAdminNotice('Finished processing, but encountered error refreshing table.', 'error');
+                })
+                .always(() => {
+                    $addBtn.prop('disabled', false);
                     $progress.fadeOut(); 
-                    location.reload(); // Reload page to show updated stats
-                }, 1000);
+                });
                 return;
             }
             const currentBatch = batch.slice(0, batchSize);
@@ -307,8 +320,8 @@ jQuery(document).ready(function($) {
                     let percentage = Math.round((processedCount / totalSelected) * 100); // Use totalSelected
                     $progressBar.css('width', percentage + '%'); 
                     $progressPercentage.text(percentage + '%');
-                    // We don't re-render the table here with new data directly,
-                    // as the page reloads at the end for consistent state.
+                    // We don't re-render the table here with new data directly for partial updates,
+                    // it will be refreshed completely after the last batch.
                     processBatch(remainingBatch); // Recursively call for next batch
                 } else {
                     showAdminNotice(response.data.message, 'error');
@@ -336,7 +349,7 @@ jQuery(document).ready(function($) {
                 // Pass true for showStatusColumn and isUploads
                 renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', true, true);
             }
-            showAdminNotice('Uploads scan complete.', 'success'); // Indicate scan is done.
+            showAdminNotice('Uploads scan complete. Check "Uploads Scan Results" table below.', 'success'); // Indicate scan is done.
         })
         .fail(() => {
             showAdminNotice('Uploads scan failed. Please check logs for details.', 'error');
@@ -356,8 +369,9 @@ jQuery(document).ready(function($) {
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_add', item_ids: selectedIds, nonce: nonce })
         .done(function(response) {
             if (response.success) {
-                showAdminNotice(response.data.processed_items.length + ' file(s) processed. Reloading page...', 'success');
-                // The page will reload to show updated stats and table.
+                // NEW: Update uploads table with latest data directly
+                renderItemsTable(response.data.items, '#scan-uploads-container', 'upload_items[]', true, true);
+                showAdminNotice(response.data.processed_items.length + ' file(s) processed. Table updated.', 'success');
             } else {
                 showAdminNotice(response.data.message, 'error');
             }
@@ -367,7 +381,6 @@ jQuery(document).ready(function($) {
         })
         .always(function() {
             $addBtn.prop('disabled', false).text('Add Selected to KB'); // Changed button text back
-            location.reload(); // Reload page to show updated stats
         });
     });
 
@@ -387,9 +400,25 @@ jQuery(document).ready(function($) {
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: scanType, item_ids: [itemId], nonce: nonce })
         .done(response => {
             if (response.success) {
-                showAdminNotice('1 item processed successfully. Reloading page...', 'success');
-                // Reload the page to ensure all stats and tables are updated consistently.
-                location.reload();
+                showAdminNotice('1 item processed successfully. Table updated.', 'success');
+                // NEW: Update relevant table directly based on itemType
+                if (itemType === 'website') {
+                    // Re-fetch and re-render website items
+                    $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_find', nonce: nonce })
+                    .done(resp => {
+                        if (resp.success) {
+                            renderItemsTable(resp.data.items, '#scan-results-container', 'items[]', true);
+                        }
+                    });
+                } else if (itemType === 'upload') {
+                    // Re-fetch and re-render uploads items
+                    $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_find', nonce: nonce })
+                    .done(resp => {
+                        if (resp.success) {
+                            renderItemsTable(resp.data.items, '#scan-uploads-container', 'upload_items[]', true, true);
+                        }
+                    });
+                }
             } else {
                 showAdminNotice(response.data.message, 'error');
                 // Restore link on error
