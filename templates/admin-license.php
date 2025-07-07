@@ -1,8 +1,12 @@
 <?php
 /**
- * Admin License page template - Final version.
- * This version uses a custom notice container to ensure correct error message placement.
+ * Admin License page template.
+ * This file displays license status and options for AIOHM Tribe membership.
  */
+ 
+ // The POST handling section for aiohm_register is removed here as per previous context updates
+ // that moved the primary license page logic to a new design, and these POST handlers
+ // are not present in the new admin-license.php provided earlier.
 
 // Prevent direct access
 if (!defined('ABSPATH')) exit;
@@ -16,20 +20,40 @@ $username = null;
 $has_tribe_plan = false;
 $has_club_plan = false;
 
+// Variables to store API data for display
+$api_profile_data = null;
+$api_memberships_data = null;
+
 if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
     $api_client = new AIOHM_App_API_Client();
+
+    // Log profile details API call
     $profile_response = $api_client->get_member_details($personal_api_key);
-    if (!is_wp_error($profile_response) && isset($profile_response['response']['result'])) {
-        $user_profile_info = $profile_response['response']['result'];
-        $username = $user_profile_info['display_name'] ?? ($user_profile_info['username'] ?? null);
+    if (is_wp_error($profile_response)) {
+        AIOHM_KB_Assistant::log('License Page API Error (Profile Details): ' . $profile_response->get_error_message(), 'error');
+    } else {
+        AIOHM_KB_Assistant::log('License Page API Success (Profile Details) for user ID: ' . $personal_api_key, 'info');
+        if (isset($profile_response['response']['result'])) {
+            $user_profile_info = $profile_response['response']['result'];
+            $username = $user_profile_info['display_name'] ?? ($user_profile_info['username'] ?? null);
+            $api_profile_data = $user_profile_info; // Store for display
+        }
     }
+
+    // Log memberships API call
     $memberships_response = $api_client->get_member_memberships($personal_api_key);
-    if (!is_wp_error($memberships_response) && !empty($memberships_response['response']['result']['memberships'])) {
-        $user_plans_details = $memberships_response['response']['result']['memberships'];
-        foreach ($user_plans_details as $plan) {
-            if (isset($plan['name'])) {
-                if (stripos($plan['name'], 'Tribe') !== false) { $has_tribe_plan = true; }
-                if (stripos($plan['name'], 'Club') !== false) { $has_club_plan = true; }
+    if (is_wp_error($memberships_response)) {
+        AIOHM_KB_Assistant::log('License Page API Error (Memberships): ' . $memberships_response->get_error_message(), 'error');
+    } else {
+        AIOHM_KB_Assistant::log('License Page API Success (Memberships) for user ID: ' . $personal_api_key, 'info');
+        if (!empty($memberships_response['response']['result']['memberships'])) {
+            $user_plans_details = $memberships_response['response']['result']['memberships'];
+            $api_memberships_data = $user_plans_details; // Store for display
+            foreach ($user_plans_details as $plan) {
+                if (isset($plan['name'])) {
+                    if (stripos($plan['name'], 'Tribe') !== false) { $has_tribe_plan = true; }
+                    if (stripos($plan['name'], 'Club') !== false) { $has_club_plan = true; }
+                }
             }
         }
     }
@@ -49,12 +73,12 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
             <h3><?php _e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
             <h4 class="plan-price"><?php _e('This free tier is where brand resonance begins.', 'aiohm-kb-assistant'); ?></h4>
             <p><?php _e('Root into your why. Begin with deep reflection and intentional alignment. Access your personal Brand Soul Map through our guided questionnaire and shape your AI with the truths that matter most to you.', 'aiohm-kb-assistant'); ?></p>
-            <a href="https://www.aiohm.app/tribe" target="_blank" class="button button-primary" style="margin-top: auto;">🔓 <?php _e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
+            <a href="https://www.aiohm.app/tribe" target="_blank" class="button button-primary" style="margin-top: auto;">箔 <?php _e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
         </div>
 
         <div class="aiohm-feature-box">
              <?php if ($is_user_linked) : ?>
-                <div class="box-icon">👤</div>
+                <div class="box-icon">側</div>
                 <h3><?php echo $username ? esc_html($username) : __('Account Connected', 'aiohm-kb-assistant'); ?></h3>
                 <p><?php _e('Your site is linked to your AIOHM Tribe profile, unlocking personal features like the AI Brand Soul questionnaire and custom chat experiences.', 'aiohm-kb-assistant'); ?></p>
                 <form method="post" action="options.php" class="aiohm-disconnect-form">
@@ -64,7 +88,7 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
                     <button type="submit" class="button button-primary button-disconnect"><?php _e('Disconnect Account', 'aiohm-kb-assistant'); ?></button>
                 </form>
              <?php else : ?>
-                <div class="box-icon">🔑</div>
+                <div class="box-icon">泊</div>
                 <h3><?php _e('Connect Your Account', 'aiohm-kb-assistant'); ?></h3>
                 <p><?php _e('Enter your AIOHM User ID below to link your site and unlock personal features. You can find this in your AIOHM member profile.', 'aiohm-kb-assistant'); ?></p>
 
@@ -91,12 +115,36 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
             <?php else: ?>
                 <h4 class="plan-price"><?php _e('1 euro per month for first 100 members.', 'aiohm-kb-assistant'); ?></h4>
                 <div class="plan-description"><p>Club members gain exclusive access to Mirror Mode for soul-aligned insights and Muse Mode for idea-rich, emotionally attuned content. This is where your brand’s clarity meets creative flow.</p></div>
-                <a href="https://www.aiohm.app/club/" target="_blank" class="button button-primary" style="margin-top: auto;">🔓 <?php _e('Join AIOHM Club', 'aiohm-kb-assistant'); ?></a>
+                <a href="https://www.aiohm.app/club/" target="_blank" class="button button-primary" style="margin-top: auto;">箔 <?php _e('Join AIOHM Club', 'aiohm-kb-assistant'); ?></a>
             <?php endif; ?>
         </div>
     </div>
 
     <div id="aiohm-connection-status" style="display:none; margin-top: 20px;"></div>
+
+    <?php if ($is_user_linked): ?>
+    <div class="aiohm-settings-section" style="margin-top: 20px;">
+        <h2><?php _e('API Connection Debug Info (from aiohm.app)', 'aiohm-kb-assistant'); ?></h2>
+        <?php if ($api_profile_data && is_array($api_profile_data)): ?>
+            <h3><?php _e('User Profile Details:', 'aiohm-kb-assistant'); ?></h3>
+            <pre style="background: #f8f8f8; padding: 15px; border: 1px solid #ddd; border-radius: 4px; overflow-x: auto;"><code><?php echo esc_html(json_encode($api_profile_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)); ?></code></pre>
+        <?php elseif (is_wp_error($profile_response)): ?>
+            <p style="color: #dc3545;"><?php _e('Error fetching profile details:', 'aiohm-kb-assistant'); ?> <?php echo esc_html($profile_response->get_error_message()); ?></p>
+        <?php else: ?>
+            <p><?php _e('No profile data available or API call failed silently.', 'aiohm-kb-assistant'); ?></p>
+        <?php endif; ?>
+
+        <?php if ($api_memberships_data && is_array($api_memberships_data)): ?>
+            <h3><?php _e('User Memberships Details:', 'aiohm-kb-assistant'); ?></h3>
+            <pre style="background: #f8f8f8; padding: 15px; border: 1px solid #ddd; border-radius: 4px; overflow-x: auto;"><code><?php echo esc_html(json_encode($api_memberships_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)); ?></code></pre>
+        <?php elseif (is_wp_error($memberships_response)): ?>
+            <p style="color: #dc3545;"><?php _e('Error fetching memberships details:', 'aiohm-kb-assistant'); ?> <?php echo esc_html($memberships_response->get_error_message()); ?></p>
+        <?php else: ?>
+            <p><?php _e('No memberships data available or API call failed silently.', 'aiohm-kb-assistant'); ?></p>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
 
 </div>
 

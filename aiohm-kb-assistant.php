@@ -55,7 +55,7 @@ class AIOHM_KB_Assistant {
     }
     
     public function load_dependencies() {
-        // Corrected: Removed the problematic require_once for admin-license.php
+        // Corrected: Added 'user-functions.php' to the list of loaded files.
         $files = [
             'core-init.php', 
             'settings-page.php', 
@@ -68,7 +68,8 @@ class AIOHM_KB_Assistant {
             'shortcode-chat.php', 
             'shortcode-search.php', 
             'frontend-widget.php', 
-            'chat-box.php'
+            'chat-box.php',
+            'user-functions.php' // <-- Added this line
         ];
         foreach ($files as $file) {
             $path = AIOHM_KB_INCLUDES_DIR . $file;
