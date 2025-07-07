@@ -26,30 +26,49 @@ class AIOHM_App_API_Client {
      */
     private function make_request($endpoint, $args = []) {
         if (empty($this->api_key)) {
+            // Log missing API key error.
+            AIOHM_KB_Assistant::log('AIOHM_App_API_Client: The main AIOHM.app API Key (internal) is not configured in the plugin.', 'error');
             return new WP_Error('api_key_missing', 'The main AIOHM.app API Key (internal) is not configured in the plugin.');
         }
 
         $args['arm_api_key'] = $this->api_key; // Use the fixed plugin API key for these endpoints
         $request_url = add_query_arg($args, $this->base_url . $endpoint);
 
+        // Log the full request URL.
+        AIOHM_KB_Assistant::log('AIOHM_App_API_Client: API Request URL: ' . $request_url, 'info');
+
         $response = wp_remote_get($request_url, ['timeout' => 20]);
 
+        // Log the raw response from wp_remote_get.
+        AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Raw API Response (wp_remote_get): ' . print_r($response, true), 'debug');
+
         if (is_wp_error($response)) {
+            // Log WordPress HTTP error.
+            AIOHM_KB_Assistant::log('AIOHM_App_API_Client: WP_Error during API request: ' . $response->get_error_message(), 'error');
             return $response;
         }
 
         $body = wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
 
+        // Log the decoded API response body.
+        AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Decoded API Response Body: ' . print_r($data, true), 'debug');
+
         if (json_last_error() !== JSON_ERROR_NONE) {
+            // Log JSON decoding error.
+            AIOHM_KB_Assistant::log('AIOHM_App_API_Client: API response could not be decoded. JSON error: ' . json_last_error_msg(), 'error');
             return new WP_Error('api_json_decode_error', 'API response could not be decoded.');
         }
         
         // Check for specific error status from the API
         if (isset($data['status']) && $data['status'] == 0 && isset($data['message'])) {
+            // Log API-specific error message.
+            AIOHM_KB_Assistant::log('AIOHM_App_API_Client: API returned an error status: ' . $data['message'], 'error');
              return new WP_Error('api_error_response', $data['message'], ['status_code' => 200, 'api_data' => $data]);
         }
         if (isset($data['error'])) {
+            // Log generic API error message.
+            AIOHM_KB_Assistant::log('AIOHM_App_API_Client: API returned an error: ' . $data['error'], 'error');
             return new WP_Error('api_error', $data['error']);
         }
         
@@ -63,6 +82,7 @@ class AIOHM_App_API_Client {
      */
     public function get_member_details_by_email($email) {
         if (empty($email) || !is_email($email)) {
+            AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Missing or invalid email for get_member_details_by_email.', 'error');
             return new WP_Error('missing_email', 'A valid email address is required.');
         }
         // Assuming the API endpoint for email lookup exists.
@@ -85,6 +105,7 @@ class AIOHM_App_API_Client {
      */
     public function get_membership_plan_details($plan_id) {
         if (empty($plan_id)) {
+            AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Missing plan ID for get_membership_plan_details.', 'error');
             return new WP_Error('missing_plan_id', 'Plan ID is required.');
         }
         return $this->make_request('arm_membership_details', ['arm_plan_id' => $plan_id]);
@@ -98,6 +119,7 @@ class AIOHM_App_API_Client {
      */
     public function get_member_details($arm_user_id, $metakeys = []) {
         if (empty($arm_user_id)) {
+            AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Missing ARMember User ID for get_member_details.', 'error');
             return new WP_Error('missing_arm_user_id', 'ARMember User ID is required.');
         }
         $args = ['arm_user_id' => $arm_user_id];
@@ -116,6 +138,7 @@ class AIOHM_App_API_Client {
      */
     public function get_member_memberships($arm_user_id, $page = 1, $perpage = 5) {
         if (empty($arm_user_id)) {
+            AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Missing ARMember User ID for get_member_memberships.', 'error');
             return new WP_Error('missing_arm_user_id', 'ARMember User ID is required.');
         }
         $args = [
@@ -134,6 +157,7 @@ class AIOHM_App_API_Client {
      */
     public function check_member_membership($arm_user_id, $plan_id) {
         if (empty($arm_user_id) || empty($plan_id)) {
+            AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Missing parameters for check_member_membership.', 'error');
             return new WP_Error('missing_params', 'ARMember User ID and Plan ID are required.');
         }
         $args = [

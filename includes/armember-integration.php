@@ -144,6 +144,13 @@ class AIOHM_KB_ARMember_Integration {
             $api_client = new AIOHM_App_API_Client();
             
             $remote_member_details = $api_client->get_member_details($aiohm_app_arm_user_id);
+            AIOHM_KB_Assistant::log('AIOHM_KB_ARMember_Integration: Raw Membership API Response: ' . print_r($remote_member_memberships, true), 'debug');
+
+if (is_wp_error($remote_member_memberships)) {
+    AIOHM_KB_Assistant::log('AIOHM_KB_ARMember_Integration: WP_Error fetching remote member memberships: ' . $remote_member_memberships->get_error_message(), 'error');
+    throw new Exception("API Error fetching remote member memberships: " . $remote_member_memberships->get_error_message());
+}
+AIOHM_KB_Assistant::log('AIOHM_KB_ARMember_Integration: Decoded Membership Data: ' . print_r($remote_member_memberships, true), 'debug');
             if (is_wp_error($remote_member_details)) {
                 throw new Exception("API Error fetching remote member details: " . $remote_member_details->get_error_message());
             }
