@@ -6,12 +6,13 @@ if (!defined('ABSPATH')) exit;
 
 // Set default values for all settings to avoid errors on first load
 $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
-    'personal_api_key' => '',
+    'aiohm_personal_bot_id' => '',
     'openai_api_key' => '',
-    'chat_enabled' => true, // Added chat_enabled setting
-    'show_floating_chat' => false, // Added show_floating_chat setting
-    'scan_schedule' => 'none', // NEW: Default for scan schedule
-    'aiohm_app_arm_user_id' => '', // NEW: Default for AIOHM.app ARMember User ID
+    'gemini_api_key' => '',
+    'claude_api_key' => '',
+    'chat_enabled' => true,
+    'show_floating_chat' => false,
+    'scan_schedule' => 'none',
 ]);
 ?>
 <div class="wrap aiohm-settings-page">
@@ -21,9 +22,26 @@ $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
         <?php settings_fields('aiohm_kb_settings'); ?>
         
         <div class="aiohm-settings-section">
-            <h2><?php _e('API Keys & AIOHM.app Connection', 'aiohm-kb-assistant'); ?></h2>
-            <p><?php _e('Connect your assistant to the required services and your AIOHM.app account.', 'aiohm-kb-assistant'); ?></p>
+            <h2><?php _e('API Keys & Service Connections', 'aiohm-kb-assistant'); ?></h2>
+            <p><?php _e('Connect your assistant to the required AI services and your AIOHM.app account.', 'aiohm-kb-assistant'); ?></p>
             <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="aiohm_personal_bot_id"><?php _e('AIOHM Personal Bot ID', 'aiohm-kb-assistant'); ?></label></th>
+                    <td>
+                        <div class="aiohm-api-key-wrapper">
+                            <input type="password" id="aiohm_personal_bot_id" name="aiohm_kb_settings[aiohm_personal_bot_id]" 
+                                   value="<?php echo esc_attr($settings['aiohm_personal_bot_id']); ?>" class="regular-text">
+                            <button type="button" class="button button-secondary aiohm-show-hide-key" data-target="aiohm_personal_bot_id">
+                                <span class="dashicons dashicons-visibility"></span>
+                            </button>
+                            <button type="button" class="button button-secondary aiohm-check-key" data-type="aiohm_bot_id">
+                                <?php _e('Check Connection', 'aiohm-kb-assistant'); ?>
+                            </button>
+                            <span class="spinner"></span>
+                        </div>
+                        <p class="description" id="aiohm_bot_id-api-status"><?php _e("Your unique Bot ID from aiohm.app. This links your plugin to your user profile.", 'aiohm-kb-assistant'); ?></p>
+                    </td>
+                </tr>
                 <tr>
                     <th scope="row"><label for="openai_api_key"><?php _e('OpenAI API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
@@ -33,28 +51,46 @@ $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
                             <button type="button" class="button button-secondary aiohm-show-hide-key" data-target="openai_api_key">
                                 <span class="dashicons dashicons-visibility"></span>
                             </button>
-                            <button type="button" class="button button-secondary" id="aiohm-check-api-key">
+                            <button type="button" class="button button-secondary aiohm-check-key" data-type="openai">
                                 <?php _e('Check API Key', 'aiohm-kb-assistant'); ?>
                             </button>
                             <span class="spinner"></span>
                         </div>
-                        <p class="description" id="aiohm-api-status"><?php _e("<strong>This key is required for your AI to think and generate responses.</strong> It connects your site to the OpenAI language models.", 'aiohm-kb-assistant'); ?></p>
+                        <p class="description" id="openai-api-status"><?php _e("Required for core AI functionality like embeddings and chat.", 'aiohm-kb-assistant'); ?></p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="personal_api_key"><?php _e('Personal AIOHM.app API Key', 'aiohm-kb-assistant'); ?></label></th>
+                    <th scope="row"><label for="gemini_api_key"><?php _e('Gemini API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
-                        <input type="password" id="personal_api_key" name="aiohm_kb_settings[personal_api_key]" value="<?php echo esc_attr($settings['personal_api_key']); ?>" class="regular-text">
-                        <p class="description"><?php _e("Enter the key from your aiohm.app account. <strong>This links your plugin to your personal AIOHM.app profile for features like 'Brand Soul'.</strong>", 'aiohm-kb-assistant'); ?></p>
+                        <div class="aiohm-api-key-wrapper">
+                            <input type="password" id="gemini_api_key" name="aiohm_kb_settings[gemini_api_key]" 
+                                   value="<?php echo esc_attr($settings['gemini_api_key']); ?>" class="regular-text">
+                            <button type="button" class="button button-secondary aiohm-show-hide-key" data-target="gemini_api_key">
+                                <span class="dashicons dashicons-visibility"></span>
+                            </button>
+                             <button type="button" class="button button-secondary aiohm-check-key" data-type="gemini">
+                                <?php _e('Check API Key', 'aiohm-kb-assistant'); ?>
+                            </button>
+                            <span class="spinner"></span>
+                        </div>
+                        <p class="description" id="gemini-api-status"><?php _e("Optional. Add your Google Gemini API key to enable Gemini models.", 'aiohm-kb-assistant'); ?></p>
                     </td>
                 </tr>
-                <tr>
-                    <th scope="row"><label for="aiohm_app_arm_user_id"><?php _e('AIOHM.app ARMember User ID', 'aiohm-kb-assistant'); ?></label></th>
+                 <tr>
+                    <th scope="row"><label for="claude_api_key"><?php _e('Claude API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
-                        <input type="text" id="aiohm_app_arm_user_id" name="aiohm_kb_settings[aiohm_app_arm_user_id]" 
-                               value="<?php echo esc_attr($settings['aiohm_app_arm_user_id']); ?>" class="regular-text">
-                        <p class="description"><?php _e("If your AIOHM Tribe membership is managed on aiohm.app (not locally), enter your **ARMember User ID from aiohm.app** here to sync your membership status.", 'aiohm-kb-assistant'); ?></p>
-                        <p class="description"><em><?php _e('You can usually find this ID in your AIOHM.app account profile or membership area.', 'aiohm-kb-assistant'); ?></em></p>
+                        <div class="aiohm-api-key-wrapper">
+                            <input type="password" id="claude_api_key" name="aiohm_kb_settings[claude_api_key]" 
+                                   value="<?php echo esc_attr($settings['claude_api_key']); ?>" class="regular-text">
+                            <button type="button" class="button button-secondary aiohm-show-hide-key" data-target="claude_api_key">
+                                <span class="dashicons dashicons-visibility"></span>
+                            </button>
+                             <button type="button" class="button button-secondary aiohm-check-key" data-type="claude">
+                                <?php _e('Check API Key', 'aiohm-kb-assistant'); ?>
+                            </button>
+                            <span class="spinner"></span>
+                        </div>
+                        <p class="description" id="claude-api-status"><?php _e("Optional. Add your Anthropic Claude API key to enable Claude models.", 'aiohm-kb-assistant'); ?></p>
                     </td>
                 </tr>
             </table>
@@ -62,14 +98,13 @@ $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
 
         <div class="aiohm-settings-section">
             <h2><?php _e('Chat Assistant Settings', 'aiohm-kb-assistant'); ?></h2>
-            <p><?php _e('Configure the behavior of your public-facing AI chat assistant.', 'aiohm-kb-assistant'); ?></p>
             <table class="form-table">
                 <tr>
                     <th scope="row"><?php _e('Enable Chat Assistant', 'aiohm-kb-assistant'); ?></th>
                     <td>
                         <label for="chat_enabled">
                             <input type="checkbox" id="chat_enabled" name="aiohm_kb_settings[chat_enabled]" value="1" <?php checked(1, $settings['chat_enabled']); ?> />
-                            <?php _e('Check this box to enable the public-facing chat assistant on your website.', 'aiohm-kb-assistant'); ?>
+                            <?php _e('Enable the public-facing chat assistant on your website.', 'aiohm-kb-assistant'); ?>
                         </label>
                     </td>
                 </tr>
@@ -78,40 +113,8 @@ $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
                     <td>
                         <label for="show_floating_chat">
                             <input type="checkbox" id="show_floating_chat" name="aiohm_kb_settings[show_floating_chat]" value="1" <?php checked(1, $settings['show_floating_chat']); ?> />
-                            <?php _e('Check this box to display a floating chat widget on all pages.', 'aiohm-kb-assistant'); ?>
+                            <?php _e('Display a floating chat widget on all pages.', 'aiohm-kb-assistant'); ?>
                         </label>
-                    </td>
-                </tr>
-            </table>
-        </div>
-
-        <div class="aiohm-settings-section">
-            <h2><?php _e('Scheduled Content Scan', 'aiohm-kb-assistant'); ?></h2>
-            <p class="description"><?php _e('Automate scanning and indexing of new or updated posts, pages, and supported media files (TXT, JSON, CSV, PDF). This will add any new pending content to your Knowledge Base.', 'aiohm-kb-assistant'); ?></p>
-            <table class="form-table">
-                <tr>
-                    <th scope="row"><label for="scan_schedule"><?php _e('Scan Frequency', 'aiohm-kb-assistant'); ?></label></th>
-                    <td>
-                        <select id="scan_schedule" name="aiohm_kb_settings[scan_schedule]">
-                            <option value="none" <?php selected($settings['scan_schedule'], 'none'); ?>><?php _e('None', 'aiohm-kb-assistant'); ?></option>
-                            <option value="daily" <?php selected($settings['scan_schedule'], 'daily'); ?>><?php _e('Once Daily', 'aiohm-kb-assistant'); ?></option>
-                            <option value="weekly" <?php selected($settings['scan_schedule'], 'weekly'); ?>><?php _e('Once Weekly', 'aiohm-kb-assistant'); ?></option>
-                            <option value="monthly" <?php selected($settings['scan_schedule'], 'monthly'); ?>><?php _e('Once Monthly', 'aiohm-kb-assistant'); ?></option>
-                        </select>
-                        <p class="description"><?php _e('Choose how often the plugin should automatically scan and add new content to your Knowledge Base.', 'aiohm-kb-assistant'); ?></p>
-                        <?php
-                            $next_scheduled = wp_next_scheduled(AIOHM_KB_SCHEDULED_SCAN_HOOK);
-                            if ($next_scheduled) {
-                                echo '<p class="description">';
-                                printf(
-                                    __('Next scheduled scan: %s', 'aiohm-kb-assistant'),
-                                    date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $next_scheduled)
-                                );
-                                echo '</p>';
-                            } else if ($settings['scan_schedule'] !== 'none') {
-                                echo '<p class="description">' . __('Scheduled event is not set. Save settings to initiate.', 'aiohm-kb-assistant') . '</p>';
-                            }
-                        ?>
                     </td>
                 </tr>
             </table>
@@ -123,22 +126,26 @@ $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), [
 <style>
 .aiohm-settings-section { background: #fff; padding: 1px 20px 10px; border: 1px solid #dcdcde; margin-bottom: 20px; }
 .aiohm-api-key-wrapper { display: flex; gap: 5px; align-items: center; }
-#aiohm-api-status.success { color: #28a745; }
-#aiohm-api-status.error { color: #dc3545; }
+.description.success { color: #28a745; }
+.description.error { color: #dc3545; }
 </style>
 <script>
 jQuery(document).ready(function($){
+    // Generic hide/show button handler
     $('.aiohm-show-hide-key').on('click', function(){
         const $input = $('#' + $(this).data('target'));
         const type = $input.attr('type');
         $input.attr('type', type === 'password' ? 'text' : 'password');
     });
 
-    $('#aiohm-check-api-key').on('click', function(){
+    // Generic API Key Check handler
+    $('.aiohm-check-key').on('click', function(){
         const $btn = $(this);
+        const keyType = $btn.data('type');
+        const $input = $btn.siblings('input[type="password"], input[type="text"]');
+        const apiKey = $input.val();
         const $spinner = $btn.siblings('.spinner');
-        const $status = $('#aiohm-api-status');
-        const apiKey = $('#openai_api_key').val();
+        const $status = $('#' + keyType + '-api-status');
 
         $btn.prop('disabled', true);
         $spinner.addClass('is-active');
@@ -147,11 +154,12 @@ jQuery(document).ready(function($){
         $.post(ajaxurl, {
             action: 'aiohm_check_api_key',
             nonce: '<?php echo wp_create_nonce("aiohm_admin_nonce"); ?>',
-            api_key: apiKey
+            api_key: apiKey,
+            key_type: keyType
         }).done(function(response){
             $status.text(response.data.message).addClass(response.success ? 'success' : 'error');
         }).fail(function(){
-            $status.text('An unknown error occurred.');
+            $status.text('An unknown error occurred.').addClass('error');
         }).always(function(){
             $btn.prop('disabled', false);
             $spinner.removeClass('is-active');

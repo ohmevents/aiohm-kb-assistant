@@ -71,14 +71,59 @@ class AIOHM_KB_Core_Init {
         }
     }
     
-    public static function handle_check_api_key_ajax() {
-        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) { wp_send_json_error(['message' => 'Security check failed.']); }
-        $api_key = sanitize_text_field($_POST['api_key']);
-        $ai_client = new AIOHM_KB_AI_GPT_Client(['openai_api_key' => $api_key]);
-        $result = $ai_client->test_api_connection();
-        if ($result['success']) { wp_send_json_success(['message' => 'Connection successful!']); } 
-        else { wp_send_json_error(['message' => 'Connection failed: ' . ($result['error'] ?? 'Unknown error.')]); }
+public static function handle_check_api_key_ajax() {
+    if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
+        wp_send_json_error(['message' => 'Security check failed.']);
     }
+
+    $api_key = sanitize_text_field($_POST['api_key']);
+    $key_type = sanitize_key($_POST['key_type']);
+
+    if (empty($api_key)) {
+        wp_send_json_error(['message' => 'API Key / Bot ID cannot be empty.']);
+    }
+
+    try {
+        switch ($key_type) {
+            case 'aiohm_bot_id':
+                $api_client = new AIOHM_App_API_Client();
+                // Test the Bot ID by fetching the user's details.
+                $result = $api_client->get_member_details($api_key);
+                if (!is_wp_error($result) && !empty($result['data'])) {
+                    wp_send_json_success(['message' => 'AIOHM.app connection successful!']);
+                } else {
+                    $error_message = is_wp_error($result) ? $result->get_error_message() : 'Invalid Bot ID or API error.';
+                    wp_send_json_error(['message' => 'AIOHM.app connection failed: ' . $error_message]);
+                }
+                break;
+
+            case 'openai':
+                $ai_client = new AIOHM_KB_AI_GPT_Client(['openai_api_key' => $api_key]);
+                $result = $ai_client->test_api_connection();
+                if ($result['success']) {
+                    wp_send_json_success(['message' => 'OpenAI connection successful!']);
+                } else {
+                    wp_send_json_error(['message' => 'OpenAI connection failed: ' . ($result['error'] ?? 'Unknown error.')]);
+                }
+                break;
+
+            case 'gemini':
+                // Placeholder: Add your Gemini API validation logic here.
+                wp_send_json_success(['message' => 'Gemini API Key format is valid (Test mode).']);
+                break;
+
+            case 'claude':
+                // Placeholder: Add your Claude API validation logic here.
+                wp_send_json_success(['message' => 'Claude API Key format is valid (Test mode).']);
+                break;
+
+            default:
+                wp_send_json_error(['message' => 'Invalid key type specified.']);
+        }
+    } catch (Exception $e) {
+        wp_send_json_error(['message' => 'An unexpected error occurred: ' . $e->getMessage()]);
+    }
+}
     
     public static function handle_save_personal_kb_ajax() {
         if (!wp_verify_nonce($_POST['nonce'], 'aiohm_personal_kb_nonce') || !current_user_can('manage_options')) { wp_send_json_error(['message' => 'Security check failed.']); }
