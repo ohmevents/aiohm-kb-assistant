@@ -69,7 +69,7 @@ class AIOHM_KB_Assistant {
             'frontend-widget.php', 
             'chat-box.php',
             'user-functions.php',
-            'armember-integration.php'
+            'pmpro-integration.php' // Using PMPro integration
         ];
         foreach ($files as $file) {
             $path = AIOHM_KB_INCLUDES_DIR . $file;
@@ -83,7 +83,7 @@ class AIOHM_KB_Assistant {
         AIOHM_KB_Shortcode_Chat::init();
         AIOHM_KB_Shortcode_Search::init();
         AIOHM_KB_Frontend_Widget::init();
-        AIOHM_KB_ARMember_Integration::init();
+        AIOHM_KB_PMP_Integration::init(); // Using PMPro integration
     }
     
     public function activate() {
@@ -105,7 +105,6 @@ class AIOHM_KB_Assistant {
     
     public static function get_settings() {
         $default_settings = [
-            'aiohm_app_arm_user_id' => '', // Renamed from personal_api_key
             'aiohm_app_email' => '', // New setting
             'openai_api_key'   => '',
             'gemini_api_key' => '',

@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin Dashboard template.
- * This version redesigns the Welcome tab with the new 4-box layout.
+ * This version redesigns the Welcome tab with the new 4-box layout and uses PMPro for access checks.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -9,8 +9,8 @@ if (!defined('ABSPATH')) exit;
 $default_tab = 'welcome';
 $current_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : $default_tab;
 
-// Check Club access using the new helper function
-$has_club_access = AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access();
+// Check Club access using the new PMPro helper function
+$has_club_access = AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
 ?>
 
 <div class="wrap aiohm-dashboard">

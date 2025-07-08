@@ -146,7 +146,10 @@ jQuery(document).ready(function($) {
         }
         tableHtml += `</tbody></table>`;
         $container.html(tableHtml);
-        hasPendingItems ? $addButton.show() : $addButton.hide();
+        
+        // **MODIFIED LINE**: Disable the button instead of hiding it.
+        $addButton.prop('disabled', !hasPendingItems);
+
         $container.find('thead input:checkbox').prop('checked', false);
     }
 
@@ -163,7 +166,7 @@ jQuery(document).ready(function($) {
         function processBatch(batch) {
             if (batch.length === 0) {
                 $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: findScanType, nonce: nonce }).done(r => {
-                    if (r.success) { renderItemsTable(r.data.items, containerSelector, isUploads ? 'upload_items[]' : 'items[]', true, isUploads); }
+                    if (r.success) { renderItemsTable(r.data.items, containerSelector, isUploads ? 'upload_items[]' : 'items[]', isUploads); }
                 }).always(() => { $addBtn.prop('disabled', false); $progress.fadeOut(); });
                 showAdminNotice('All selected items processed.', 'success');
                 return;
@@ -209,14 +212,14 @@ jQuery(document).ready(function($) {
         $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: addScanType, item_ids: [itemId], nonce: nonce })
         .done(() => { 
             $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: findScanType, nonce: nonce })
-            .done(r => r.success && renderItemsTable(r.data.items, container, checkboxName, true, itemType === 'upload'));
+            .done(r => r.success && renderItemsTable(r.data.items, container, checkboxName, itemType === 'upload'));
         }); 
     });
     
     $(document).on('click', '.aiohm-scan-section thead input:checkbox', function(){ $(this).closest('table').find('tbody input:checkbox:not(:disabled)').prop('checked', this.checked); });
 
     // Initial table loads
-    $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_find', nonce: nonce }).done(r => r.success && renderItemsTable(r.data.items, '#scan-results-container', 'items[]', true, false));
-    $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_find', nonce: nonce }).done(r => r.success && renderItemsTable(r.data.items, '#scan-uploads-container', 'upload_items[]', true, true));
+    $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'website_find', nonce: nonce }).done(r => r.success && renderItemsTable(r.data.items, '#scan-results-container', 'items[]', false));
+    $.post(ajaxurl, { action: 'aiohm_progressive_scan', scan_type: 'uploads_find', nonce: nonce }).done(r => r.success && renderItemsTable(r.data.items, '#scan-uploads-container', 'upload_items[]', true));
 });
 </script>

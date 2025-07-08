@@ -23,7 +23,7 @@ class AIOHM_KB_Shortcode_Chat {
      */
     public static function setup_floating_chat() {
         $settings = AIOHM_KB_Assistant::get_settings();
-        $has_club_access = AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access();
+        $has_club_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
 
         // Only load floating chat if chat is enabled AND floating chat specifically is enabled AND user has Club access
         if (($settings['chat_enabled'] ?? false) && ($settings['show_floating_chat'] ?? false) && $has_club_access) {
@@ -36,7 +36,7 @@ class AIOHM_KB_Shortcode_Chat {
      */
     public static function render_chat_shortcode($atts) {
         $settings = AIOHM_KB_Assistant::get_settings();
-        $has_club_access = AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access();
+        $has_club_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
         
         // Check if chat is enabled from settings OR if user has Club access
         if (!($settings['chat_enabled'] ?? false) || !$has_club_access) {
@@ -199,7 +199,6 @@ class AIOHM_KB_Shortcode_Chat {
         $output .= '</div>';
         
         // Embed the chat shortcode
-        // Pass club_enabled=true to ensure render_chat_shortcode doesn't block itself due to shortcode's own check
         $chat_atts = array(
             'title' => '',
             'height' => $atts['height'],
@@ -207,7 +206,7 @@ class AIOHM_KB_Shortcode_Chat {
             'theme' => 'floating',
             'show_branding' => 'false',
             'welcome_message' => __('Hello! How can I help you today?', 'aiohm-kb-assistant'),
-            'chat_enabled' => true // Override for internal embedding, actual check is before shortcode renders
+            'chat_enabled' => true 
         );
         
         $output .= self::render_chat_shortcode($chat_atts);
@@ -236,9 +235,8 @@ class AIOHM_KB_Shortcode_Chat {
      */
     public static function add_floating_chat() {
         $settings = AIOHM_KB_Assistant::get_settings();
-        $has_club_access = AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access();
+        $has_club_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
         
-        // Only show if global chat is enabled, user has Club access, and not in admin or JSON request
         if (($settings['chat_enabled'] ?? false) && ($settings['show_floating_chat'] ?? false) && $has_club_access && !is_admin() && !wp_is_json_request()) {
             echo self::render_floating_chat();
         }

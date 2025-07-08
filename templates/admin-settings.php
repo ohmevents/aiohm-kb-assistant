@@ -6,8 +6,8 @@ if (!defined('ABSPATH')) exit;
 
 // --- Start: Data Fetching and Status Checks ---
 $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), []);
-// Check Club access using the new helper function
-$can_access_settings = AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access();
+// Check Club access using the new PMPro helper function
+$can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
 // --- End: Data Fetching and Status Checks ---
 ?>
 
