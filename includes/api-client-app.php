@@ -102,32 +102,7 @@ class AIOHM_App_API_Client {
         return $this->make_request('arm_member_details_by_email', ['arm_user_email' => $email]);
     }
 
-    /**
-     * Checks Club membership status by email using a custom endpoint.
-     * This assumes your aiohm.app has a custom REST endpoint at /wp-json/aiohm/v1/check-club-status/
-     * and that it validates requests using the 'arm_api_key' which is automatically added by make_request.
-     *
-     * @param string $email The user's email.
-     * @return array|WP_Error {'status': 'active'/'inactive'} or WP_Error.
-     */
-    public function check_club_membership_by_email($email) { // Removed $secret_key parameter
-        if (empty($email) || !is_email($email)) {
-            AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Missing or invalid email for check_club_membership_by_email.', 'error');
-            return new WP_Error('missing_params', 'Email is required for Club membership check.');
-        }
-
-        // Define the full URL for your custom endpoint. `make_request` will automatically add `arm_api_key`.
-        $custom_endpoint_url = 'https://www.aiohm.app/wp-json/aiohm/v1/check-club-status/';
-        
-        // The request body will now only contain the email.
-        $body = [
-            'email' => $email,
-        ];
-
-        // Call the `make_request` helper with the full URL, no additional query args, POST method, and the body.
-        return $this->make_request($custom_endpoint_url, [], 'POST', $body);
-    }
-
+    // The check_club_membership_by_email() method is REMOVED as it's no longer necessary.
 
     /**
      * Fetches the list of all membership plans from aiohm.app.

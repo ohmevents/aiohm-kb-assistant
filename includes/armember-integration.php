@@ -52,24 +52,20 @@ class AIOHM_KB_ARMember_Integration {
         $aiohm_app_arm_user_id = $settings['aiohm_app_arm_user_id'] ?? '';
         $aiohm_app_email = $settings['aiohm_app_email'] ?? '';
         
-        // Determine if we have a valid identifier (either ARMember User ID or Email) to proceed
         $has_identifier = !empty($aiohm_app_arm_user_id) || !empty($aiohm_app_email);
 
         if ($has_identifier) {
             $api_client = new AIOHM_App_API_Client();
             $remote_member_details = null;
 
-            // Prioritize using the stored ARMember User ID if available
             if (!empty($aiohm_app_arm_user_id)) {
                 AIOHM_KB_Assistant::log("Fetching ARMember data from aiohm.app API using stored user ID {$aiohm_app_arm_user_id}.", 'info');
                 $remote_member_details = $api_client->get_member_details($aiohm_app_arm_user_id);
             } elseif (!empty($aiohm_app_email)) {
-                // If only email is set, try to get details by email to retrieve the ARMember User ID
                 AIOHM_KB_Assistant::log("Fetching ARMember data from aiohm.app API using stored email {$aiohm_app_email}.", 'info');
                 $email_lookup_result = $api_client->get_member_details_by_email($aiohm_app_email);
                 if (!is_wp_error($email_lookup_result) && !empty($email_lookup_result['response']['result']['ID'])) {
                     $aiohm_app_arm_user_id = $email_lookup_result['response']['result']['ID'];
-                    // Update setting if we found ID by email, so future calls can use the direct ID
                     $new_settings = AIOHM_KB_Assistant::get_settings();
                     $new_settings['aiohm_app_arm_user_id'] = $aiohm_app_arm_user_id;
                     update_option('aiohm_kb_settings', $new_settings);
@@ -79,7 +75,6 @@ class AIOHM_KB_ARMember_Integration {
                     throw new Exception('Email lookup failed for ARMember integration.');
                 }
             } else {
-                // Should not be reached due to $has_identifier check, but as a safeguard
                 throw new Exception('AIOHM.app API integration for ARMember is not configured with either user ID or email.');
             }
 
@@ -288,16 +283,18 @@ class AIOHM_KB_ARMember_Integration {
 
     /**
      * Helper function to check if the current user has Club access.
-     * This method fetches email from settings and calls the API.
-     * It specifically checks for 'AIOHM CLUB Year' (ID 4) or 'AIOHM CLUB Month' (ID 3) plans.
+     * This method fetches the stored ARMember User ID and checks against Club plan IDs.
+     * It uses ARMember's built-in API endpoint for verification.
      * @return bool True if user has Club access, false otherwise.
      */
     public static function aiohm_user_has_club_access() {
         $settings = AIOHM_KB_Assistant::get_settings();
-        $user_email = $settings['aiohm_app_email'] ?? '';
-        
-        if (empty($user_email) || !class_exists('AIOHM_App_API_Client')) {
-            AIOHM_KB_Assistant::log('AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access: Missing AIOHM App Email or API Client.', 'debug');
+        $aiohm_app_arm_user_id = $settings['aiohm_app_arm_user_id'] ?? '';
+        $user_email = $settings['aiohm_app_email'] ?? ''; // Still need email for potential fallback lookup
+
+        // Must have an ARMember User ID from aiohm.app to check membership
+        if (empty($aiohm_app_arm_user_id) || !class_exists('AIOHM_App_API_Client')) {
+            AIOHM_KB_Assistant::log('AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access: Missing AIOHM App ARMember User ID or API Client.', 'debug');
             return false;
         }
 
@@ -308,20 +305,29 @@ class AIOHM_KB_ARMember_Integration {
         }
 
         $api_client = new AIOHM_App_API_Client();
-        AIOHM_KB_Assistant::log("AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access: Checking club membership for {$user_email}.", 'debug');
-        
-        // This call assumes the aiohm.app endpoint `check-club-status` will correctly
-        // identify if the user has a "Club" plan based on their email.
-        $result = $api_client->check_club_membership_by_email($user_email);
+        $club_plan_ids = ['3', '4']; // AIOHM CLUB Month & Year (from your screenshot)
+        $has_active_club_plan = false;
 
-        if (!is_wp_error($result) && isset($result['status']) && $result['status'] === 'active') {
+        AIOHM_KB_Assistant::log("AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access: Checking club membership for ARMember User ID {$aiohm_app_arm_user_id}.", 'debug');
+
+        foreach ($club_plan_ids as $plan_id) {
+            $result = $api_client->check_member_membership($aiohm_app_arm_user_id, $plan_id);
+
+            if (!is_wp_error($result) && isset($result['response']['result']['status']) && $result['response']['result']['status'] === 'active') {
+                $has_active_club_plan = true;
+                break; // Found an active club plan, no need to check others
+            }
+             AIOHM_KB_Assistant::log('AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access: Check for Plan ID ' . $plan_id . ' Result: ' . print_r($result, true), 'debug');
+        }
+        
+        if ($has_active_club_plan) {
             $club_access_status = true;
             AIOHM_KB_Assistant::log('AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access: Club access granted.', 'info');
             return true;
+        } else {
+            $club_access_status = false;
+            AIOHM_KB_Assistant::log('AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access: No active Club plan found for user.', 'info');
+            return false;
         }
-
-        AIOHM_KB_Assistant::log('AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access: Club access denied or API error: ' . (is_wp_error($result) ? $result->get_error_message() : ($result['status'] ?? 'Unknown status')), 'info');
-        $club_access_status = false;
-        return false;
     }
 }
