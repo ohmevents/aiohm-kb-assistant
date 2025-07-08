@@ -9,8 +9,8 @@ if (!defined('ABSPATH')) exit;
 
 // --- Start: Data Fetching and Status Checks ---
 $settings = AIOHM_KB_Assistant::get_settings();
-$personal_api_key = $settings['aiohm_personal_bot_id'] ?? '';
-$is_user_linked = !empty($personal_api_key);
+$aiohm_app_arm_user_id = $settings['aiohm_app_arm_user_id'] ?? '';
+$is_user_linked = !empty($aiohm_app_arm_user_id);
 $user_plans_details = [];
 $username = null;
 $has_tribe_plan = false;
@@ -18,12 +18,13 @@ $has_club_plan = false;
 
 if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
     $api_client = new AIOHM_App_API_Client();
-    $profile_response = $api_client->get_member_details($personal_api_key);
+    // Use the stored ARMember User ID for fetching details and memberships
+    $profile_response = $api_client->get_member_details($aiohm_app_arm_user_id);
     if (!is_wp_error($profile_response) && isset($profile_response['response']['result'])) {
         $user_profile_info = $profile_response['response']['result'];
         $username = $user_profile_info['display_name'] ?? ($user_profile_info['username'] ?? null);
     }
-    $memberships_response = $api_client->get_member_memberships($personal_api_key);
+    $memberships_response = $api_client->get_member_memberships($aiohm_app_arm_user_id);
     if (!is_wp_error($memberships_response) && !empty($memberships_response['response']['result']['memberships'])) {
         $user_plans_details = $memberships_response['response']['result']['memberships'];
         foreach ($user_plans_details as $plan) {
@@ -49,34 +50,50 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
             <h3><?php _e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
             <h4 class="plan-price"><?php _e('This free tier is where brand resonance begins.', 'aiohm-kb-assistant'); ?></h4>
             <p><?php _e('Root into your why. Begin with deep reflection and intentional alignment. Access your personal Brand Soul Map through our guided questionnaire and shape your AI with the truths that matter most to you.', 'aiohm-kb-assistant'); ?></p>
-            <a href="https://www.aiohm.app/tribe" target="_blank" class="button button-primary" style="margin-top: auto;">🔓 <?php _e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
+            <a href="https://www.aiohm.app/tribe" target="_blank" class="button button-primary" style="margin-top: auto;">箔 <?php _e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
         </div>
 
         <div class="aiohm-feature-box">
              <?php if ($is_user_linked) : ?>
-                <div class="box-icon">👤</div>
+                <div class="box-icon">側</div>
                 <h3><?php echo $username ? esc_html($username) : __('Account Connected', 'aiohm-kb-assistant'); ?></h3>
                 <p><?php _e('Your site is linked to your AIOHM Tribe profile, unlocking personal features like the AI Brand Soul questionnaire and custom chat experiences.', 'aiohm-kb-assistant'); ?></p>
                 <form method="post" action="options.php" class="aiohm-disconnect-form">
                     <?php settings_fields('aiohm_kb_settings'); ?>
-                    <input type="hidden" name="aiohm_kb_settings[aiohm_personal_bot_id]" value="">
-                    <?php foreach ($settings as $key => $value) { if ($key !== 'aiohm_personal_bot_id') { echo '<input type="hidden" name="aiohm_kb_settings[' . esc_attr($key) . ']" value="' . esc_attr(is_array($value) ? json_encode($value) : $value) . '">'; } } ?>
+                    <input type="hidden" name="aiohm_kb_settings[aiohm_app_arm_user_id]" value="">
+                    <input type="hidden" name="aiohm_kb_settings[aiohm_app_email]" value="">
+                    <?php 
+                    // Filter out the keys being explicitly set above or no longer needed
+                    foreach ($settings as $key => $value) { 
+                        if ($key !== 'aiohm_app_arm_user_id' && $key !== 'aiohm_app_email' && $key !== 'aiohm_app_secret_key') { 
+                            echo '<input type="hidden" name="aiohm_kb_settings[' . esc_attr($key) . ']" value="' . esc_attr(is_array($value) ? json_encode($value) : $value) . '">'; 
+                        } 
+                    } 
+                    ?>
                     <button type="submit" class="button button-primary button-disconnect"><?php _e('Disconnect Account', 'aiohm-kb-assistant'); ?></button>
                 </form>
              <?php else : ?>
-                <div class="box-icon">🔑</div>
+                <div class="box-icon">泊</div>
                 <h3><?php _e('Connect Your Account', 'aiohm-kb-assistant'); ?></h3>
-                <p><?php _e('Enter your AIOHM User ID below to link your site and unlock personal features. You can find this in your AIOHM member profile.', 'aiohm-kb-assistant'); ?></p>
+                <p><?php _e('Enter your AIOHM Email below to link your site and unlock personal features. You can find this in your AIOHM member profile.', 'aiohm-kb-assistant'); ?></p>
 
                 <div class="aiohm-connect-form-wrapper">
-                    <form id="aiohm-check-id-form">
-                        <input type="text" id="aiohm_personal_bot_id_check" placeholder="Enter Your AIOHM User ID" required>
-                        <button type="submit" id="check-aiohm-id-btn" class="button button-secondary"><?php _e('Verify & Connect', 'aiohm-kb-assistant'); ?></button>
+                    <form id="aiohm-check-email-form">
+                        <input type="email" id="aiohm_app_email_check" placeholder="Enter Your AIOHM Email" required>
+                        <button type="submit" id="check-aiohm-email-btn" class="button button-secondary"><?php _e('Verify & Connect', 'aiohm-kb-assistant'); ?></button>
                     </form>
                     <form method="post" action="options.php" id="aiohm-save-id-form" style="display:none;">
                          <?php settings_fields('aiohm_kb_settings'); ?>
-                         <input type="hidden" id="aiohm_personal_bot_id_save" name="aiohm_kb_settings[aiohm_personal_bot_id]" value="">
-                         <?php foreach ($settings as $key => $value) { if ($key !== 'aiohm_personal_bot_id') { echo '<input type="hidden" name="aiohm_kb_settings[' . esc_attr($key) . ']" value="' . esc_attr(is_array($value) ? json_encode($value) : $value) . '">'; } } ?>
+                         <input type="hidden" id="aiohm_app_arm_user_id_save" name="aiohm_kb_settings[aiohm_app_arm_user_id]" value="">
+                         <input type="hidden" id="aiohm_app_email_save" name="aiohm_kb_settings[aiohm_app_email]" value="">
+                         <?php 
+                         // Filter out the keys being explicitly set above or no longer needed
+                         foreach ($settings as $key => $value) { 
+                             if ($key !== 'aiohm_app_arm_user_id' && $key !== 'aiohm_app_email' && $key !== 'aiohm_app_secret_key') { 
+                                 echo '<input type="hidden" name="aiohm_kb_settings[' . esc_attr($key) . ']" value="' . esc_attr(is_array($value) ? json_encode($value) : $value) . '">'; 
+                             } 
+                         } 
+                         ?>
                          <button type="submit" class="button button-primary"><?php _e('Save and Activate Connection', 'aiohm-kb-assistant'); ?></button>
                     </form>
                 </div>
@@ -90,8 +107,8 @@ if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
                 <a href="https://aiohm.app/club" target="_blank" class="button button-secondary" style="margin-top: auto;"><?php _e('Manage Membership', 'aiohm-kb-assistant'); ?></a>
             <?php else: ?>
                 <h4 class="plan-price"><?php _e('1 euro per month for first 100 members.', 'aiohm-kb-assistant'); ?></h4>
-                <div class="plan-description"><p>Club members gain exclusive access to Mirror Mode for soul-aligned insights and Muse Mode for idea-rich, emotionally attuned content. This is where your brand’s clarity meets creative flow.</p></div>
-                <a href="https://www.aiohm.app/club/" target="_blank" class="button button-primary" style="margin-top: auto;">🔓 <?php _e('Join AIOHM Club', 'aiohm-kb-assistant'); ?></a>
+                <div class="plan-description"><p>Club members gain exclusive access to Mirror Mode for soul-aligned insights and Muse Mode for idea-rich, emotionally attuned content. This is where your brand窶冱 clarity meets creative flow.</p></div>
+                <a href="https://www.aiohm.app/club/" target="_blank" class="button button-primary" style="margin-top: auto;">箔 <?php _e('Join AIOHM Club', 'aiohm-kb-assistant'); ?></a>
             <?php endif; ?>
         </div>
     </div>
@@ -166,10 +183,11 @@ jQuery(document).ready(function($) {
         setTimeout(() => $statusContainer.fadeOut(), 5000);
     }
 
-    $('#aiohm-check-id-form').on('submit', function(e) {
+    // Changed form ID and input ID to reflect email input
+    $('#aiohm-check-email-form').on('submit', function(e) {
         e.preventDefault();
-        const $btn = $('#check-aiohm-id-btn');
-        const botId = $('#aiohm_personal_bot_id_check').val();
+        const $btn = $('#check-aiohm-email-btn');
+        const userEmail = $('#aiohm_app_email_check').val(); // Get email value
         const originalBtnText = $btn.html();
 
         $btn.prop('disabled', true).html('<span class="spinner is-active" style="float: none; margin-top: 0; vertical-align: middle;"></span> Verifying...');
@@ -177,16 +195,18 @@ jQuery(document).ready(function($) {
         $.post(ajaxurl, {
             action: 'aiohm_check_api_key',
             nonce: nonce,
-            api_key: botId,
-            key_type: 'aiohm_bot_id'
+            api_key: userEmail, // Send email as api_key
+            key_type: 'aiohm_email' // Indicate email type
         }).done(function(response) {
             if (response.success) {
                 showConnectionStatus(response.data.message, 'success');
-                $('#aiohm_personal_bot_id_save').val(botId);
-                $('#aiohm-check-id-form').hide();
-                $('#aiohm-save-id-form').show();
+                // Store both the returned user_id and the email
+                $('#aiohm_app_arm_user_id_save').val(response.data.user_id); 
+                $('#aiohm_app_email_save').val(userEmail); 
+                $('#aiohm-check-email-form').hide(); // Hide email form
+                $('#aiohm-save-id-form').show(); // Show save button
             } else {
-                showConnectionStatus(response.data.message || 'Verification failed. Please check the ID and try again.', 'error');
+                showConnectionStatus(response.data.message || 'Verification failed. Please check the email and try again.', 'error');
             }
         }).fail(function() {
             showConnectionStatus('An unexpected server error occurred.', 'error');

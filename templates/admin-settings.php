@@ -6,25 +6,8 @@ if (!defined('ABSPATH')) exit;
 
 // --- Start: Data Fetching and Status Checks ---
 $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), []);
-$personal_api_key = $settings['aiohm_personal_bot_id'] ?? '';
-$is_user_linked = !empty($personal_api_key);
-
-$has_club_plan = false;
-$has_private_plan = false;
-
-if ($is_user_linked && class_exists('AIOHM_App_API_Client')) {
-    $api_client = new AIOHM_App_API_Client();
-    $memberships_response = $api_client->get_member_memberships($personal_api_key);
-    if (!is_wp_error($memberships_response) && !empty($memberships_response['response']['result']['memberships'])) {
-        foreach (($memberships_response['response']['result']['memberships']) as $plan) {
-            if (isset($plan['name'])) {
-                if (stripos($plan['name'], 'Club') !== false) { $has_club_plan = true; }
-                if (stripos($plan['name'], 'Private') !== false) { $has_private_plan = true; }
-            }
-        }
-    }
-}
-$can_access_settings = $has_club_plan || $has_private_plan;
+// Check Club access using the new helper function
+$can_access_settings = AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access();
 // --- End: Data Fetching and Status Checks ---
 ?>
 
@@ -62,7 +45,7 @@ $can_access_settings = $has_club_plan || $has_private_plan;
                         </div>
                     </td>
                 </tr>
-            </table>
+                </table>
         </div>
         
         <?php submit_button(); ?>
@@ -73,8 +56,8 @@ $can_access_settings = $has_club_plan || $has_private_plan;
                     <div class="lock-content">
                         <div class="lock-icon">🔒</div>
                         <h2><?php _e('Unlock Advanced Settings', 'aiohm-kb-assistant'); ?></h2>
-                        <p><?php _e('These settings require a Club or Private membership to configure.', 'aiohm-kb-assistant'); ?></p>
-                        <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-dashboard&tab=club')); ?>" class="button button-primary"><?php _e('Explore Memberships', 'aiohm-kb-assistant'); ?></a>
+                        <p><?php _e('These settings require an AIOHM Club or Private membership to configure. Please ensure your AIOHM App Email is configured correctly on the License page, and you have an active Club/Private membership.', 'aiohm-kb-assistant'); ?></p>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-license&tab=club')); ?>" class="button button-primary"><?php _e('Explore Memberships', 'aiohm-kb-assistant'); ?></a>
                     </div>
                 </div>
             <?php endif; ?>

@@ -8,6 +8,9 @@ if (!defined('ABSPATH')) exit;
 // --- Data Fetching and Status Checks ---
 $default_tab = 'welcome';
 $current_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : $default_tab;
+
+// Check Club access using the new helper function
+$has_club_access = AIOHM_KB_ARMember_Integration::aiohm_user_has_club_access();
 ?>
 
 <div class="wrap aiohm-dashboard">
@@ -77,7 +80,17 @@ $current_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : $default_tab;
               <div class="container">
                 <h1 class="headline">AIOHM Club</h1>
                 <p class="intro">Designed for creators ready to bring depth and ease into their message. AIOHM Club gives you access to tools that think like you—so your voice leads the way.</p>
-                <div class="benefits-grid">
+                <?php if (!$has_club_access) : // Lock content if no club access ?>
+                    <div class="aiohm-settings-locked-overlay" style="position: relative; padding: 40px; margin-bottom: 40px;">
+                        <div class="lock-content" style="background: none; box-shadow: none; border: none;">
+                            <div class="lock-icon">🔒</div>
+                            <h2><?php _e('Unlock Club Features', 'aiohm-kb-assistant'); ?></h2>
+                            <p><?php _e('Join the AIOHM Club to access Mirror Mode (Q&A Chatbot) and Muse Mode (Brand Assistant).', 'aiohm-kb-assistant'); ?></p>
+                            <a href="https://www.aiohm.app/club" target="_blank" class="button button-primary"><?php _e('Join AIOHM Club', 'aiohm-kb-assistant'); ?></a>
+                        </div>
+                    </div>
+                <?php endif; ?>
+                <div class="benefits-grid <?php echo !$has_club_access ? 'is-locked' : ''; ?>">
                   <div class="benefit"><h3>✨ Mirror Mode (Q&A Chatbot)</h3><p>A sacred space to reflect on your brand. Ask questions. Hear your truth echoed back through the Mirror—powered by your Brand Soul and knowledge base.</p></div>
                   <div class="benefit"><h3>🎨 Muse Mode (Brand Assistant)</h3><p>Create content that feels like you wrote it on your best day. Muse Mode understands your tone, your offers, your audience—and helps shape captions, emails, and ideas.</p></div>
                 </div>
@@ -94,7 +107,17 @@ $current_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : $default_tab;
               <div class="container">
                 <h1 class="headline">AIOHM Private</h1>
                 <p class="intro">A private channel for your most sacred work. Built for creators, guides, and visionaries who need more than general AI tools—they need intimacy, integrity, and invisible support.</p>
-                <div class="benefits-grid">
+                <?php if (!$has_club_access) : // Private plan implies club access, so use club access check ?>
+                    <div class="aiohm-settings-locked-overlay" style="position: relative; padding: 40px; margin-bottom: 40px;">
+                        <div class="lock-content" style="background: none; box-shadow: none; border: none;">
+                            <div class="lock-icon">🔒</div>
+                            <h2><?php _e('Unlock Private Features', 'aiohm-kb-assistant'); ?></h2>
+                            <p><?php _e('Private features are available with an AIOHM Private membership.', 'aiohm-kb-assistant'); ?></p>
+                            <a href="https://www.aiohm.app/private" target="_blank" class="button button-primary"><?php _e('Explore Private', 'aiohm-kb-assistant'); ?></a>
+                        </div>
+                    </div>
+                <?php endif; ?>
+                <div class="benefits-grid <?php echo !$has_club_access ? 'is-locked' : ''; ?>">
                   <div class="benefit"><h3>🔐 Full Privacy & Confidentiality</h3><p>Your content never leaves your WordPress site. All AI responses are generated within your protected space.</p></div>
                   <div class="benefit"><h3>🧠 Personalized LLM Connection</h3><p>Connect to a private model endpoint so your AI assistant learns only from your truth, not the internet.</p></div>
                 </div>
@@ -204,6 +227,37 @@ $current_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : $default_tab;
     .aiohm-sales-page .cta .button-primary:hover {
         background-color: var(--ohm-dark-accent);
         border-color: var(--ohm-dark-accent);
+    }
+    .aiohm-sales-page .benefits-grid.is-locked {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+    .aiohm-settings-locked-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(235, 235, 235, 0.8);
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        border-radius: 8px;
+    }
+    .aiohm-settings-locked-overlay .lock-content {
+        background: #fff;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        max-width: 400px;
+        width: 100%;
+    }
+    .aiohm-settings-locked-overlay .lock-icon {
+        font-size: 4em;
+        color: var(--ohm-primary);
+        margin-bottom: 15px;
     }
     @media (max-width: 768px) {
       .aiohm-sales-page .benefits-grid { grid-template-columns: 1fr; }

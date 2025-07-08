@@ -3,7 +3,7 @@
  * Plugin Name: AIOHM Knowledge Assistant
  * Plugin URI: https://aiohm.app
  * Description: Bring your wisdom to life. The AIOHM Knowledge Assistant listens, learns, and speaks in your brand's voice, offering real-time answers, soulful brand support, and intuitive guidance for your visitors. With Muse and Mirror modes, it doesn't just respond - it resonates.
- * Version: 1.1.5
+ * Version: 1.1.6
  * Author: OHM Events Agency
  * Author URI: https://aiohm.app
  * Text Domain: aiohm-knowledge-assistant
@@ -17,7 +17,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('AIOHM_KB_VERSION', '1.1.5');
+define('AIOHM_KB_VERSION', '1.1.6');
 define('AIOHM_KB_PLUGIN_FILE', __FILE__);
 define('AIOHM_KB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AIOHM_KB_INCLUDES_DIR', AIOHM_KB_PLUGIN_DIR . 'includes/');
@@ -55,7 +55,6 @@ class AIOHM_KB_Assistant {
     }
     
     public function load_dependencies() {
-        // Corrected: Added 'user-functions.php' to the list of loaded files.
         $files = [
             'core-init.php', 
             'settings-page.php', 
@@ -69,7 +68,8 @@ class AIOHM_KB_Assistant {
             'shortcode-search.php', 
             'frontend-widget.php', 
             'chat-box.php',
-            'user-functions.php' // <-- Added this line
+            'user-functions.php',
+            'armember-integration.php'
         ];
         foreach ($files as $file) {
             $path = AIOHM_KB_INCLUDES_DIR . $file;
@@ -83,6 +83,7 @@ class AIOHM_KB_Assistant {
         AIOHM_KB_Shortcode_Chat::init();
         AIOHM_KB_Shortcode_Search::init();
         AIOHM_KB_Frontend_Widget::init();
+        AIOHM_KB_ARMember_Integration::init();
     }
     
     public function activate() {
@@ -104,8 +105,11 @@ class AIOHM_KB_Assistant {
     
     public static function get_settings() {
         $default_settings = [
-            'personal_api_key' => '',
+            'aiohm_app_arm_user_id' => '', // Renamed from personal_api_key
+            'aiohm_app_email' => '', // New setting
             'openai_api_key'   => '',
+            'gemini_api_key' => '',
+            'claude_api_key' => '',
             'chat_enabled'     => true,
             'show_floating_chat' => false,
             'scan_schedule'    => 'none',
@@ -138,13 +142,7 @@ class AIOHM_KB_Assistant {
     }
     
     private function set_default_options() {
-        add_option('aiohm_kb_settings', [
-            'personal_api_key' => '',
-            'openai_api_key' => '',
-            'chat_enabled' => true,
-            'show_floating_chat' => false,
-            'scan_schedule' => 'none',
-        ], '', 'no');
+        add_option('aiohm_kb_settings', self::get_settings(), '', 'no');
     }
 
     public function add_settings_link($links) {
@@ -161,7 +159,6 @@ class AIOHM_KB_Assistant {
      * @param string $level The log level (e.g., 'info', 'warning', 'error').
      */
     public static function log($message, $level = 'info') {
-        // Corrected the typo from WP_DEBUG_log to WP_DEBUG_LOG
         if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG === true) {
             $log_prefix = '[AIOHM_KB_Assistant] ' . strtoupper($level) . ': ';
             error_log($log_prefix . $message);

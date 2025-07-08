@@ -8,66 +8,79 @@ if (!defined('ABSPATH')) exit;
 class AIOHM_App_API_Client {
 
     private $api_key;
-    // Updated base_url to include the common v1 path
+    // Base URL for ARMember API endpoints.
     private $base_url = 'https://www.aiohm.app/wp-json/armember/v1/';
 
     public function __construct() {
-        // The API key is now hard-coded here for security and simplicity.
-        // It is no longer a user-facing setting.
-        // This is the global plugin API key for armember endpoints.
+        // This is the global plugin API key for armember endpoints, hard-coded for security.
         $this->api_key = '45zNQcAA6MnTzVud1YhFROC95SVAGC';
     }
 
     /**
-     * Helper function to make an authenticated GET request to the API.
-     * @param string $endpoint The API endpoint relative to base_url.
-     * @param array $args Query parameters.
+     * Helper function to make an authenticated GET/POST request to the API.
+     * Automatically adds the plugin's internal API key.
+     *
+     * @param string $endpoint The API endpoint (can be relative to base_url or a full URL for custom endpoints).
+     * @param array $args Query parameters to be appended to the URL.
+     * @param string $method HTTP method ('GET' or 'POST').
+     * @param array $body Request body for POST requests, will be JSON encoded.
      * @return array|WP_Error Decoded API response or WP_Error on failure.
      */
-    private function make_request($endpoint, $args = []) {
+    private function make_request($endpoint, $args = [], $method = 'GET', $body = []) {
         if (empty($this->api_key)) {
-            // Log missing API key error.
             AIOHM_KB_Assistant::log('AIOHM_App_API_Client: The main AIOHM.app API Key (internal) is not configured in the plugin.', 'error');
             return new WP_Error('api_key_missing', 'The main AIOHM.app API Key (internal) is not configured in the plugin.');
         }
 
-        $args['arm_api_key'] = $this->api_key; // Use the fixed plugin API key for these endpoints
-        $request_url = add_query_arg($args, $this->base_url . $endpoint);
+        // Determine if the endpoint is a full URL (for custom endpoints) or a relative path
+        $is_full_url = filter_var($endpoint, FILTER_VALIDATE_URL);
+        $request_url = $is_full_url ? $endpoint : $this->base_url . $endpoint;
+        
+        // Add the primary API key to arguments for all requests
+        $args['arm_api_key'] = $this->api_key;
 
-        // Log the full request URL.
+        // Construct the full request URL with query arguments
+        $request_url = add_query_arg($args, $request_url);
+
         AIOHM_KB_Assistant::log('AIOHM_App_API_Client: API Request URL: ' . $request_url, 'info');
 
-        $response = wp_remote_get($request_url, ['timeout' => 20]);
+        $request_args = [
+            'timeout' => 20,
+            'headers' => [
+                'Content-Type' => 'application/json',
+            ],
+        ];
 
-        // Log the raw response from wp_remote_get.
-        AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Raw API Response (wp_remote_get): ' . print_r($response, true), 'debug');
+        if ($method === 'POST') {
+            $request_args['body'] = json_encode($body);
+            $response = wp_remote_post($request_url, $request_args);
+        } else {
+            $response = wp_remote_get($request_url, $request_args);
+        }
+
+        AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Raw API Response (wp_remote_get/post): ' . print_r($response, true), 'debug');
 
         if (is_wp_error($response)) {
-            // Log WordPress HTTP error.
             AIOHM_KB_Assistant::log('AIOHM_App_API_Client: WP_Error during API request: ' . $response->get_error_message(), 'error');
             return $response;
         }
 
-        $body = wp_remote_retrieve_body($response);
-        $data = json_decode($body, true);
+        $body_content = wp_remote_retrieve_body($response);
+        $data = json_decode($body_content, true);
 
-        // Log the decoded API response body.
         AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Decoded API Response Body: ' . print_r($data, true), 'debug');
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            // Log JSON decoding error.
             AIOHM_KB_Assistant::log('AIOHM_App_API_Client: API response could not be decoded. JSON error: ' . json_last_error_msg(), 'error');
             return new WP_Error('api_json_decode_error', 'API response could not be decoded.');
         }
         
-        // Check for specific error status from the API
+        // Check for specific error status from the API response
         if (isset($data['status']) && $data['status'] == 0 && isset($data['message'])) {
-            // Log API-specific error message.
             AIOHM_KB_Assistant::log('AIOHM_App_API_Client: API returned an error status: ' . $data['message'], 'error');
              return new WP_Error('api_error_response', $data['message'], ['status_code' => 200, 'api_data' => $data]);
         }
         if (isset($data['error'])) {
-            // Log generic API error message.
             AIOHM_KB_Assistant::log('AIOHM_App_API_Client: API returned an error: ' . $data['error'], 'error');
             return new WP_Error('api_error', $data['error']);
         }
@@ -76,7 +89,8 @@ class AIOHM_App_API_Client {
     }
     
     /**
-     * NEW: Fetches details of a specific member from aiohm.app by email.
+     * Fetches details of a specific member from aiohm.app by email.
+     *
      * @param string $email The member's email on aiohm.app.
      * @return array|WP_Error
      */
@@ -85,8 +99,33 @@ class AIOHM_App_API_Client {
             AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Missing or invalid email for get_member_details_by_email.', 'error');
             return new WP_Error('missing_email', 'A valid email address is required.');
         }
-        // Assuming the API endpoint for email lookup exists.
         return $this->make_request('arm_member_details_by_email', ['arm_user_email' => $email]);
+    }
+
+    /**
+     * Checks Club membership status by email using a custom endpoint.
+     * This assumes your aiohm.app has a custom REST endpoint at /wp-json/aiohm/v1/check-club-status/
+     * and that it validates requests using the 'arm_api_key' which is automatically added by make_request.
+     *
+     * @param string $email The user's email.
+     * @return array|WP_Error {'status': 'active'/'inactive'} or WP_Error.
+     */
+    public function check_club_membership_by_email($email) { // Removed $secret_key parameter
+        if (empty($email) || !is_email($email)) {
+            AIOHM_KB_Assistant::log('AIOHM_App_API_Client: Missing or invalid email for check_club_membership_by_email.', 'error');
+            return new WP_Error('missing_params', 'Email is required for Club membership check.');
+        }
+
+        // Define the full URL for your custom endpoint. `make_request` will automatically add `arm_api_key`.
+        $custom_endpoint_url = 'https://www.aiohm.app/wp-json/aiohm/v1/check-club-status/';
+        
+        // The request body will now only contain the email.
+        $body = [
+            'email' => $email,
+        ];
+
+        // Call the `make_request` helper with the full URL, no additional query args, POST method, and the body.
+        return $this->make_request($custom_endpoint_url, [], 'POST', $body);
     }
 
 
@@ -113,6 +152,7 @@ class AIOHM_App_API_Client {
 
     /**
      * Fetches details of a specific member from aiohm.app.
+     *
      * @param int $arm_user_id The member's user ID on aiohm.app.
      * @param array $metakeys Optional: Specific meta keys to retrieve.
      * @return array|WP_Error
@@ -131,6 +171,7 @@ class AIOHM_App_API_Client {
 
     /**
      * Fetches a list of a member's membership plans from aiohm.app.
+     *
      * @param int $arm_user_id The member's user ID on aiohm.app.
      * @param int $page Optional: Page number.
      * @param int $perpage Optional: Items per page.
@@ -151,6 +192,7 @@ class AIOHM_App_API_Client {
 
     /**
      * Verifies a member's active membership plan from aiohm.app.
+     *
      * @param int $arm_user_id The member's user ID on aiohm.app.
      * @param int $plan_id The plan ID to check against.
      * @return array|WP_Error

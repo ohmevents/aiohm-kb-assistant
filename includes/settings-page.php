@@ -98,9 +98,13 @@ public function sanitize_settings($input) {
     // --- Sanitize all possible settings ---
 
     // Sanitize API Keys & Bot ID
-    if (isset($input['aiohm_personal_bot_id'])) {
-        $sanitized['aiohm_personal_bot_id'] = sanitize_text_field(trim($input['aiohm_personal_bot_id']));
+    if (isset($input['aiohm_app_arm_user_id'])) {
+        $sanitized['aiohm_app_arm_user_id'] = sanitize_text_field(trim($input['aiohm_app_arm_user_id']));
     }
+    if (isset($input['aiohm_app_email'])) {
+        $sanitized['aiohm_app_email'] = sanitize_email(trim($input['aiohm_app_email']));
+    }
+    // Removed: 'aiohm_app_secret_key' from sanitization as it's no longer a user input.
     if (isset($input['openai_api_key'])) {
         $sanitized['openai_api_key'] = sanitize_text_field(trim($input['openai_api_key']));
     }

@@ -76,37 +76,38 @@ public static function handle_check_api_key_ajax() {
         wp_send_json_error(['message' => 'Security check failed.']);
     }
 
-    $api_key = sanitize_text_field($_POST['api_key']);
+    $api_key = sanitize_text_field($_POST['api_key']); // This now holds email or bot_id depending on key_type
     $key_type = sanitize_key($_POST['key_type']);
 
     if (empty($api_key)) {
-        wp_send_json_error(['message' => 'API Key / Bot ID cannot be empty.']);
+        wp_send_json_error(['message' => 'API Key / Bot ID / Email cannot be empty.']);
     }
 
     try {
         switch ($key_type) {
             case 'aiohm_email':
                 $api_client = new AIOHM_App_API_Client();
+                // Use get_member_details_by_email to verify email and get ARMember user ID
                 $result = $api_client->get_member_details_by_email($api_key); // $api_key holds the email here
                 
-                if (!is_wp_error($result) && !empty($result['data']['ID'])) {
+                if (!is_wp_error($result) && !empty($result['response']['result']['ID'])) {
                     wp_send_json_success([
                         'message' => 'AIOHM.app connection successful!',
-                        'user_id' => $result['data']['ID'] // Send back the user ID to be saved
+                        'user_id' => $result['response']['result']['ID'] // Send back the user ID to be saved
                     ]);
                 } else {
-                    $error_message = is_wp_error($result) ? $result->get_error_message() : 'Invalid Email or API error.';
+                    $error_message = is_wp_error($result) ? $result->get_error_message() : ($result['message'] ?? 'Invalid Email or API error.');
                     wp_send_json_error(['message' => 'AIOHM.app connection failed: ' . $error_message]);
                 }
                 break;
-            case 'aiohm_bot_id':
+            case 'aiohm_bot_id': // This case might become less relevant if primary connection is email-based
                 $api_client = new AIOHM_App_API_Client();
                 // Test the Bot ID by fetching the user's details.
                 $result = $api_client->get_member_details($api_key);
-                if (!is_wp_error($result) && !empty($result['data'])) {
+                if (!is_wp_error($result) && !empty($result['response']['result'])) {
                     wp_send_json_success(['message' => 'AIOHM.app connection successful!']);
                 } else {
-                    $error_message = is_wp_error($result) ? $result->get_error_message() : 'Invalid Bot ID or API error.';
+                    $error_message = is_wp_error($result) ? $result->get_error_message() : ($result['message'] ?? 'Invalid Bot ID or API error.');
                     wp_send_json_error(['message' => 'AIOHM.app connection failed: ' . $error_message]);
                 }
                 break;
@@ -228,7 +229,8 @@ public static function handle_check_api_key_ajax() {
             $rag_engine = new AIOHM_KB_RAG_Engine();
             $count = $rag_engine->import_knowledge_base($json_data);
             wp_send_json_success(['message' => $count . ' entries have been successfully restored. The page will now reload.']);
-        } catch (Exception $e) {
+        }
+        catch (Exception $e) {
             wp_send_json_error(['message' => 'Restore failed: ' . $e->getMessage()]);
         }
     }
@@ -269,7 +271,7 @@ public static function handle_check_api_key_ajax() {
         try {
             // Instantiate ARMember integration and call the sync method
             $armember_integration = new AIOHM_KB_ARMember_Integration();
-            $armember_integration->sync_user_profile_on_demand($user_id); // This new method will be added to AIOHM_KB_ARMember_Integration
+            $armember_integration->sync_user_profile_on_demand($user_id);
 
             wp_send_json_success(['message' => 'ARMember membership synced successfully for current user.']);
 
