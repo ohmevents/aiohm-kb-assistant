@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin Dashboard template.
- * This version redesigns the Welcome tab with the new 4-box layout and uses PMPro for access checks.
+ * This version redesigns the Welcome tab with the new 4-box layout.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -10,14 +10,14 @@ $default_tab = 'welcome';
 $current_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : $default_tab;
 
 // Check Club access using the new PMPro helper function
-$has_club_access = AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
+$has_club_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
 ?>
 
 <div class="wrap aiohm-dashboard">
 
-    <div class="aiohm-header">
-        <h1><?php _e('AIOHM Assistant Dashboard', 'aiohm-kb-assistant'); ?></h1>
-        <p class="aiohm-tagline"><?php _e("Welcome! Let's turn your content into an expert AI assistant.", 'aiohm-kb-assistant'); ?></p>
+    <div class="aiohm-header" style="text-align: center;">
+        <h1 style="text-align: center;"><?php _e('AIOHM Assistant Dashboard', 'aiohm-kb-assistant'); ?></h1>
+        <p class="aiohm-tagline" style="margin-left: auto; margin-right: auto;"><?php _e("Welcome! Let's turn your content into an expert AI assistant.", 'aiohm-kb-assistant'); ?></p>
     </div>
 
     <nav class="nav-tab-wrapper">
@@ -31,27 +31,27 @@ $has_club_access = AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
 
         <?php if ($current_tab === 'welcome'): ?>
             <div class="aiohm-getting-started">
-                 <h2><?php _e('How to Embody Your AI Voice', 'aiohm-kb-assistant'); ?></h2>
+                 <h2 style="text-align: center;"><?php _e('4 Steps to Turn Your Site Into a Living Knowledge Base', 'aiohm-kb-assistant'); ?></h2>
                 <div class="aiohm-steps">
                     <div class="aiohm-step">
-                        <h3><?php _e('1. Anchor Your Essence', 'aiohm-kb-assistant'); ?></h3>
-                        <p><?php _e('Choose your AI provider and connect your AIOHM account. This step is where your spiritual tech meets soulful intent—your API keys and Brand Soul become the roots of your assistant.', 'aiohm-kb-assistant'); ?></p>
+                        <h3><?php _e('1. Root Your Presence', 'aiohm-kb-assistant'); ?></h3>
+                        <p><?php _e('Connect your preferred AI provider with AIOHM.<br><br>This is where your structure meets spirit. Add your API key from OpenAI, Claude, or Gemini to activate the intelligence behind your knowledge base. You’re not just powering a system - you’re preparing your voice to be heard clearly.', 'aiohm-kb-assistant'); ?></p>
                         <a href="<?php echo admin_url('admin.php?page=aiohm-settings'); ?>" class="button button-secondary"><?php _e('→ [Open Settings]', 'aiohm-kb-assistant'); ?></a>
                     </div>
                     <div class="aiohm-step">
-                        <h3><?php _e('2. Gather Your Wisdom', 'aiohm-kb-assistant'); ?></h3>
-                        <p><?php _e('Curate the content your AI will learn from—pages, posts, and resources that reflect your truth. This isn’t about data; it’s about soul-aligned storytelling.', 'aiohm-kb-assistant'); ?></p>
+                        <h3><?php _e('2. Feed the Flame', 'aiohm-kb-assistant'); ?></h3>
+                        <p><?php _e('Choose which content carries your essence.<br><br>Curate pages and posts that truly represent your mission. Not just information—transmission.', 'aiohm-kb-assistant'); ?></p>
                         <a href="<?php echo admin_url('admin.php?page=aiohm-scan-content'); ?>" class="button button-secondary"><?php _e('→ [Go to Scan Page]', 'aiohm-kb-assistant'); ?></a>
                     </div>
                     <div class="aiohm-step">
-                        <h3><?php _e('3. Refine the Field', 'aiohm-kb-assistant'); ?></h3>
-                        <p><?php _e('Step into sacred curation. Review what your AI has absorbed, remove what no longer serves, and shape the resonance of its voice. Your knowledge base is your energetic archive.', 'aiohm-kb-assistant'); ?></p>
+                        <h3><?php _e('3. Clear the Channel', 'aiohm-kb-assistant'); ?></h3>
+                        <p><?php _e('Refine your knowledge base for resonance.<br><br>Review, edit, and release what no longer aligns. Shape your AI’s voice like a sacred text.', 'aiohm-kb-assistant'); ?></p>
                         <a href="<?php echo admin_url('admin.php?page=aiohm-manage-kb'); ?>" class="button button-secondary"><?php _e('→ [Manage Knowledge]', 'aiohm-kb-assistant'); ?></a>
                     </div>
                     <div class="aiohm-step">
-                        <h3><?php _e('4. Invite the Voice Forward', 'aiohm-kb-assistant'); ?></h3>
-                        <p><?php _e('Activate your assistant on your site—with a shortcode or floating chat. Let your AI speak with clarity, consciousness, and care—just like you would.', 'aiohm-kb-assistant'); ?></p>
-                         <a href="<?php echo admin_url('admin.php?page=aiohm-settings'); ?>" class="button button-secondary"><?php _e('→ [Go to Settings]', 'aiohm-kb-assistant'); ?></a>
+                        <h3><?php _e('4. Set Your Wisdom Free', 'aiohm-kb-assistant'); ?></h3>
+                        <p><?php _e('Download your curated knowledge base and use it anywhere.<br><br>Your brand’s soul—structured and portable. Use it with any chatbot or platform that honors your voice.', 'aiohm-kb-assistant'); ?></p>
+                         <a href="<?php echo admin_url('admin.php?page=aiohm-manage-kb'); ?>" class="button button-secondary"><?php _e('→ [Export KB]', 'aiohm-kb-assistant'); ?></a>
                     </div>
                 </div>
             </div>
@@ -184,7 +184,7 @@ $has_club_access = AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
 
     /* Tab Content Layout */
     .aiohm-dashboard .aiohm-tab-content { margin-top: 20px; }
-    .aiohm-getting-started .aiohm-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+    .aiohm-getting-started .aiohm-steps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
     .aiohm-getting-started .aiohm-step { background: #fff; padding: 25px; border: 1px solid var(--ohm-light-bg); border-left: 4px solid var(--ohm-primary); border-radius: 4px; display: flex; flex-direction: column;}
     .aiohm-getting-started .aiohm-step p { flex-grow: 1; }
     .aiohm-getting-started .aiohm-step .button { margin-top: auto; }
@@ -260,6 +260,6 @@ $has_club_access = AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
         margin-bottom: 15px;
     }
     @media (max-width: 768px) {
-      .aiohm-sales-page .benefits-grid { grid-template-columns: 1fr; }
+      .aiohm-sales-page .benefits-grid, .aiohm-getting-started .aiohm-steps { grid-template-columns: 1fr; }
     }
 </style>

@@ -1,10 +1,8 @@
 <?php
 /**
- * Admin License page template - Final version.
- * This version uses the new PMPro integration and an email-based connection.
+ * Admin License page template - Final version with corrected logo and dynamic content.
  */
 
-// Prevent direct access
 if (!defined('ABSPATH')) exit;
 
 // --- Start: Data Fetching and Status Checks ---
@@ -12,10 +10,13 @@ $settings = AIOHM_KB_Assistant::get_settings();
 $user_email = $settings['aiohm_app_email'] ?? '';
 $is_user_linked = !empty($user_email);
 $has_club_access = false;
-$has_tribe_plan = $is_user_linked; // A linked account implies at least Tribe level.
+$membership_details = null;
+$display_name = null;
 
 if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
     $has_club_access = AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
+    $membership_details = AIOHM_KB_PMP_Integration::get_user_membership_details();
+    $display_name = AIOHM_KB_PMP_Integration::get_user_display_name();
 }
 // --- End: Data Fetching and Status Checks ---
 ?>
@@ -23,24 +24,30 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
     <h1><?php _e('AIOHM Membership & Features', 'aiohm-kb-assistant'); ?></h1>
     <p class="description"><?php _e('Connect your account to see the features available with your membership tier.', 'aiohm-kb-assistant'); ?></p>
 
-    <div id="aiohm-connection-status" style="display:none; margin-top: 20px;"></div>
-
     <div class="aiohm-feature-grid">
 
-        <div class="aiohm-feature-box <?php echo $has_tribe_plan ? 'plan-active' : 'plan-inactive'; ?>">
-            <div class="box-icon">
-                <img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="OHM Logo" class="ohm-logo-icon">
-            </div>
+        <div class="aiohm-feature-box <?php echo $is_user_linked ? 'plan-active' : 'plan-inactive'; ?>">
+            <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/AIOHM-logo.png'); ?>" alt="AIOHM Logo" class="ohm-logo-icon"></div>
             <h3><?php _e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
-            <h4 class="plan-price"><?php _e('This free tier is where brand resonance begins.', 'aiohm-kb-assistant'); ?></h4>
-            <p><?php _e('Root into your why. Begin with deep reflection and intentional alignment. Access your personal Brand Soul Map through our guided questionnaire and shape your AI with the truths that matter most to you.', 'aiohm-kb-assistant'); ?></p>
-            <a href="https://www.aiohm.app/tribe" target="_blank" class="button button-primary" style="margin-top: auto;">→ <?php _e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
+            <?php if ($is_user_linked) : ?>
+                <h4 class="plan-price"><?php _e('Welcome to the Tribe!', 'aiohm-kb-assistant'); ?></h4>
+                <div class="membership-info">
+                    <p><strong>Name:</strong> <?php echo esc_html($display_name ?? 'N/A'); ?></p>
+                    <p><strong>Email:</strong> <?php echo esc_html($user_email); ?></p>
+                </div>
+                <div class="plan-description"><p><?php _e('As a Tribe member, you can now use the core features of the AIOHM Assistant, including the Brand Soul questionnaire and knowledge base management.', 'aiohm-kb-assistant'); ?></p></div>
+                <a href="https://www.aiohm.app/members/" target="_blank" class="button button-secondary" style="margin-top: auto;"><?php _e('View Your Tribe Profile', 'aiohm-kb-assistant'); ?></a>
+            <?php else: ?>
+                <h4 class="plan-price"><?php _e('This free tier is where brand resonance begins.', 'aiohm-kb-assistant'); ?></h4>
+                <div class="plan-description"><p><?php _e('Root into your why. Begin with deep reflection and intentional alignment. Access your personal Brand Soul Map through our guided questionnaire and shape your AI with the truths that matter most to you.', 'aiohm-kb-assistant'); ?></p></div>
+                <a href="https://www.aiohm.app/tribe" target="_blank" class="button button-primary" style="margin-top: auto;">→ <?php _e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
+            <?php endif; ?>
         </div>
 
         <div class="aiohm-feature-box">
              <?php if ($is_user_linked) : ?>
                 <div class="box-icon">🔗</div>
-                <h3><?php _e('Account Connected', 'aiohm-kb-assistant'); ?></h3>
+                <h3><?php echo esc_html($display_name ?? 'Account Connected'); ?></h3>
                 <p><?php printf(__('Your site is linked via the email: %s', 'aiohm-kb-assistant'), '<strong>' . esc_html($user_email) . '</strong>'); ?></p>
                 <form method="post" action="options.php" class="aiohm-disconnect-form">
                     <?php settings_fields('aiohm_kb_settings'); ?>
@@ -57,12 +64,11 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
              <?php else : ?>
                 <div class="box-icon">🔌</div>
                 <h3><?php _e('Connect Your Account', 'aiohm-kb-assistant'); ?></h3>
-                <p><?php _e('Enter your AIOHM Email below to link your site and unlock personal features. You can find this in your AIOHM member profile.', 'aiohm-kb-assistant'); ?></p>
-
+                <p><?php _e('Enter your AIOHM Email below to link your site and unlock personal features.', 'aiohm-kb-assistant'); ?></p>
                 <div class="aiohm-connect-form-wrapper">
-                    <form id="aiohm-check-email-form" method="post" action="options.php">
+                    <form method="post" action="options.php">
                         <?php settings_fields('aiohm_kb_settings'); ?>
-                        <input type="email" id="aiohm_app_email_check" name="aiohm_kb_settings[aiohm_app_email]" placeholder="Enter Your AIOHM Email" required>
+                        <input type="email" name="aiohm_kb_settings[aiohm_app_email]" placeholder="Enter Your AIOHM Email" required>
                         <?php 
                         foreach ($settings as $key => $value) { 
                             if ($key !== 'aiohm_app_email') { 
@@ -70,20 +76,26 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
                             } 
                         } 
                         ?>
-                        <button type="submit" id="check-aiohm-email-btn" class="button button-secondary"><?php _e('Verify & Connect', 'aiohm-kb-assistant'); ?></button>
+                        <button type="submit" class="button button-secondary"><?php _e('Verify & Connect', 'aiohm-kb-assistant'); ?></button>
                     </form>
                 </div>
              <?php endif; ?>
         </div>
 
         <div class="aiohm-feature-box <?php echo $has_club_access ? 'plan-active' : 'plan-inactive'; ?>">
-            <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="OHM Logo" class="ohm-logo-icon"></div><h3><?php _e('AIOHM Club', 'aiohm-kb-assistant'); ?></h3>
-            <?php if ($has_club_access) : ?>
-                <p><?php _e('You have access to the Club tier. Use the Brand Assistant in your dashboard.', 'aiohm-kb-assistant'); ?></p>
-                <a href="https://aiohm.app/club" target="_blank" class="button button-secondary" style="margin-top: auto;"><?php _e('Manage Membership', 'aiohm-kb-assistant'); ?></a>
+            <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/AIOHM-logo.png'); ?>" alt="AIOHM Logo" class="ohm-logo-icon"></div>
+            <h3><?php _e('AIOHM Club', 'aiohm-kb-assistant'); ?></h3>
+            <?php if ($has_club_access && $membership_details) : ?>
+                <h4 class="plan-price"><?php _e('You have unlocked Club features!', 'aiohm-kb-assistant'); ?></h4>
+                <div class="membership-info">
+                    <p><strong>Level:</strong> <?php echo esc_html($membership_details['level_name']); ?></p>
+                    <p><strong>Started:</strong> <?php echo esc_html($membership_details['start_date']); ?></p>
+                    <p><strong>Expires:</strong> <?php echo esc_html($membership_details['end_date']); ?></p>
+                </div>
+                <a href="https://www.aiohm.app/club" target="_blank" class="button button-secondary" style="margin-top: auto;"><?php _e('Manage Membership', 'aiohm-kb-assistant'); ?></a>
             <?php else: ?>
-                <h4 class="plan-price"><?php _e('1 euro per month for first 100 members.', 'aiohm-kb-assistant'); ?></h4>
-                <div class="plan-description"><p>Club members gain exclusive access to Mirror Mode for soul-aligned insights and Muse Mode for idea-rich, emotionally attuned content. This is where your brand’s clarity meets creative flow.</p></div>
+                <h4 class="plan-price"><?php _e('1 euro per month for first 1000 members.', 'aiohm-kb-assistant'); ?></h4>
+                <div class="plan-description"><p>Club members gain exclusive access to Mirror Mode for Q&A chat-bot and Muse Mode for brand idea-rich, emotionally attuned content.</p></div>
                 <a href="https://www.aiohm.app/club/" target="_blank" class="button button-primary" style="margin-top: auto;">→ <?php _e('Join AIOHM Club', 'aiohm-kb-assistant'); ?></a>
             <?php endif; ?>
         </div>
@@ -91,7 +103,6 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
 </div>
 
 <style>
-    /* OHM Brand Identity */
     :root {
         --ohm-primary: #457d58; --ohm-dark: #272727; --ohm-light-accent: #cbddd1; --ohm-light-bg: #EBEBEB; --ohm-dark-accent: #1f5014; --ohm-font-primary: 'Montserrat', sans-serif; --ohm-font-secondary: 'PT Sans', sans-serif;
     }
@@ -99,51 +110,14 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
     .aiohm-license-page .aiohm-feature-box { background: #fff; border: 1px solid var(--ohm-light-bg); border-radius: 8px; padding: 25px; display: flex; flex-direction: column; text-align: center; }
     .aiohm-license-page .aiohm-feature-box.plan-active { border-top: 4px solid var(--ohm-primary); }
     .aiohm-license-page .box-icon { font-size: 2.5em; line-height: 1; margin-bottom: 15px; height: 40px; color: var(--ohm-primary);}
+    .aiohm-license-page .box-icon .ohm-logo-icon { max-height: 100%; width: auto; }
     .aiohm-license-page .aiohm-feature-box h3 { font-family: var(--ohm-font-primary); color: var(--ohm-dark-accent); margin-top: 0; font-size: 1.3em; }
-    .aiohm-license-page .aiohm-feature-box p { flex-grow: 1; font-family: var(--ohm-font-secondary); color: var(--ohm-dark); font-size: 1em; line-height: 1.6; margin-bottom: 15px; }
+    .aiohm-license-page .aiohm-feature-box p { font-family: var(--ohm-font-secondary); color: var(--ohm-dark); font-size: 1em; line-height: 1.6; margin-bottom: 15px; }
+    .aiohm-license-page .plan-description { flex-grow: 1; }
     .aiohm-license-page .button-primary { background-color: var(--ohm-primary); border-color: var(--ohm-dark-accent); color: #fff; font-family: var(--ohm-font-primary); font-weight: bold; }
-    .aiohm-license-page .button-primary:hover { background-color: var(--ohm-dark-accent); border-color: var(--ohm-dark-accent); }
-    .aiohm-disconnect-form, .aiohm-connect-form-wrapper { margin-top: auto; }
     .aiohm-connect-form-wrapper input[type="email"] { width: 100%; padding: 8px; margin-bottom: 10px; }
     .aiohm-connect-form-wrapper .button { width: 100%; text-align: center; justify-content: center;}
-    .button.button-disconnect {
-        width: 100%;
-        background: var(--ohm-primary) !important;
-        color: #fff !important;
-        border-color: var(--ohm-dark-accent) !important;
-    }
-    .button.button-disconnect:hover {
-        background: var(--ohm-dark-accent) !important;
-    }
-    .aiohm-license-page .box-icon .ohm-logo-icon {
-        max-height: 100%;
-        width: auto;
-        display: inline-block;
-        vertical-align: middle;
-    }
-    .aiohm-status-message {
-        padding: 10px 15px;
-        border-radius: 4px;
-        border-left-width: 4px;
-        border-left-style: solid;
-    }
-    .aiohm-status-message.error {
-        background-color: #f8d7da;
-        border-color: #f5c6cb;
-        color: #721c24;
-    }
-    .aiohm-status-message.success {
-        background-color: #d4edda;
-        border-color: #c3e6cb;
-        color: #155724;
-    }
+    .membership-info { margin: 15px 0; padding: 10px; background: #f9f9f9; border: 1px solid var(--ohm-light-bg); border-radius: 4px; text-align: left; flex-grow: 1; }
+    .membership-info p { margin: 5px 0; flex-grow: 0; }
+    .aiohm-disconnect-form { margin-top: auto; }
 </style>
-
-<script>
-jQuery(document).ready(function($) {
-    // This script is no longer strictly necessary if the form submits directly,
-    // but it can provide a better user experience by giving feedback without a page reload.
-    // For simplicity, this version will use a direct form submission.
-    // You can re-add AJAX handling for a smoother UX if desired.
-});
-</script>

@@ -1,12 +1,11 @@
 <?php
 /**
- * Admin settings template - Final branded version with all correct fields and layout.
+ * Admin settings template - Final branded version with dual save buttons.
  */
 if (!defined('ABSPATH')) exit;
 
 // --- Start: Data Fetching and Status Checks ---
 $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), []);
-// Check Club access using the new PMPro helper function
 $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
 // --- End: Data Fetching and Status Checks ---
 ?>
@@ -15,37 +14,48 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
     <h1><?php _e('AIOHM Settings', 'aiohm-kb-assistant'); ?></h1>
     <p class="page-description"><?php _e('Configure API keys, AI assistants, and content scanning schedules.', 'aiohm-kb-assistant'); ?></p>
     
+    <div id="aiohm-admin-notice" class="notice" style="display:none; margin-top: 10px;"><p></p></div>
+
     <form method="post" action="options.php">
         <?php settings_fields('aiohm_kb_settings'); ?>
 
         <div class="aiohm-settings-section">
             <h2><?php _e('API Keys & Service Connections', 'aiohm-kb-assistant'); ?></h2>
             <table class="form-table">
-                <tr><th scope="row"><label for="openai_api_key"><?php _e('OpenAI API Key', 'aiohm-kb-assistant'); ?></label></th>
+                <tr>
+                    <th scope="row"><label for="openai_api_key"><?php _e('OpenAI API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
                         <div class="aiohm-api-key-wrapper">
                             <input type="password" id="openai_api_key" name="aiohm_kb_settings[openai_api_key]" value="<?php echo esc_attr($settings['openai_api_key'] ?? ''); ?>" class="regular-text">
                             <button type="button" class="button button-secondary aiohm-show-hide-key" data-target="openai_api_key"><span class="dashicons dashicons-visibility"></span></button>
+                            <button type="button" class="button button-secondary aiohm-test-api-key" data-target="openai_api_key" data-type="openai"><?php _e('Test API', 'aiohm-kb-assistant'); ?></button>
                         </div>
+                        <p class="description"><?php printf(__('You can get your OpenAI API key from the <a href="%s" target="_blank">OpenAI API keys page</a>.', 'aiohm-kb-assistant'), 'https://platform.openai.com/account/api-keys'); ?></p>
                     </td>
                 </tr>
-                <tr><th scope="row"><label for="gemini_api_key"><?php _e('Gemini API Key', 'aiohm-kb-assistant'); ?></label></th>
+                <tr>
+                    <th scope="row"><label for="gemini_api_key"><?php _e('Gemini API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
                         <div class="aiohm-api-key-wrapper">
                             <input type="password" id="gemini_api_key" name="aiohm_kb_settings[gemini_api_key]" value="<?php echo esc_attr($settings['gemini_api_key'] ?? ''); ?>" class="regular-text">
                             <button type="button" class="button button-secondary aiohm-show-hide-key" data-target="gemini_api_key"><span class="dashicons dashicons-visibility"></span></button>
+                            <button type="button" class="button button-secondary aiohm-test-api-key" data-target="gemini_api_key" data-type="gemini"><?php _e('Test API', 'aiohm-kb-assistant'); ?></button>
                         </div>
+                        <p class="description"><?php printf(__('You can get your Gemini API key from the <a href="%s" target="_blank">Google AI Studio</a>.', 'aiohm-kb-assistant'), 'https://aistudio.google.com/app/apikey'); ?></p>
                     </td>
                 </tr>
-                <tr><th scope="row"><label for="claude_api_key"><?php _e('Claude API Key', 'aiohm-kb-assistant'); ?></label></th>
+                <tr>
+                    <th scope="row"><label for="claude_api_key"><?php _e('Claude API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
                         <div class="aiohm-api-key-wrapper">
                             <input type="password" id="claude_api_key" name="aiohm_kb_settings[claude_api_key]" value="<?php echo esc_attr($settings['claude_api_key'] ?? ''); ?>" class="regular-text">
                             <button type="button" class="button button-secondary aiohm-show-hide-key" data-target="claude_api_key"><span class="dashicons dashicons-visibility"></span></button>
+                            <button type="button" class="button button-secondary aiohm-test-api-key" data-target="claude_api_key" data-type="claude"><?php _e('Test API', 'aiohm-kb-assistant'); ?></button>
                         </div>
+                        <p class="description"><?php printf(__('You can get your Claude API key from your <a href="%s" target="_blank">Anthropic Account Settings</a>.', 'aiohm-kb-assistant'), 'https://console.anthropic.com/account/keys'); ?></p>
                     </td>
                 </tr>
-                </table>
+            </table>
         </div>
         
         <?php submit_button(); ?>
@@ -87,6 +97,8 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
                         <td><select id="scan_schedule" name="aiohm_kb_settings[scan_schedule]" <?php disabled(!$can_access_settings); ?>><option value="none" <?php selected($settings['scan_schedule'] ?? 'none', 'none'); ?>>None</option><option value="daily" <?php selected($settings['scan_schedule'], 'daily'); ?>>Once Daily</option><option value="weekly" <?php selected($settings['scan_schedule'], 'weekly'); ?>>Once Weekly</option><option value="monthly" <?php selected($settings['scan_schedule'], 'monthly'); ?>>Once Monthly</option></select></td></tr>
                 </table>
             </div>
+            
+            <?php submit_button(); ?>
         </div>
     </form>
 </div>
@@ -103,7 +115,11 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
     .aiohm-settings-page .button-primary:hover { background: var(--ohm-dark-accent) !important; }
     .aiohm-api-key-wrapper { display: flex; gap: 5px; align-items: center; }
     .aiohm-premium-settings-wrapper { position: relative; }
-    .aiohm-premium-settings-wrapper.is-locked .aiohm-settings-section { opacity: 0.90; pointer-events: none; }
+    .aiohm-premium-settings-wrapper.is-locked .aiohm-settings-section,
+    .aiohm-premium-settings-wrapper.is-locked .submit { 
+        opacity: 0.90; 
+        pointer-events: none; 
+    }
     .aiohm-settings-locked-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(235, 235, 235, 0.6); z-index: 10; display: flex; align-items: center; justify-content: center; padding: 20px; text-align: center; border-radius: 4px; }
     .aiohm-settings-locked-overlay .lock-content { background: #ffffff; padding: 40px; border-radius: 8px; border: 1px solid var(--ohm-light-accent); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
     .aiohm-settings-locked-overlay .lock-icon { font-size: 3em; color: var(--ohm-primary); margin-bottom: 15px; }
@@ -111,10 +127,56 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
 
 <script>
 jQuery(document).ready(function($){
+    let noticeTimer;
+    
+    function showAdminNotice(message, type = 'success') {
+        clearTimeout(noticeTimer);
+        const $notice = $('#aiohm-admin-notice');
+        $notice.removeClass('notice-success notice-error notice-warning').addClass('notice-' + type).addClass('is-dismissible');
+        $notice.find('p').html(message);
+        $notice.fadeIn();
+        noticeTimer = setTimeout(() => $notice.fadeOut(), 5000);
+    }
+
     $('.aiohm-show-hide-key').on('click', function(){
         const $input = $('#' + $(this).data('target'));
         const type = $input.attr('type');
         $input.attr('type', type === 'password' ? 'text' : 'password');
+    });
+
+    $('.aiohm-test-api-key').on('click', function(){
+        const $btn = $(this);
+        const targetId = $btn.data('target');
+        const keyType = $btn.data('type');
+        const apiKey = $('#' + targetId).val();
+        const originalText = $btn.text();
+
+        if (!apiKey) {
+            showAdminNotice('Please enter an API key before testing.', 'warning');
+            return;
+        }
+
+        $btn.prop('disabled', true).html('<span class="spinner is-active" style="float:none; margin-top:0; vertical-align:middle;"></span>');
+
+        $.post(ajaxurl, {
+            action: 'aiohm_check_api_key',
+            nonce: '<?php echo wp_create_nonce("aiohm_admin_nonce"); ?>',
+            api_key: apiKey,
+            key_type: keyType
+        })
+        .done(function(response) {
+            if (response.success) {
+                showAdminNotice(response.data.message, 'success');
+            } else {
+                showAdminNotice(response.data.message || 'An unknown error occurred.', 'error');
+            }
+        })
+        .fail(function() {
+            showAdminNotice('A server error occurred. Please try again.', 'error');
+        })
+        .always(function() {
+            $btn.prop('disabled', false).text(originalText);
+        });
     });
 });
 </script>
