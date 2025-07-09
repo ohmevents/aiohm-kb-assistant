@@ -27,7 +27,7 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
     <div class="aiohm-feature-grid">
 
         <div class="aiohm-feature-box <?php echo $is_user_linked ? 'plan-active' : 'plan-inactive'; ?>">
-            <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/AIOHM-logo.png'); ?>" alt="AIOHM Logo" class="ohm-logo-icon"></div>
+            <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="AIOHM Logo" class="ohm-logo-icon"></div>
             <h3><?php _e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
             <?php if ($is_user_linked) : ?>
                 <h4 class="plan-price"><?php _e('Welcome to the Tribe!', 'aiohm-kb-assistant'); ?></h4>
@@ -83,7 +83,7 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
         </div>
 
         <div class="aiohm-feature-box <?php echo $has_club_access ? 'plan-active' : 'plan-inactive'; ?>">
-            <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/AIOHM-logo.png'); ?>" alt="AIOHM Logo" class="ohm-logo-icon"></div>
+            <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="AIOHM Logo" class="ohm-logo-icon"></div>
             <h3><?php _e('AIOHM Club', 'aiohm-kb-assistant'); ?></h3>
             <?php if ($has_club_access && $membership_details) : ?>
                 <h4 class="plan-price"><?php _e('You have unlocked Club features!', 'aiohm-kb-assistant'); ?></h4>

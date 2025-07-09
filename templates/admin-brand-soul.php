@@ -2,7 +2,7 @@
 /**
  * Admin Brand Core Questionnaire page template - Final version with a two-column layout,
  * side navigation menu, and a "Typeform-like" user experience.
- * Now includes access control, locking the page until the user connects their Tribe account.
+ * Includes a robust, conflict-free access control lock and corrected JavaScript syntax.
  */
 
 if (!defined('ABSPATH')) {
@@ -63,18 +63,16 @@ foreach ($brand_soul_questions as $section) {
 
     <div id="aiohm-admin-notice" class="notice" style="display:none; margin-top: 10px;"><p></p></div>
 
-    <div class="aiohm-content-wrapper <?php echo !$is_tribe_member_connected ? 'is-locked' : ''; ?>">
-        <?php if (!$is_tribe_member_connected) : ?>
-            <div class="aiohm-settings-locked-overlay">
-                <div class="lock-content">
-                    <div class="lock-icon">🔒</div>
-                    <h2><?php _e('Unlock Your AI Brand Core', 'aiohm-kb-assistant'); ?></h2>
-                    <p><?php _e('This questionnaire is a key feature for AIOHM Tribe members. Please connect your free Tribe account to begin defining your brand\'s soul.', 'aiohm-kb-assistant'); ?></p>
-                    <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-license')); ?>" class="button button-primary"><?php _e('Connect Your Account', 'aiohm-kb-assistant'); ?></a>
-                </div>
+    <?php if (!$is_tribe_member_connected) : ?>
+        <div class="aiohm-content-locked">
+            <div class="lock-content">
+                <div class="lock-icon">🔒</div>
+                <h2><?php _e('Unlock Your AI Brand Core', 'aiohm-kb-assistant'); ?></h2>
+                <p><?php _e('This questionnaire is a key feature for AIOHM Tribe members. Please connect your free Tribe account to begin defining your brand\'s soul.', 'aiohm-kb-assistant'); ?></p>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-license')); ?>" class="button button-primary"><?php _e('Connect Your Account', 'aiohm-kb-assistant'); ?></a>
             </div>
-        <?php endif; ?>
-
+        </div>
+    <?php else: ?>
         <div class="aiohm-page-layout">
             <div class="aiohm-side-nav">
                 <nav>
@@ -85,7 +83,7 @@ foreach ($brand_soul_questions as $section) {
                         echo "<h4>" . esc_html($section_title) . "</h4>";
                         echo "<ol start='" . ($question_index_for_nav + 1) . "'>";
                         foreach ($questions as $key => $question_text) {
-                            echo "<li><a href='#' data-index='{$question_index_for_nav}'>" . esc_html($question_text) . "</a></li>";
+                            echo "<li><a href='#' class='nav-question-link' data-index='{$question_index_for_nav}'>" . esc_html($question_text) . "</a></li>";
                             $question_index_for_nav++;
                         }
                         echo "</ol>";
@@ -93,7 +91,7 @@ foreach ($brand_soul_questions as $section) {
                     }
                     ?>
                      <div class="nav-section-final">
-                        <a href="#" data-index="<?php echo $total_questions; ?>" class="final-actions-link">
+                        <a href="#" class='nav-question-link' data-index="<?php echo $total_questions; ?>" class="final-actions-link">
                             <span class="dashicons dashicons-download"></span>
                             <?php _e('Save & Export', 'aiohm-kb-assistant'); ?>
                         </a>
@@ -139,7 +137,7 @@ foreach ($brand_soul_questions as $section) {
                 </form>
             </div>
         </div>
-    </div>
+    <?php endif; ?>
 </div>
 
 <style>
@@ -162,41 +160,27 @@ foreach ($brand_soul_questions as $section) {
         color: var(--ohm-dark);
     }
     
-    .aiohm-content-wrapper {
-        position: relative;
+    .aiohm-content-locked {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 10vh;
+        text-align: center;
+        margin-top: 20px;
+        background-color: #fdfdfd;
+        border: 1px dashed var(--ohm-light-accent);
+        border-radius: 8px;
+        min-height: 400px;
     }
-    
-    .aiohm-content-wrapper.is-locked > .aiohm-page-layout {
-        opacity: 0.2;
-        pointer-events: none;
-        filter: blur(4px);
-    }
-
-    .aiohm-settings-locked-overlay { 
-        position: absolute; 
-        top: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 100%; 
-        background: rgba(249, 249, 249, 0.85); 
-        z-index: 10; 
-        display: flex; 
-        align-items: flex-start; /* <<< CHANGE: Move to top */
-        justify-content: center; 
-        padding-top: 10vh; /* <<< CHANGE: Add padding to push it down from the top */
-        text-align: center; 
-        border-radius: 8px; 
-    }
-    .aiohm-settings-locked-overlay .lock-content { 
+    .aiohm-content-locked .lock-content { 
         background: #ffffff; 
         padding: 40px; 
         border-radius: 8px; 
-        border: 1px solid var(--ohm-light-accent); 
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         max-width: 500px;
     }
-    .aiohm-settings-locked-overlay .lock-icon { font-size: 3em; color: var(--ohm-primary); margin-bottom: 15px; }
-    .aiohm-settings-locked-overlay .button-primary {
+    .aiohm-content-locked .lock-icon { font-size: 3em; color: var(--ohm-primary); margin-bottom: 15px; }
+    .aiohm-content-locked .button-primary {
         background-color: var(--ohm-primary);
         border-color: var(--ohm-dark-accent);
     }
@@ -231,108 +215,108 @@ foreach ($brand_soul_questions as $section) {
 </style>
 
 <script>
-jQuery(document).ready(function($) {
-    let currentQuestion = 0;
-    const slides = $('.aiohm-question-slide');
-    const navLinks = $('.aiohm-side-nav a');
-    const totalQuestions = slides.length - 1;
-
-    const $prevBtn = $('#prev-btn');
-    const $nextBtn = $('#next-btn');
-    const $progressBarInner = $('.aiohm-progress-bar-inner');
-    const $progressLabel = $('.aiohm-progress-label');
-
-    function navigateToQuestion(index) {
-        currentQuestion = parseInt(index);
-        updateView();
-    }
-
-    function updateView() {
-        // Update slides
-        slides.removeClass('active');
-        slides.eq(currentQuestion).addClass('active').find('textarea').focus();
-
-        // Update nav menu
-        navLinks.removeClass('active');
-        navLinks.filter(`[data-index=${currentQuestion}]`).addClass('active');
-
-        // Update progress bar
-        const progressPercentage = (currentQuestion / totalQuestions) * 100;
-        $progressBarInner.css('width', progressPercentage + '%');
-        
-        if (currentQuestion < totalQuestions) {
-            $progressLabel.text(`Question ${currentQuestion + 1} of ${totalQuestions}`);
-        } else {
-            $progressLabel.text('Completed!');
+    // Self-invoking function to avoid polluting the global scope
+    (function($) {
+        // Only run the script if the main layout exists (i.e., user is connected)
+        if ($('.aiohm-page-layout').length === 0) {
+            return;
         }
 
-        // Update buttons
-        $prevBtn.toggle(currentQuestion > 0);
-        $nextBtn.toggle(currentQuestion < totalQuestions);
+        let currentQuestionIndex = 0;
+        const slides = $('.aiohm-question-slide');
+        const navLinks = $('.nav-question-link'); // Use a specific class for navigation links
+        const totalQuestions = slides.length - 1;
 
-        // Handle final slide
-        if (currentQuestion === totalQuestions) {
-            const finalActionsHtml = `
-                <button type="button" id="save-brand-soul" class="button button-primary"><?php _e('Save My Answers', 'aiohm-kb-assistant'); ?></button>
-                <button type="button" id="add-to-kb" class="button button-secondary"><?php _e('Add to My Knowledge Base', 'aiohm-kb-assistant'); ?></button>
-                <a href="<?php echo esc_url(add_query_arg(['action' => 'download_brand_soul_pdf', 'nonce' => wp_create_nonce('download_brand_soul_pdf')])); ?>" id="download-pdf" class="button button-secondary" target="_blank"><?php _e('Download PDF', 'aiohm-kb-assistant'); ?></a>
-            `;
-            $('.aiohm-final-actions').html(finalActionsHtml);
-        } else {
-             $('.aiohm-final-actions').empty();
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const progressBarInner = document.querySelector('.aiohm-progress-bar-inner');
+        const progressLabel = document.querySelector('.aiohm-progress-label');
+
+        function updateView() {
+            slides.removeClass('active');
+            $(slides[currentQuestionIndex]).addClass('active').find('textarea').focus();
+
+            navLinks.removeClass('active');
+            navLinks.filter(`[data-index=${currentQuestionIndex}]`).addClass('active');
+
+            const progressPercentage = (currentQuestionIndex / totalQuestions) * 100;
+            progressBarInner.style.width = progressPercentage + '%';
+            
+            progressLabel.textContent = currentQuestionIndex < totalQuestions 
+                ? `Question ${currentQuestionIndex + 1} of ${totalQuestions}` 
+                : 'Completed!';
+
+            prevBtn.style.display = currentQuestionIndex > 0 ? 'inline-block' : 'none';
+            nextBtn.style.display = currentQuestionIndex < totalQuestions ? 'inline-block' : 'none';
+
+            if (currentQuestionIndex === totalQuestions) {
+                const finalActionsHtml = `
+                    <button type="button" id="save-brand-soul" class="button button-primary"><?php _e('Save My Answers', 'aiohm-kb-assistant'); ?></button>
+                    <button type="button" id="add-to-kb" class="button button-secondary"><?php _e('Add to My Knowledge Base', 'aiohm-kb-assistant'); ?></button>
+                    <a href="<?php echo esc_url(add_query_arg(['action' => 'download_brand_soul_pdf', 'nonce' => wp_create_nonce('download_brand_soul_pdf')])); ?>" id="download-pdf" class="button button-secondary" target="_blank"><?php _e('Download PDF', 'aiohm-kb-assistant'); ?></a>
+                `;
+                $('.aiohm-final-actions').html(finalActionsHtml);
+            } else {
+                 $('.aiohm-final-actions').empty();
+            }
         }
-    }
 
-    $nextBtn.on('click', function() {
-        if (currentQuestion < totalQuestions) {
-            navigateToQuestion(currentQuestion + 1);
-        }
-    });
+        // --- Event Listeners ---
+        nextBtn.addEventListener('click', () => {
+            if (currentQuestionIndex < totalQuestions) {
+                currentQuestionIndex++;
+                updateView();
+            }
+        });
 
-    $prevBtn.on('click', function() {
-        if (currentQuestion > 0) {
-            navigateToQuestion(currentQuestion - 1);
-        }
-    });
+        prevBtn.addEventListener('click', () => {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                updateView();
+            }
+        });
 
-    navLinks.on('click', function(e) {
-        e.preventDefault();
-        navigateToQuestion($(this).data('index'));
-    });
+        // Add a single delegated event listener to the navigation container
+        $('.aiohm-side-nav').on('click', '.nav-question-link', function(e) {
+            e.preventDefault();
+            currentQuestionIndex = parseInt($(this).data('index'), 10);
+            updateView();
+        });
 
-    // Delegated event handlers for final action buttons
-    $('.aiohm-form-container').on('click', '#save-brand-soul', function() {
-        const $btn = $(this);
-        $btn.prop('disabled', true).text('Saving...');
-        $.post(ajaxurl, {
-            action: 'aiohm_save_brand_soul',
-            nonce: $('#aiohm_brand_soul_nonce_field').val(),
-            data: $('#brand-soul-form').serialize()
-        }).done(response => {
-            showAdminNotice(response.success ? 'Your answers have been saved.' : 'Error: ' + (response.data.message || 'Could not save.'), response.success ? 'success' : 'error');
-        }).fail(() => showAdminNotice('An unexpected server error occurred.', 'error')).always(() => $btn.prop('disabled', false).text('Save My Answers'));
-    });
+        // Delegated event handlers for final action buttons
+        $('.aiohm-form-container').on('click', '#save-brand-soul', function() {
+            const $btn = $(this);
+            $btn.prop('disabled', true).text('Saving...');
+            $.post(ajaxurl, {
+                action: 'aiohm_save_brand_soul',
+                nonce: $('#aiohm_brand_soul_nonce_field').val(),
+                data: $('#brand-soul-form').serialize()
+            }).done(response => {
+                showAdminNotice(response.success ? 'Your answers have been saved.' : 'Error: ' + (response.data.message || 'Could not save.'), response.success ? 'success' : 'error');
+            }).fail(() => showAdminNotice('An unexpected server error occurred.', 'error')).always(() => $btn.prop('disabled', false).text('Save My Answers'));
+        });
 
-    $('.aiohm-form-container').on('click', '#add-to-kb', function() {
-        const $btn = $(this);
-        $btn.prop('disabled', true).text('Adding...');
-        $.post(ajaxurl, {
-            action: 'aiohm_add_brand_soul_to_kb',
-            nonce: $('#aiohm_brand_soul_nonce_field').val(),
-            data: $('#brand-soul-form').serialize()
-        }).done(response => {
-            showAdminNotice(response.success ? 'Your Brand Soul has been added to your knowledge base.' : 'Error: ' . (response.data.message || 'Could not add to KB.'), response.success ? 'success' : 'error');
-        }).fail(() => showAdminNotice('An unexpected server error occurred.', 'error')).always(() => $btn.prop('disabled', false).text('Add to My Knowledge Base'));
-    });
+        $('.aiohm-form-container').on('click', '#add-to-kb', function() {
+            const $btn = $(this);
+            $btn.prop('disabled', true).text('Adding...');
+            $.post(ajaxurl, {
+                action: 'aiohm_add_brand_soul_to_kb',
+                nonce: $('#aiohm_brand_soul_nonce_field').val(),
+                data: $('#brand-soul-form').serialize()
+            }).done(response => {
+                showAdminNotice(response.success ? 'Your Brand Soul has been added to your knowledge base.' : 'Error: ' + (response.data.message || 'Could not add to KB.'), response.success ? 'success' : 'error');
+            }).fail(() => showAdminNotice('An unexpected server error occurred.', 'error')).always(() => $btn.prop('disabled', false).text('Add to My Knowledge Base'));
+        });
     
-    function showAdminNotice(message, type = 'success') {
-        const $notice = $('#aiohm-admin-notice');
-        $notice.removeClass('notice-success notice-error notice-warning notice-info').addClass('notice-' + type).addClass('is-dismissible');
-        $notice.find('p').html(message);
-        $notice.fadeIn().delay(5000).fadeOut();
-    }
+        function showAdminNotice(message, type = 'success') {
+            const $notice = $('#aiohm-admin-notice');
+            $notice.removeClass('notice-success notice-error notice-warning notice-info').addClass('notice-' + type).addClass('is-dismissible');
+            $notice.find('p').html(message);
+            $notice.fadeIn().delay(5000).fadeOut();
+        }
 
-    // Initial view setup
-    updateView();
-});
+        // Initial view setup
+        updateView();
+
+    })(jQuery);
 </script>

@@ -1,50 +1,43 @@
 <?php
 /**
- * AIOHM Plugin Admin Header - Redesigned with new menu and branding.
+ * AIOHM Plugin Admin Header - Redesigned with internal plugin page navigation.
  */
 if (!defined('ABSPATH')) exit;
+
+// Get the current page to set the 'active' class on the menu item
+$current_page = isset($_GET['page']) ? sanitize_key($_GET['page']) : '';
 ?>
 <div class="aiohm-admin-header">
     <div class="aiohm-admin-header__logo">
-        <a href="https://www.aiohm.app" target="_blank">
+        <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-dashboard')); ?>">
             <img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/AIOHM-logo.png'); ?>" alt="AIOHM Logo">
         </a>
     </div>
     <div class="aiohm-admin-header__nav">
         <nav class="aiohm-nav">
           <ul class="aiohm-menu">
-            <li class="has-submenu">
-              <a href="https://www.aiohm.app/pricing/">Shop</a>
-              <ul class="submenu">
-                <li><a href="https://www.aiohm.app/club/">Club</a></li>
-                <li><a href="https://www.aiohm.app/private/">Private</a></li>
-                <li><a href="https://www.aiohm.app/affiliate/">Affiliate</a></li>
-              </ul>
+            <li class="<?php echo ($current_page === 'aiohm-dashboard') ? 'active' : ''; ?>">
+              <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-dashboard')); ?>">Dashboard</a>
+            </li>
+            <li class="<?php echo ($current_page === 'aiohm-brand-soul') ? 'active' : ''; ?>">
+              <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-brand-soul')); ?>">AI Brand Core</a>
+            </li>
+             <li class="has-submenu">
+                <a href="#" class="<?php echo in_array($current_page, ['aiohm-scan-content', 'aiohm-manage-kb']) ? 'active' : ''; ?>">Knowledge Base</a>
+                <ul class="submenu">
+                    <li><a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-scan-content')); ?>">Scan Content</a></li>
+                    <li><a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-manage-kb')); ?>">Manage KB</a></li>
+                </ul>
             </li>
             <li class="has-submenu">
-              <a href="https://www.aiohm.app/members/">Members</a>
+              <a href="#" class="<?php echo in_array($current_page, ['aiohm-settings', 'aiohm-license']) ? 'active' : ''; ?>">Settings</a>
               <ul class="submenu">
-                <li><a href="https://www.aiohm.app/ohm-brand-voice-discovery/">Voice Discovery</a></li>
-                <li><a href="https://www.aiohm.app/knowledge-base/">Knowledge Base</a></li>
-                <li><a href="https://www.aiohm.app/test/">Test</a></li>
-                <li><a href="https://www.aiohm.app/install/">Install</a></li>
-                <li><a href="https://www.aiohm.app/edit-profile/">Edit Profile</a></li>
-                <li><a href="https://www.aiohm.app/change-password/">Change Password</a></li>
-                <li><a href="https://www.aiohm.app/forgot-password/">Forgot Password</a></li>
-                <li><a href="https://www.aiohm.app?arm_action=logout">Logout</a></li>
+                <li><a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-settings')); ?>">API Settings</a></li>
+                <li><a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-license')); ?>">License</a></li>
               </ul>
             </li>
-            <li class="has-submenu">
-              <a href="https://www.aiohm.app/about/">About</a>
-              <ul class="submenu">
-                <li><a href="https://www.aiohm.app/our-mission/">Our Mission</a></li>
-              </ul>
-            </li>
-            <li class="has-submenu">
-              <a href="https://www.aiohm.app/contact/">Contact</a>
-              <ul class="submenu">
-                <li><a href="https://www.aiohm.app/privacy-policy/">Privacy Policy</a></li>
-              </ul>
+            <li>
+              <a href="https://www.aiohm.app/contact/" target="_blank">Contact</a>
             </li>
           </ul>
         </nav>
@@ -73,8 +66,20 @@ if (!defined('ABSPATH')) exit;
     }
     .aiohm-nav ul { list-style: none; margin: 0; padding: 0; }
     .aiohm-menu > li { display: inline-block; position: relative; margin-left: 15px; }
-    .aiohm-menu > li > a { text-decoration: none; color: #fff; font-weight: bold; font-size: 14px; padding: 10px 15px; display: block; border-radius: 4px; transition: background-color 0.2s ease; }
-    .aiohm-menu > li > a:hover { background-color: rgba(255,255,255,0.1); }
+    .aiohm-menu > li > a { 
+        text-decoration: none; 
+        color: #fff; 
+        font-weight: bold; 
+        font-size: 14px; 
+        padding: 10px 15px; 
+        display: block; 
+        border-radius: 4px; 
+        transition: background-color 0.2s ease; 
+    }
+    .aiohm-menu > li > a:hover,
+    .aiohm-menu > li.active > a { 
+        background-color: rgba(255,255,255,0.1); 
+    }
     .has-submenu:hover .submenu { display: block; }
     .submenu { display: none; position: absolute; top: 100%; left: 0; background: #fff; border: 1px solid #ddd; border-radius: 0 0 4px 4px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 1000; min-width: 200px; padding: 5px 0; }
     .submenu li { display: block; margin: 0; }
@@ -88,8 +93,8 @@ if (!defined('ABSPATH')) exit;
 
     /* Footer */
     .aiohm-admin-footer {
-        margin-top: 80px;  /* MODIFIED: Increased top margin to push it down */
-        padding: 20px 0;   /* MODIFIED: Changed padding */
+        margin-top: 80px;
+        padding: 20px 0;
         border-top: 1px solid #ddd;
         text-align: center;
         color: #777;

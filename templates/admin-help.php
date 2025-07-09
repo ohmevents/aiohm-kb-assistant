@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 
         <div class="aiohm-help-card">
             <div class="aiohm-card-icon">
-                <span class="dashicons dashicons-heart"></span>
+                <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="AIOHM Logo" class="ohm-logo-icon"></div>
             </div>
             <h3><?php _e('Support with Heart', 'aiohm-kb-assistant'); ?></h3>
             <p><?php _e('Feeling stuck or unsure? Our team honors your vision and is here to help—gently and clearly.', 'aiohm-kb-assistant'); ?></p>
@@ -25,7 +25,7 @@ if (!defined('ABSPATH')) {
 
         <div class="aiohm-help-card">
             <div class="aiohm-card-icon">
-                <span class="dashicons dashicons-media-document"></span>
+                <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="AIOHM Logo" class="ohm-logo-icon"></div>
             </div>
             <h3><?php _e('Documentation', 'aiohm-kb-assistant'); ?></h3>
             <p><?php _e('Detailed documentation to help you understand the functionality of each feature.', 'aiohm-kb-assistant'); ?></p>
@@ -34,7 +34,7 @@ if (!defined('ABSPATH')) {
 
         <div class="aiohm-help-card">
             <div class="aiohm-card-icon">
-                <span class="dashicons dashicons-lightbulb"></span>
+                <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="AIOHM Logo" class="ohm-logo-icon"></div>
             </div>
             <h3><?php _e('Request a Feature', 'aiohm-kb-assistant'); ?></h3>
             <p><?php _e('Have any special feature in mind? Let us know through the feature request.', 'aiohm-kb-assistant'); ?></p>
