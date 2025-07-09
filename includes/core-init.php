@@ -6,7 +6,7 @@
 if (!defined('ABSPATH')) exit;
 
 class AIOHM_KB_Core_Init {
-    
+
     public static function init() {
         add_action('wp_ajax_aiohm_progressive_scan', array(__CLASS__, 'handle_progressive_scan_ajax'));
         add_action('wp_ajax_aiohm_check_api_key', array(__CLASS__, 'handle_check_api_key_ajax'));
@@ -17,6 +17,11 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_toggle_kb_scope', array(__CLASS__, 'handle_toggle_kb_scope_ajax'));
         add_action('wp_ajax_aiohm_restore_kb', array(__CLASS__, 'handle_restore_kb_ajax'));
         add_action('wp_ajax_aiohm_delete_kb_entry', array(__CLASS__, 'handle_delete_kb_entry_ajax'));
+
+        // Handlers for the Brand Soul Page
+        add_action('wp_ajax_aiohm_save_brand_soul', array(__CLASS__, 'handle_save_brand_soul_ajax'));
+        add_action('wp_ajax_aiohm_add_brand_soul_to_kb', array(__CLASS__, 'handle_add_brand_soul_to_kb_ajax'));
+        add_action('admin_init', array(__CLASS__, 'handle_pdf_download'));
     }
 
     public static function handle_progressive_scan_ajax() {
@@ -47,7 +52,7 @@ class AIOHM_KB_Core_Init {
                     break;
                 case 'uploads_find':
                     $crawler = new AIOHM_KB_Uploads_Crawler();
-                    $all_supported_files = $crawler->find_all_supported_attachments(); 
+                    $all_supported_files = $crawler->find_all_supported_attachments();
                     wp_send_json_success(['items' => $all_supported_files]);
                     break;
                 case 'uploads_add':
@@ -55,7 +60,7 @@ class AIOHM_KB_Core_Init {
                     if (empty($item_ids)) throw new Exception('No item IDs provided.');
                     $crawler = new AIOHM_KB_Uploads_Crawler();
                     $results = $crawler->add_attachments_to_kb($item_ids);
-                    $updated_files_list = $crawler->find_all_supported_attachments(); 
+                    $updated_files_list = $crawler->find_all_supported_attachments();
                     wp_send_json_success(['processed_items' => $results, 'items' => $updated_files_list]);
                     break;
                 default:
@@ -65,7 +70,7 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'Scan failed: ' . $e->getMessage()]);
         }
     }
-    
+
     public static function handle_check_api_key_ajax() {
         if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Security check failed.']);
@@ -83,7 +88,7 @@ class AIOHM_KB_Core_Init {
                 case 'aiohm_email':
                     $api_client = new AIOHM_App_API_Client();
                     $result = $api_client->get_member_details_by_email($api_key);
-                    
+
                     if (!is_wp_error($result) && !empty($result['response']['result']['ID'])) {
                         wp_send_json_success([
                             'message' => 'AIOHM.app connection successful!',
@@ -120,7 +125,7 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'An unexpected error occurred: ' . $e->getMessage()]);
         }
     }
-    
+
     public static function handle_save_personal_kb_ajax() {
         if (!wp_verify_nonce($_POST['nonce'], 'aiohm_personal_kb_nonce') || !current_user_can('manage_options')) { wp_send_json_error(['message' => 'Security check failed.']); }
         parse_str($_POST['data'], $form_data);
@@ -134,7 +139,7 @@ class AIOHM_KB_Core_Init {
                     $entries_added++;
                 }
             }
-            if ($entries_added > 0) { wp_send_json_success(['message' => $entries_added . ' answers saved to your Personal KB!']); } 
+            if ($entries_added > 0) { wp_send_json_success(['message' => $entries_added . ' answers saved to your Personal KB!']); }
             else { wp_send_json_error(['message' => 'Please fill out at least one answer.']); }
         } catch (Exception $e) { wp_send_json_error(['message' => 'Error saving to KB: ' . $e->getMessage()]); }
     }
@@ -145,7 +150,7 @@ class AIOHM_KB_Core_Init {
         $json_data = $rag_engine->export_knowledge_base();
         wp_send_json_success(['filename' => 'aiohm-knowledge-base-' . date('Y-m-d') . '.json', 'data' => $json_data]);
     }
-    
+
     public static function handle_reset_kb_ajax() {
         if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Security check failed.']);
@@ -196,7 +201,7 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'Failed to update entry scope in the database.']);
         }
     }
-    
+
     public static function handle_restore_kb_ajax() {
         if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce')) {
             wp_send_json_error(['message' => 'Security check failed.']);
@@ -228,6 +233,126 @@ class AIOHM_KB_Core_Init {
             wp_send_json_success(['message' => 'Entry successfully deleted.']);
         } else {
             wp_send_json_error(['message' => 'Failed to delete entry.']);
+        }
+    }
+
+    public static function handle_save_brand_soul_ajax() {
+        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_brand_soul_nonce') || !current_user_can('read')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+        parse_str($_POST['data'], $form_data);
+        $answers = isset($form_data['answers']) ? array_map('sanitize_textarea_field', $form_data['answers']) : [];
+        update_user_meta(get_current_user_id(), 'aiohm_brand_soul_answers', $answers);
+        wp_send_json_success();
+    }
+
+    public static function handle_add_brand_soul_to_kb_ajax() {
+        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_brand_soul_nonce') || !current_user_can('read')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+        parse_str($_POST['data'], $form_data);
+        $answers = isset($form_data['answers']) ? array_map('sanitize_textarea_field', $form_data['answers']) : [];
+
+        if (empty($answers)) {
+            wp_send_json_error(['message' => 'No answers to add.']);
+        }
+
+        try {
+            $rag_engine = new AIOHM_KB_RAG_Engine();
+            $user_id = get_current_user_id();
+            $content = json_encode($answers, JSON_PRETTY_PRINT);
+            $rag_engine->add_entry($content, 'brand_soul', 'My Brand Soul', [], $user_id);
+            wp_send_json_success();
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => 'Error adding to KB: ' . $e->getMessage()]);
+        }
+    }
+
+    public static function handle_pdf_download() {
+        if (isset($_GET['action']) && $_GET['action'] === 'download_brand_soul_pdf' && isset($_GET['nonce']) && wp_verify_nonce($_GET['nonce'], 'download_brand_soul_pdf')) {
+            if (!class_exists('FPDF')) {
+                require_once AIOHM_KB_INCLUDES_DIR . 'lib/fpdf/fpdf.php';
+            }
+
+            $user_id = get_current_user_id();
+            $user_info = get_userdata($user_id);
+            $answers = get_user_meta($user_id, 'aiohm_brand_soul_answers', true);
+            if (!is_array($answers)) {
+                $answers = [];
+            }
+
+            // Re-define the questions array to access the full question text
+            $brand_soul_questions = [
+                '✨ Foundation' => [
+                    'foundation_1' => "What’s the deeper purpose behind your brand — beyond profit?",
+                    'foundation_2' => "What life experiences shaped this work you now do?",
+                    'foundation_3' => "Who were you before this calling emerged?",
+                    'foundation_4' => "If your brand had a soul story, how would you tell it?",
+                    'foundation_5' => "What’s one transformation you’ve witnessed that reminds you why you do this?",
+                ],
+                '🌀 Energy' => [
+                    'energy_1' => "What 3 words describe the emotional tone of your brand voice?",
+                    'energy_2' => "How do you want your audience to feel after encountering your message?",
+                    'energy_3' => "What do you not want to sound like?",
+                    'energy_4' => "Do you prefer poetic, punchy, playful, or professional language?",
+                    'energy_5' => "Share a quote, phrase, or piece of content that feels like you.",
+                ],
+                '🎨 Expression' => [
+                    'expression_1' => "What are your brand’s primary colors (and any specific hex codes)?",
+                    'expression_2' => "What font(s) do you use — or wish to use — for headers and body text?",
+                    'expression_3' => "Is there a visual theme (earthy, cosmic, minimalist, ornate) that matches your brand essence?",
+                    'expression_4' => "Are there any logos, patterns, or symbols that hold meaning for your brand?",
+                    'expression_5' => "Share any links or files that represent your current branding or moodboard.",
+                ],
+                '🚀 Direction' => [
+                    'direction_1' => "What’s your current main offer or project you want support with?",
+                    'direction_2' => "Who is your dream client? Describe them with emotion and detail.",
+                    'direction_3' => "What are 3 key goals you have for the next 6 months?",
+                    'direction_4' => "Where do you feel stuck, overwhelmed, or unsure — and where would you love AI support?",
+                    'direction_5' => "If this AI assistant could speak your soul fluently, what would you want it to never forget?",
+                ],
+            ];
+
+            $pdf = new FPDF();
+            $pdf->AddPage();
+            $pdf->SetFont('Arial', 'B', 16);
+
+            // --- PDF Title and User Info ---
+            $pdf->Cell(0, 10, 'Your Brand Core Questionnaire', 0, 1, 'C');
+            $pdf->SetFont('Arial', '', 12);
+            $pdf->Cell(0, 10, 'User: ' . $user_info->display_name, 0, 1, 'C');
+            $pdf->Cell(0, 10, 'Date: ' . date('Y-m-d'), 0, 1, 'C');
+            $pdf->Ln(10);
+
+            // --- Loop Through Questions and Answers ---
+            foreach ($brand_soul_questions as $section_title => $questions) {
+                $pdf->SetFont('Arial', 'B', 14);
+                $pdf->SetFillColor(235, 235, 235); // Light grey for section headers
+                $pdf->Cell(0, 12, mb_convert_encoding($section_title, 'ISO-8859-1', 'UTF-8'), 0, 1, 'L', true);
+                $pdf->Ln(4);
+
+                foreach ($questions as $key => $question_text) {
+                    // Question
+                    $pdf->SetFont('Arial', 'B', 12);
+                    $pdf->MultiCell(0, 7, mb_convert_encoding($question_text, 'ISO-8859-1', 'UTF-8'));
+                    $pdf->Ln(2);
+
+                    // Answer
+                    $pdf->SetFont('Arial', '', 12);
+                    $answer = isset($answers[$key]) ? $answers[$key] : 'No answer provided.';
+                    $pdf->SetTextColor(50, 50, 50);
+                    $pdf->MultiCell(0, 7, mb_convert_encoding($answer, 'ISO-8859-1', 'UTF-8'));
+                    $pdf->SetTextColor(0, 0, 0);
+                    $pdf->Ln(8);
+                }
+            }
+
+            // --- Generate Filename ---
+            $brand_name = sanitize_title($user_info->display_name);
+            $filename = $brand_name . '-AI-brand-core.pdf';
+
+            $pdf->Output('D', $filename);
+            exit;
         }
     }
 }

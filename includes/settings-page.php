@@ -1,7 +1,7 @@
 <?php
 /**
  * Settings Page controller for AIOHM Knowledge Assistant.
- * This version uses header and footer partials.
+ * This version uses header and footer partials and includes the Brand Soul page.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -30,6 +30,7 @@ class AIOHM_KB_Settings_Page {
         add_submenu_page('aiohm-dashboard', 'AIOHM Settings', 'Settings', 'manage_options', 'aiohm-settings', array($this, 'render_form_settings_page'));
         add_submenu_page('aiohm-dashboard', 'Scan Content', 'Scan Content', 'manage_options', 'aiohm-scan-content', array($this, 'render_scan_page'));
         add_submenu_page('aiohm-dashboard', 'Manage Knowledge Base', 'Manage KB', 'manage_options', 'aiohm-manage-kb', array($this, 'render_manage_kb_page'));
+		add_submenu_page('aiohm-dashboard', __('AI Brand Core', 'aiohm-kb-assistant'), __('AI Brand Core', 'aiohm-kb-assistant'), 'read', 'aiohm-brand-soul', array($this, 'render_brand_soul_page'));
         add_submenu_page('aiohm-dashboard', __('Get Help', 'aiohm-kb-assistant'), __('Get Help', 'aiohm-kb-assistant'), 'manage_options', 'aiohm-get-help', array($this, 'render_help_page'));
         add_submenu_page('aiohm-dashboard', __('AIOHM License', 'aiohm-kb-assistant'), __('License', 'aiohm-kb-assistant'), 'manage_options', 'aiohm-license', array($this, 'render_license_page'));
         add_action('admin_init', array($this, 'register_settings'));
@@ -52,23 +53,33 @@ class AIOHM_KB_Settings_Page {
         include AIOHM_KB_PLUGIN_DIR . 'templates/admin-settings.php';
         $this->include_footer();
     }
-    
+
     public function render_scan_page() {
         $site_crawler = new AIOHM_KB_Site_Crawler();
         $uploads_crawler = new AIOHM_KB_Uploads_Crawler();
         $site_stats = $site_crawler->get_scan_stats();
         $uploads_stats = $uploads_crawler->get_stats();
-        $all_upload_items = $uploads_crawler->find_all_supported_attachments(); 
+        $all_upload_items = $uploads_crawler->find_all_supported_attachments();
         $pending_website_items = $site_crawler->find_all_content();
         $this->include_header();
         include AIOHM_KB_PLUGIN_DIR . 'templates/scan-website.php';
         $this->include_footer();
     }
-    
+
     public function render_manage_kb_page() {
         $this->include_header();
         $manager = new AIOHM_KB_Manager();
         $manager->display_page();
+        $this->include_footer();
+    }
+
+    public function render_brand_soul_page() {
+        // Access Control: Only allow users with 'minim_tribe' role (or admins)
+        if (!current_user_can('manage_options') && !in_array('minim_tribe', (array) wp_get_current_user()->roles)) {
+            wp_die(__('You do not have sufficient permissions to access this page.'));
+        }
+        $this->include_header();
+        include AIOHM_KB_PLUGIN_DIR . 'templates/admin-brand-soul.php';
         $this->include_footer();
     }
 
@@ -88,44 +99,44 @@ class AIOHM_KB_Settings_Page {
         register_setting('aiohm_kb_settings', 'aiohm_kb_settings', array($this, 'sanitize_settings'));
     }
 
-public function sanitize_settings($input) {
-    // Start with the currently saved settings to preserve any keys not present in the submitted form.
-    $sanitized = get_option('aiohm_kb_settings', []);
+    public function sanitize_settings($input) {
+        // Start with the currently saved settings to preserve any keys not present in the submitted form.
+        $sanitized = get_option('aiohm_kb_settings', []);
 
-    // Merge the submitted input over the existing settings. This allows forms to only submit the fields they control.
-    $input = wp_parse_args($input, $sanitized);
+        // Merge the submitted input over the existing settings. This allows forms to only submit the fields they control.
+        $input = wp_parse_args($input, $sanitized);
 
-    // --- Sanitize all possible settings ---
+        // --- Sanitize all possible settings ---
 
-    // Sanitize API Keys & Bot ID
-    if (isset($input['aiohm_app_arm_user_id'])) {
-        $sanitized['aiohm_app_arm_user_id'] = sanitize_text_field(trim($input['aiohm_app_arm_user_id']));
-    }
-    if (isset($input['aiohm_app_email'])) {
-        $sanitized['aiohm_app_email'] = sanitize_email(trim($input['aiohm_app_email']));
-    }
-    // Removed: 'aiohm_app_secret_key' from sanitization as it's no longer a user input.
-    if (isset($input['openai_api_key'])) {
-        $sanitized['openai_api_key'] = sanitize_text_field(trim($input['openai_api_key']));
-    }
-    if (isset($input['gemini_api_key'])) {
-        $sanitized['gemini_api_key'] = sanitize_text_field(trim($input['gemini_api_key']));
-    }
-    if (isset($input['claude_api_key'])) {
-        $sanitized['claude_api_key'] = sanitize_text_field(trim($input['claude_api_key']));
-    }
-    
-    // Sanitize Scan Schedule
-    if (isset($input['scan_schedule'])) { 
-        $allowed_schedules = ['none', 'daily', 'weekly', 'monthly'];
-        $sanitized['scan_schedule'] = in_array($input['scan_schedule'], $allowed_schedules) ? sanitize_key($input['scan_schedule']) : 'none';
-    }
+        // Sanitize API Keys & Bot ID
+        if (isset($input['aiohm_app_arm_user_id'])) {
+            $sanitized['aiohm_app_arm_user_id'] = sanitize_text_field(trim($input['aiohm_app_arm_user_id']));
+        }
+        if (isset($input['aiohm_app_email'])) {
+            $sanitized['aiohm_app_email'] = sanitize_email(trim($input['aiohm_app_email']));
+        }
+        // Removed: 'aiohm_app_secret_key' from sanitization as it's no longer a user input.
+        if (isset($input['openai_api_key'])) {
+            $sanitized['openai_api_key'] = sanitize_text_field(trim($input['openai_api_key']));
+        }
+        if (isset($input['gemini_api_key'])) {
+            $sanitized['gemini_api_key'] = sanitize_text_field(trim($input['gemini_api_key']));
+        }
+        if (isset($input['claude_api_key'])) {
+            $sanitized['claude_api_key'] = sanitize_text_field(trim($input['claude_api_key']));
+        }
 
-    // Sanitize Checkboxes
-    $sanitized['chat_enabled'] = isset($input['chat_enabled']) ? (bool) $input['chat_enabled'] : false;
-    $sanitized['show_floating_chat'] = isset($input['show_floating_chat']) ? (bool) $input['show_floating_chat'] : false;
-    $sanitized['enable_private_assistant'] = isset($input['enable_private_assistant']) ? (bool) $input['enable_private_assistant'] : false;
-    
-    return $sanitized;
-}
+        // Sanitize Scan Schedule
+        if (isset($input['scan_schedule'])) {
+            $allowed_schedules = ['none', 'daily', 'weekly', 'monthly'];
+            $sanitized['scan_schedule'] = in_array($input['scan_schedule'], $allowed_schedules) ? sanitize_key($input['scan_schedule']) : 'none';
+        }
+
+        // Sanitize Checkboxes
+        $sanitized['chat_enabled'] = isset($input['chat_enabled']) ? (bool) $input['chat_enabled'] : false;
+        $sanitized['show_floating_chat'] = isset($input['show_floating_chat']) ? (bool) $input['show_floating_chat'] : false;
+        $sanitized['enable_private_assistant'] = isset($input['enable_private_assistant']) ? (bool) $input['enable_private_assistant'] : false;
+
+        return $sanitized;
+    }
 }
