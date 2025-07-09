@@ -27,7 +27,7 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
     <div class="aiohm-feature-grid">
 
         <div class="aiohm-feature-box <?php echo $is_user_linked ? 'plan-active' : 'plan-inactive'; ?>">
-            <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="AIOHM Logo" class="ohm-logo-icon"></div>
+            <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="OHM Logo" class="ohm-logo-icon"></div>
             <h3><?php _e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
             <?php if ($is_user_linked) : ?>
                 <h4 class="plan-price"><?php _e('Welcome to the Tribe!', 'aiohm-kb-assistant'); ?></h4>
@@ -40,7 +40,7 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
             <?php else: ?>
                 <h4 class="plan-price"><?php _e('This free tier is where brand resonance begins.', 'aiohm-kb-assistant'); ?></h4>
                 <div class="plan-description"><p><?php _e('Root into your why. Begin with deep reflection and intentional alignment. Access your personal Brand Soul Map through our guided questionnaire and shape your AI with the truths that matter most to you.', 'aiohm-kb-assistant'); ?></p></div>
-                <a href="https://www.aiohm.app/tribe" target="_blank" class="button button-primary" style="margin-top: auto;">→ <?php _e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
+                <a href="https://www.aiohm.app/register" target="_blank" class="button button-primary" style="margin-top: auto;">→ <?php _e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
             <?php endif; ?>
         </div>
 
