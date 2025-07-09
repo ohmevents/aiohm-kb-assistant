@@ -3,7 +3,7 @@
  * Plugin Name: AIOHM Knowledge Assistant
  * Plugin URI: https://aiohm.app
  * Description: Bring your wisdom to life. The AIOHM Knowledge Assistant listens, learns, and speaks in your brand's voice, offering real-time answers, soulful brand support, and intuitive guidance for your visitors. With Muse and Mirror modes, it doesn't just respond - it resonates.
- * Version: 1.1.6
+ * Version: 1.1.7
  * Author: OHM Events Agency
  * Author URI: https://aiohm.app
  * Text Domain: aiohm-knowledge-assistant
@@ -17,7 +17,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('AIOHM_KB_VERSION', '1.1.6');
+define('AIOHM_KB_VERSION', '1.1.7');
 define('AIOHM_KB_PLUGIN_FILE', __FILE__);
 define('AIOHM_KB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AIOHM_KB_INCLUDES_DIR', AIOHM_KB_PLUGIN_DIR . 'includes/');
