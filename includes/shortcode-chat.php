@@ -221,14 +221,22 @@ class AIOHM_KB_Shortcode_Chat {
         // Add floating chat JavaScript
         $output .= '<script type="text/javascript">';
         $output .= 'jQuery(document).ready(function($) {';
-        $output .= '$("#aiohm-chat-trigger").click(function() {';
-        $output .= '$("#aiohm-chat-widget").slideToggle();';
+        $output .= 'const $floatingChat = $("#aiohm-floating-chat");';
+        $output .= 'if ($floatingChat.length) {';
+        $output .= 'const $trigger = $floatingChat.find("#aiohm-chat-trigger");';
+        $output .= 'const $widget = $floatingChat.find("#aiohm-chat-widget");';
+        $output .= 'const $closeBtn = $floatingChat.find("#aiohm-widget-close");';
+
+        $output .= '$trigger.on("click", function() {';
+        $output .= '$widget.slideToggle();';
         $output .= '$(this).toggleClass("active");';
         $output .= '});';
-        $output .= '$("#aiohm-widget-close").click(function() {';
-        $output .= '$("#aiohm-chat-widget").slideUp();';
-        $output .= '$("#aiohm-chat-trigger").removeClass("active");';
+
+        $output .= '$closeBtn.on("click", function() {';
+        $output .= '$widget.slideUp();';
+        $output .= '$trigger.removeClass("active");';
         $output .= '});';
+        $output .= '}';
         $output .= '});';
         $output .= '</script>';
         
