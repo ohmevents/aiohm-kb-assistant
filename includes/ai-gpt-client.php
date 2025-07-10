@@ -1,7 +1,7 @@
 <?php
 /**
  * AI GPT Client for handling API requests.
- * This version is complete and verified to be stable.
+ * This version is complete and includes embedding, chat completion, and testing methods.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -56,6 +56,39 @@ class AIOHM_KB_AI_GPT_Client {
             return $response['data'][0]['embedding'];
         } else {
             $error_message = $response['error']['message'] ?? 'Invalid embedding response from OpenAI API.';
+            throw new Exception($error_message);
+        }
+    }
+
+    /**
+     * Generates a chat response from the AI.
+     */
+    public function get_chat_completion($system_message, $user_message, $temperature = 0.7) {
+        if (empty($this->openai_api_key)) {
+            throw new Exception('OpenAI API key is required for chat completions.');
+        }
+        
+        $url = 'https://api.openai.com/v1/chat/completions';
+        $data = [
+            'model' => 'gpt-3.5-turbo',
+            'messages' => [
+                ['role' => 'system', 'content' => $this->sanitize_text_for_json($system_message)],
+                ['role' => 'user', 'content' => $this->sanitize_text_for_json($user_message)]
+            ],
+            'temperature' => floatval($temperature),
+        ];
+        
+        $body = json_encode($data);
+        if ($body === false) {
+            throw new Exception('Failed to JSON-encode chat request.');
+        }
+
+        $response = $this->make_http_request($url, $body);
+        
+        if (isset($response['choices'][0]['message']['content'])) {
+            return $response['choices'][0]['message']['content'];
+        } else {
+            $error_message = $response['error']['message'] ?? 'Invalid chat response from OpenAI API.';
             throw new Exception($error_message);
         }
     }

@@ -1,7 +1,8 @@
 <?php
 /**
  * RAG (Retrieval-Augmented Generation) Engine.
- * This version fixes the deletion logic to correctly update post meta status.
+ * This version fixes the deletion logic to correctly update post meta status
+ * and includes a method to fetch a random content chunk.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -70,20 +71,16 @@ class AIOHM_KB_RAG_Engine {
     public function delete_entry_by_content_id($content_id) {
         global $wpdb;
 
-        // First, find the metadata from one of the chunks before we delete them.
         $metadata_json = $wpdb->get_var($wpdb->prepare(
             "SELECT metadata FROM {$this->table_name} WHERE content_id = %s LIMIT 1",
             $content_id
         ));
 
-        // Delete the entries from our custom knowledge base table.
         $deleted = $wpdb->delete($this->table_name, ['content_id' => $content_id], ['%s']);
 
-        // If deletion was successful and we found metadata, update the original item's status.
         if ($deleted > 0 && !empty($metadata_json)) {
             $metadata = json_decode($metadata_json, true);
             
-            // Determine the original item's ID (could be a post or an attachment).
             $original_item_id = null;
             if (isset($metadata['post_id'])) {
                 $original_item_id = (int) $metadata['post_id'];
@@ -92,9 +89,7 @@ class AIOHM_KB_RAG_Engine {
             }
 
             if ($original_item_id) {
-                // Remove the indexed flag.
                 delete_post_meta($original_item_id, '_aiohm_indexed');
-                // Clear the cache for this item to ensure the change is reflected immediately.
                 clean_post_cache($original_item_id);
             }
         }
@@ -154,6 +149,27 @@ class AIOHM_KB_RAG_Engine {
         return count($data);
     }
     
+    public function find_relevant_context($query_text, $limit = 5) {
+        global $wpdb;
+        $ai_client = new AIOHM_KB_AI_GPT_Client();
+        $query_embedding = $ai_client->generate_embeddings($query_text);
+        $all_entries = $wpdb->get_results("SELECT id, title, content, content_type, metadata, vector_data FROM {$this->table_name} WHERE user_id = 0", ARRAY_A);
+        $similarities = [];
+        foreach ($all_entries as $entry) {
+            $vector = json_decode($entry['vector_data'], true);
+            if (is_array($vector)) {
+                $dot_product = array_sum(array_map(fn($a, $b) => $a * $b, $query_embedding, $vector));
+                $mag_a = sqrt(array_sum(array_map(fn($a) => $a * $a, $query_embedding)));
+                $mag_b = sqrt(array_sum(array_map(fn($b) => $b * $b, $vector)));
+                if ($mag_a > 0 && $mag_b > 0) {
+                    $similarities[] = ['score' => $dot_product / ($mag_a * $mag_b), 'entry' => $entry];
+                }
+            }
+        }
+        usort($similarities, fn($a, $b) => $b['score'] <=> $a['score']);
+        return array_slice($similarities, 0, $limit);
+    }
+    
     public function find_context_for_user($query_text, $user_id, $limit = 5) {
         global $wpdb;
         $ai_client = new AIOHM_KB_AI_GPT_Client();
@@ -184,5 +200,15 @@ class AIOHM_KB_RAG_Engine {
     public function update_entry_scope_by_content_id($content_id, $new_user_id) {
         global $wpdb;
         return $wpdb->update($this->table_name, ['user_id' => $new_user_id], ['content_id' => $content_id], ['%d'], ['%s']);
+    }
+
+    /**
+     * Gets a single random content chunk from the knowledge base.
+     * @return string|null The content of a random entry, or null if the table is empty.
+     */
+    public function get_random_chunk() {
+        global $wpdb;
+        $random_entry = $wpdb->get_var("SELECT content FROM {$this->table_name} WHERE user_id = 0 ORDER BY RAND() LIMIT 1");
+        return $random_entry;
     }
 }
