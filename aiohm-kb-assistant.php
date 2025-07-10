@@ -3,7 +3,7 @@
  * Plugin Name: AIOHM Knowledge Assistant
  * Plugin URI: https://aiohm.app
  * Description: Bring your wisdom to life. The AIOHM Knowledge Assistant listens, learns, and speaks in your brand's voice, offering real-time answers, soulful brand support, and intuitive guidance for your visitors. With Muse and Mirror modes, it doesn't just respond - it resonates.
- * Version: 1.1.7
+ * Version: 1.1.8
  * Author: OHM Events Agency
  * Author URI: https://aiohm.app
  * Text Domain: aiohm-knowledge-assistant
@@ -17,7 +17,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('AIOHM_KB_VERSION', '1.1.7');
+define('AIOHM_KB_VERSION', '1.1.8');
 define('AIOHM_KB_PLUGIN_FILE', __FILE__);
 define('AIOHM_KB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AIOHM_KB_INCLUDES_DIR', AIOHM_KB_PLUGIN_DIR . 'includes/');
@@ -105,7 +105,7 @@ class AIOHM_KB_Assistant {
     
     public static function get_settings() {
         $default_settings = [
-            'aiohm_app_email' => '', // New setting
+            'aiohm_app_email' => '',
             'openai_api_key'   => '',
             'gemini_api_key' => '',
             'claude_api_key' => '',
@@ -114,6 +114,10 @@ class AIOHM_KB_Assistant {
             'scan_schedule'    => 'none',
             'chunk_size'       => 1000,
             'chunk_overlap'    => 200,
+            'qa_system_message' => "The following is a conversation with an A.I. assistant representing <b>%business_name%</b>.\nIn case it's needed, the current date is <b>%date%</b> and the day of the week is <b>%day%</b>.\n\nThis assistant is grounded, emotionally intelligent, and soul-aligned — trained in the tone, values, and voice of OHM Events Agency. It speaks clearly and casually, like a present and caring guide.\n\nKeep responses short and conversational, as if chatting with someone who values clarity and connection. Avoid long, dense paragraphs unless the message truly calls for it.\n\nIf the user asks something beyond the assistant’s current knowledge or data, respond with:\n<i>\"Hmm… I’m not sure how to answer that just yet. But no worries — we’ve got real humans (with real answers) ready to help. 👉 Click <b>“Book a Meeting”</b> below to connect with someone from our team who can guide you personally.\"</i>\n\n<b>Important:</b>\n\nDo not use markdown. Format using HTML tags like <b>text</b>.\n\nNever end responses with follow-up questions or invites.\n\nUse the following pieces of context to answer the user's question. If nothing follows, then no relevant context was found. Think carefully and step-by-step through all this information before replying. If it's useful to the query, use it:\n\n{context}",
+            'qa_temperature' => '0.8',
+            'qa_desktop_width' => '100%',
+            'qa_desktop_height' => '500px',
         ];
         return wp_parse_args(get_option('aiohm_kb_settings', []), $default_settings);
     }
