@@ -1,7 +1,7 @@
 <?php
 /**
  * AI GPT Client for handling API requests.
- * This version is complete and includes embedding, chat completion, and testing methods.
+ * This version includes an increased timeout for more stability.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -11,8 +11,6 @@ class AIOHM_KB_AI_GPT_Client {
     private $openai_api_key;
     
     public function __construct($settings = null) {
-        // If custom settings (like a key for testing) are passed, use them.
-        // Otherwise, get the global settings from the main plugin class.
         if ($settings === null) {
             $this->settings = AIOHM_KB_Assistant::get_settings();
         } else {
@@ -21,9 +19,6 @@ class AIOHM_KB_AI_GPT_Client {
         $this->openai_api_key = $this->settings['openai_api_key'] ?? '';
     }
     
-    /**
-     * Helper function to sanitize text to be valid UTF-8 before JSON encoding.
-     */
     private function sanitize_text_for_json($text) {
         if (is_string($text)) {
             return mb_convert_encoding($text, 'UTF-8', 'UTF-8');
@@ -31,9 +26,6 @@ class AIOHM_KB_AI_GPT_Client {
         return $text;
     }
 
-    /**
-     * Generates embeddings for a given text string.
-     */
     public function generate_embeddings($text) {
         if (empty($this->openai_api_key)) {
             throw new Exception('OpenAI API key is required for embeddings.');
@@ -60,9 +52,6 @@ class AIOHM_KB_AI_GPT_Client {
         }
     }
 
-    /**
-     * Generates a chat response from the AI.
-     */
     public function get_chat_completion($system_message, $user_message, $temperature = 0.7) {
         if (empty($this->openai_api_key)) {
             throw new Exception('OpenAI API key is required for chat completions.');
@@ -93,14 +82,11 @@ class AIOHM_KB_AI_GPT_Client {
         }
     }
 
-    /**
-     * Makes the actual HTTP request to the OpenAI API.
-     */
     private function make_http_request($url, $body) {
         $response = wp_remote_post($url, [
             'headers' => ['Authorization' => 'Bearer ' . $this->openai_api_key, 'Content-Type' => 'application/json'],
             'body'    => $body,
-            'timeout' => 30
+            'timeout' => 60 // Increased timeout to 60 seconds
         ]);
         
         if (is_wp_error($response)) {
@@ -119,9 +105,6 @@ class AIOHM_KB_AI_GPT_Client {
         return $decoded_response;
     }
 
-    /**
-     * Tests the API connection by trying to generate a simple embedding.
-     */
     public function test_api_connection() {
         try {
             $this->generate_embeddings("test");

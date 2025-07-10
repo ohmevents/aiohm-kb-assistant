@@ -29,6 +29,10 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_save_mirror_mode_settings', array(__CLASS__, 'handle_save_mirror_mode_settings_ajax'));
         add_action('wp_ajax_aiohm_generate_mirror_mode_qa', array(__CLASS__, 'handle_generate_mirror_mode_qa_ajax'));
         add_action('wp_ajax_aiohm_test_mirror_mode_chat', array(__CLASS__, 'handle_test_mirror_mode_chat_ajax'));
+        
+        // Frontend Chat Actions
+        add_action('wp_ajax_aiohm_frontend_chat', array(__CLASS__, 'handle_frontend_chat_ajax'));
+        add_action('wp_ajax_nopriv_aiohm_frontend_chat', array(__CLASS__, 'handle_frontend_chat_ajax'));
     }
 
     public static function handle_progressive_scan_ajax() {
@@ -378,6 +382,48 @@ class AIOHM_KB_Core_Init {
             $system_message = str_replace(array_keys($replacements), array_values($replacements), $system_message);
             $temperature = isset($test_settings['qa_temperature']) ? floatval($test_settings['qa_temperature']) : 0.8;
             $answer = $ai_client->get_chat_completion($system_message, $user_message, $temperature);
+            wp_send_json_success(['answer' => nl2br(esc_html($answer))]);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => 'AI Error: ' . $e->getMessage()]);
+        }
+    }
+
+    public static function handle_frontend_chat_ajax() {
+        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_chat_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+        try {
+            $user_message = isset($_POST['message']) ? sanitize_text_field($_POST['message']) : '';
+            $settings = AIOHM_KB_Assistant::get_settings();
+            
+            $rag_engine = new AIOHM_KB_RAG_Engine();
+            $ai_client = new AIOHM_KB_AI_GPT_Client();
+
+            $context_chunks = $rag_engine->find_relevant_context($user_message);
+            $context = '';
+            foreach ($context_chunks as $chunk) {
+                $context .= $chunk['entry']['content'] . "\n\n";
+            }
+
+            if (empty(trim($context))) {
+                $context = 'No relevant context found.';
+            }
+
+            $system_message = $settings['qa_system_message'] ?? '';
+            $business_name = esc_html($settings['business_name'] ?? get_bloginfo('name'));
+            $replacements = [
+                '{context}'        => $context,
+                '%site_name%'      => $business_name,
+                '%business_name%'  => $business_name,
+                '%day_of_week%'    => date('l'),
+                '%current_date%'   => date(get_option('date_format')),
+            ];
+            $system_message = str_replace(array_keys($replacements), array_values($replacements), $system_message);
+            
+            $temperature = isset($settings['qa_temperature']) ? floatval($settings['qa_temperature']) : 0.8;
+
+            $answer = $ai_client->get_chat_completion($system_message, $user_message, $temperature);
+
             wp_send_json_success(['answer' => nl2br(esc_html($answer))]);
         } catch (Exception $e) {
             wp_send_json_error(['message' => 'AI Error: ' . $e->getMessage()]);

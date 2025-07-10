@@ -151,7 +151,7 @@
                 url: this.config.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'aiohm_test_mirror_mode_chat', // Use the test chat action
+                    action: this.config.chat_action || 'aiohm_test_mirror_mode_chat', // Use the frontend action
                     nonce: this.config.nonce,
                     message: message,
                     settings: this.config.settings

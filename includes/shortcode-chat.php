@@ -125,16 +125,17 @@ class AIOHM_KB_Shortcode_Chat {
         
         $output .= '</div>';
         
-        // Add chat configuration to be used by JavaScript
-        $chat_config = array(
-            'chat_id' => $chat_id,
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('aiohm_chat_nonce'),
-            'strings' => array(
-                'error' => __('Sorry, something went wrong. Please try again.', 'aiohm-kb-assistant'),
-            ),
-            'settings' => $settings // Pass all settings to JS
-        );
+// inside render_chat_shortcode() in includes/shortcode-chat.php
+$chat_config = array(
+    'chat_id' => $chat_id,
+    'ajax_url' => admin_url('admin-ajax.php'),
+    'nonce' => wp_create_nonce('aiohm_chat_nonce'),
+    'chat_action' => 'aiohm_frontend_chat', // Add this line
+    'strings' => array(
+        'error' => __('Sorry, something went wrong. Please try again.', 'aiohm-kb-assistant'),
+    ),
+    'settings' => $settings // Pass all settings to JS
+);
         
         $output .= '<script type="text/javascript">';
         $output .= 'if (typeof window.aiohm_chat_configs === "undefined") window.aiohm_chat_configs = {};';

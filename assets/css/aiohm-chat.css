@@ -361,7 +361,7 @@
 .aiohm-chat-input {
     flex: 1;
     border: none;
-    background: transparent;
+    background: #ffffff; /* Changed from transparent */
     resize: none;
     outline: none;
     font-family: inherit;
@@ -370,7 +370,7 @@
     padding: 4px 0;
     max-height: 100px;
     min-height: 20px;
-    color: #333; /* Ensure input text is visible */
+    color: #333333; /* Ensured dark text color */
 }
 
 .aiohm-chat-input::placeholder {
