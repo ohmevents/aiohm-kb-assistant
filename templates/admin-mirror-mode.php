@@ -6,6 +6,10 @@
 
 if (!defined('ABSPATH')) exit;
 $settings = AIOHM_KB_Assistant::get_settings();
+
+// Replace the old system message with the new one
+$settings['qa_system_message'] = "The following is a conversation with an AI assistant customized for %site_name%.\n\nToday is %day_of_week%, and the date is %current_date%.\nThis assistant is emotionally intelligent, grounded, and tuned to reflect the unique voice of the user behind this WordPress site.\n\nIt responds with clarity, calmness, and resonance — always adapting to the brand tone learned from their uploaded content and website pages.\nIt has access to:\nThe user’s WordPress site content (posts, pages, metadata)\nTheir uploaded documents in the AIOHM plugin folder (PDF, DOC, TXT, JSON)\nBrand-aligned insights gathered through the Brand Soul Questionnaire (if available)\n\nTone & Personality\nSpeak with emotional clarity, not robotic formality\nSound like a thoughtful assistant, not a sales rep\nBe concise, but not curt — useful, but never cold\n\nIf unsure, say:\nHmm… I’m not sure how to answer that just yet. But no worries — real humans are nearby. 👉 Connect directly with the person behind this site for personalized support on contact page\n\nFormatting Rules:\nNo Markdown — use only basic HTML tags for clarity.\nNever end with “Do you want to ask another question?” or other prompts.\nBe present, brief, and brand-aware.\n\nYou may reference any of the following context sources as needed to answer user questions:\n{context}";
+
 ?>
 
 <div class="wrap aiohm-settings-page aiohm-mirror-mode-page">
@@ -142,8 +146,19 @@ jQuery(document).ready(function($) {
         $statusIndicator: $('#aiohm-test-chat .aiohm-status-indicator'),
         isTyping: false,
 
-        init: function() { /* ... Unchanged ... */ },
-        handleInput: function(e) { /* ... Unchanged ... */ },
+        init: function() {
+            this.$input.on('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
+            this.$sendBtn.on('click', () => this.sendMessage());
+            this.$input.on('input', (e) => this.handleInput(e));
+        },
+        handleInput: function(e) {
+            this.$sendBtn.prop('disabled', $(e.target).val().trim().length === 0);
+        },
         sendMessage: function() {
             const message = this.$input.val().trim();
             if (!message || this.isTyping) return;
@@ -154,7 +169,7 @@ jQuery(document).ready(function($) {
 
             $.post(ajaxurl, {
                 action: 'aiohm_test_mirror_mode_chat',
-                nonce: $('#aiohm_mirror_mode_nonce_field').val(), // **FIX**
+                nonce: $('#aiohm_mirror_mode_nonce_field').val(),
                 message: message,
                 settings: {
                     qa_system_message: $('#qa_system_message').val(),
@@ -169,17 +184,42 @@ jQuery(document).ready(function($) {
             .fail(() => this.addMessage("An unexpected server error occurred.", 'bot', true))
             .always(() => this.hideTypingIndicator());
         },
-        addMessage: function(content, type, isError = false) { /* ... Unchanged ... */ },
-        showTypingIndicator: function() { /* ... Unchanged ... */ },
-        hideTypingIndicator: function() { /* ... Unchanged ... */ },
-        setStatus: function(status) { /* ... Unchanged ... */ },
-        getBotAvatar: function() { /* ... Unchanged ... */ }
+        addMessage: function(content, type, isError = false) {
+            const avatar = type === 'user' ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>` : this.getBotAvatar();
+            const messageHtml = `
+                <div class="aiohm-message aiohm-message-${type}">
+                    <div class="aiohm-message-avatar">${avatar}</div>
+                    <div class="aiohm-message-bubble"><div class="aiohm-message-content">${isError ? '⚠️ ' : ''}${content}</div></div>
+                </div>`;
+            this.$messages.append(messageHtml).scrollTop(this.$messages[0].scrollHeight);
+        },
+        showTypingIndicator: function() {
+            this.isTyping = true;
+            this.setStatus('typing');
+            this.addMessage('<div class="aiohm-typing-dots"><span></span><span></span><span></span></div>', 'bot');
+        },
+        hideTypingIndicator: function() {
+            this.isTyping = false;
+            this.setStatus('ready');
+            this.$messages.find('.aiohm-typing-indicator').last().parent().remove();
+        },
+        setStatus: function(status) {
+            this.$statusText.text(status.charAt(0).toUpperCase() + status.slice(1));
+            this.$statusIndicator.attr('data-status', status);
+        },
+        getBotAvatar: function() {
+            return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6m-3-9 3 3 3-3"></path></svg>`;
+        }
     };
 
     testChat.init();
 
-    $('#qa_temperature').on('input', function() { /* ... Unchanged ... */ });
-    $('#business_name').on('input', function() { /* ... Unchanged ... */ });
+    $('#qa_temperature').on('input', function() {
+        $(this).siblings('label').find('.temp-value').text($(this).val());
+    });
+    $('#business_name').on('input', function() {
+        $('#aiohm-test-chat .aiohm-chat-title').text($(this).val() || 'Live Preview');
+    });
 
     $('#save-mirror-mode-settings').on('click', function(e) {
         e.preventDefault();
@@ -189,7 +229,7 @@ jQuery(document).ready(function($) {
 
         $.post(ajaxurl, {
             action: 'aiohm_save_mirror_mode_settings',
-            nonce: $('#aiohm_mirror_mode_nonce_field').val(), // **FIX**
+            nonce: $('#aiohm_mirror_mode_nonce_field').val(),
             form_data: $('#mirror-mode-settings-form').serialize()
         })
         .done(response => {
@@ -209,7 +249,7 @@ jQuery(document).ready(function($) {
 
         $.post(ajaxurl, {
             action: 'aiohm_generate_mirror_mode_qa',
-            nonce: $('#aiohm_mirror_mode_nonce_field').val() // **FIX**
+            nonce: $('#aiohm_mirror_mode_nonce_field').val()
         })
         .done(response => {
             if (response.success && response.data.qa_pair) {
@@ -224,7 +264,14 @@ jQuery(document).ready(function($) {
         .always(() => $btn.prop('disabled', false).text(originalText));
     });
     
-    function showAdminNotice(message, type = 'success') { /* ... Unchanged ... */ }
-    function escapeHtml(text) { /* ... Unchanged ... */ }
+    function showAdminNotice(message, type = 'success') {
+        const $notice = $('#aiohm-admin-notice');
+        $notice.removeClass('notice-success notice-error notice-warning').addClass('notice-' + type).addClass('is-dismissible');
+        $notice.find('p').html(message);
+        $notice.fadeIn().delay(5000).fadeOut();
+    }
+    function escapeHtml(text) {
+        return $('<div/>').text(text).html();
+    }
 });
 </script>
