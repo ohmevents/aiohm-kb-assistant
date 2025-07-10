@@ -41,7 +41,6 @@ class AIOHM_KB_Frontend_Widget {
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('aiohm_chat_nonce'),
             'chat_enabled' => $settings['chat_enabled'] ?? true,
-            'show_floating_chat' => $settings['show_floating_chat'] ?? false,
         ));
     }
     
@@ -64,11 +63,6 @@ class AIOHM_KB_Frontend_Widget {
         
         // Check for chat shortcode and chat enable setting
         if (($post && has_shortcode($post->post_content, 'aiohm_chat')) && ($settings['chat_enabled'] ?? true)) {
-            return true;
-        }
-        
-        // Check for floating chat and chat enable setting
-        if (!empty($settings['show_floating_chat']) && ($settings['chat_enabled'] ?? true)) {
             return true;
         }
         

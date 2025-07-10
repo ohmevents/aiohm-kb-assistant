@@ -77,8 +77,6 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
                 <table class="form-table">
                     <tr><th scope="row"><?php _e('Enable Q&A Chatbot', 'aiohm-kb-assistant'); ?></th>
                         <td><label><input type="checkbox" name="aiohm_kb_settings[chat_enabled]" value="1" <?php checked($settings['chat_enabled'] ?? false); disabled(!$can_access_settings); ?> /> <?php _e('Enable the `[aiohm_chat]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
-                    <tr><th scope="row"><?php _e('Enable Floating Widget', 'aiohm-kb-assistant'); ?></th>
-                        <td><label><input type="checkbox" name="aiohm_kb_settings[show_floating_chat]" value="1" <?php checked($settings['show_floating_chat'] ?? false); disabled(!$can_access_settings); ?> /> <?php _e('Display a floating chat widget on all pages.', 'aiohm-kb-assistant'); ?></label></td></tr>
                 </table>
             </div>
 

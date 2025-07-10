@@ -12,30 +12,8 @@ class AIOHM_KB_Shortcode_Chat {
 
     public static function init() {
         add_shortcode('aiohm_chat', array(__CLASS__, 'render_chat_shortcode'));
-
-        // Moved the floating chat setup here to ensure it runs on the 'init' hook
-        self::setup_floating_chat();
     }
 
-    /**
-     * Checks settings and adds the floating chat hook if enabled.
-     * This is the corrected function that will not load in the Elementor editor.
-     */
-    public static function setup_floating_chat() {
-        // ** FIX: Do not add the floating chat action if Elementor editor is active **
-        if (did_action('elementor/loaded') && \Elementor\Plugin::$instance->editor->is_edit_mode()) {
-            return;
-        }
-
-        $settings = AIOHM_KB_Assistant::get_settings();
-        $has_club_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
-
-        // Only load floating chat if the specific setting is enabled and user has Club access
-        if (($settings['show_floating_chat'] ?? false) && $has_club_access) {
-            add_action('wp_footer', array(__CLASS__, 'add_floating_chat'));
-        }
-    }
-    
     /**
      * Render chat shortcode
      */
@@ -163,90 +141,5 @@ class AIOHM_KB_Shortcode_Chat {
         $output .= '</script>';
         
         return $output;
-    }
-    
-    /**
-     * Render floating chat widget
-     */
-    public static function render_floating_chat($atts = array()) {
-        $atts = array_merge(array(
-            'position' => 'bottom-right',
-            'title' => __('Chat with us', 'aiohm-kb-assistant'),
-            'trigger_text' => __('Need help?', 'aiohm-kb-assistant'),
-            'height' => '500',
-            'width' => '350'
-        ), $atts);
-        
-        $position_class = 'aiohm-float-' . str_replace('_', '-', $atts['position']);
-        
-        $output = '<div class="aiohm-floating-chat ' . esc_attr($position_class) . '" id="aiohm-floating-chat">';
-        
-        // Chat trigger button
-        $output .= '<div class="aiohm-chat-trigger" id="aiohm-chat-trigger">';
-        $output .= '<div class="aiohm-trigger-content">';
-        $output .= '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">';
-        $output .= '<path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"></path>';
-        $output .= '</svg>';
-        $output .= '<span class="aiohm-trigger-text">' . esc_html($atts['trigger_text']) . '</span>';
-        $output .= '</div>';
-        $output .= '</div>';
-        
-        // Chat widget (initially hidden)
-        $output .= '<div class="aiohm-chat-widget" id="aiohm-chat-widget" style="display: none;">';
-        $output .= '<div class="aiohm-widget-header">';
-        $output .= '<div class="aiohm-widget-title">' . esc_html($atts['title']) . '</div>';
-        $output .= '<button type="button" class="aiohm-widget-close" id="aiohm-widget-close">';
-        $output .= '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">';
-        $output .= '<line x1="18" y1="6" x2="6" y2="18"></line>';
-        $output .= '<line x1="6" y1="6" x2="18" y2="18"></line>';
-        $output .= '</svg>';
-        $output .= '</button>';
-        $output .= '</div>';
-        
-        // Embed the chat shortcode
-        $chat_atts = array(
-            'title' => '',
-            'height' => $atts['height'],
-            'width' => $atts['width'],
-            'theme' => 'floating',
-            'show_branding' => 'false',
-            'welcome_message' => __('Hello! How can I help you today?', 'aiohm-kb-assistant'),
-            'chat_enabled' => true 
-        );
-        
-        $output .= self::render_chat_shortcode($chat_atts);
-        $output .= '</div>';
-        $output .= '</div>';
-        
-        // Add floating chat JavaScript
-        $output .= '<script type="text/javascript">';
-        $output .= 'jQuery(document).ready(function($) {';
-        $output .= 'const $floatingChat = $("#aiohm-floating-chat");';
-        $output .= 'if ($floatingChat.length) {';
-        $output .= 'const $trigger = $floatingChat.find("#aiohm-chat-trigger");';
-        $output .= 'const $widget = $floatingChat.find("#aiohm-chat-widget");';
-        $output .= 'const $closeBtn = $floatingChat.find("#aiohm-widget-close");';
-
-        $output .= '$trigger.on("click", function() {';
-        $output .= '$widget.slideToggle();';
-        $output .= '$(this).toggleClass("active");';
-        $output .= '});';
-
-        $output .= '$closeBtn.on("click", function() {';
-        $output .= '$widget.slideUp();';
-        $output .= '$trigger.removeClass("active");';
-        $output .= '});';
-        $output .= '}';
-        $output .= '});';
-        $output .= '</script>';
-        
-        return $output;
-    }
-    
-    /**
-     * Add floating chat to footer
-     */
-    public static function add_floating_chat() {
-        echo self::render_floating_chat();
     }
 }

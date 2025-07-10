@@ -497,116 +497,6 @@
     border-top: 1px solid var(--aiohm-border-color);
 }
 
-/* --- Start of Updated Floating Chat Widget Styles --- */
-#aiohm-floating-chat {
-    position: fixed;
-    z-index: 9999;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-#aiohm-floating-chat .aiohm-float-bottom-right {
-    bottom: 20px;
-    right: 20px;
-}
-
-#aiohm-floating-chat .aiohm-float-bottom-left {
-    bottom: 20px;
-    left: 20px;
-}
-
-#aiohm-floating-chat .aiohm-float-top-right {
-    top: 20px;
-    right: 20px;
-}
-
-#aiohm-floating-chat .aiohm-float-top-left {
-    top: 20px;
-    left: 20px;
-}
-
-#aiohm-floating-chat .aiohm-chat-trigger {
-    background: var(--aiohm-primary-color);
-    color: white;
-    border-radius: 50px;
-    padding: 12px 20px;
-    cursor: pointer;
-    box-shadow: var(--aiohm-shadow);
-    transition: var(--aiohm-transition);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    max-width: 200px;
-}
-
-#aiohm-floating-chat .aiohm-chat-trigger:hover {
-    box-shadow: var(--aiohm-shadow-hover);
-    transform: translateY(-2px);
-}
-
-#aiohm-floating-chat .aiohm-chat-trigger.active {
-    border-radius: 50%;
-    padding: 16px;
-    min-width: 56px;
-    min-height: 56px;
-}
-
-#aiohm-floating-chat .aiohm-chat-trigger.active .aiohm-trigger-text {
-    display: none;
-}
-
-#aiohm-floating-chat .aiohm-trigger-content {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-#aiohm-floating-chat .aiohm-trigger-text {
-    font-size: 14px;
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-#aiohm-floating-chat .aiohm-chat-widget {
-    position: absolute;
-    bottom: 80px;
-    right: 0;
-    width: 350px;
-    max-height: 500px;
-    background: white;
-    border-radius: var(--aiohm-border-radius);
-    box-shadow: var(--aiohm-shadow-hover);
-    overflow: hidden;
-}
-
-#aiohm-floating-chat .aiohm-widget-header {
-    background: var(--aiohm-primary-color);
-    color: white;
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-#aiohm-floating-chat .aiohm-widget-title {
-    font-size: 16px;
-    font-weight: 600;
-}
-
-#aiohm-floating-chat .aiohm-widget-close {
-    background: none;
-    border: none;
-    color: white;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: var(--aiohm-transition);
-}
-
-#aiohm-floating-chat .aiohm-widget-close:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-/* --- End of Updated Floating Chat Widget Styles --- */
-
 /* Search Styles */
 .aiohm-search-container {
     max-width: 800px;
@@ -950,14 +840,14 @@
         border-right: none;
     }
     
-    #aiohm-floating-chat {
+    .aiohm-floating-chat {
         bottom: 10px;
         right: 10px;
     }
     
-    #aiohm-floating-chat .aiohm-chat-widget {
+    .aiohm-chat-widget {
         width: calc(100vw - 20px);
-        right: -10px;
+        right: -20px;
         bottom: 70px;
     }
     
@@ -984,11 +874,11 @@
         max-width: 85%;
     }
     
-    #aiohm-floating-chat .aiohm-chat-trigger .aiohm-trigger-text {
+    .aiohm-chat-trigger .aiohm-trigger-text {
         display: none;
     }
     
-    #aiohm-floating-chat .aiohm-chat-trigger {
+    .aiohm-chat-trigger {
         border-radius: 50%;
         padding: 16px;
         min-width: 56px;

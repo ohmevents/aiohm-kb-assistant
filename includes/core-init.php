@@ -356,7 +356,7 @@ class AIOHM_KB_Core_Init {
             $context_chunks = $rag_engine->find_relevant_context($user_message);
             $context = '';
             foreach ($context_chunks as $chunk) {
-                $context .= $chunk['content'] . "\n\n";
+                $context .= $chunk['entry']['content'] . "\n\n";
             }
             if (empty(trim($context))) {
                 $context = 'No relevant context found.';
