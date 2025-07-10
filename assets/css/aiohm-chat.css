@@ -821,18 +821,17 @@
 }
 
 /* Updated/New styles for content types in Manage KB */
-.aiohm-type-application { /* For application/pdf, application/json (using type-application as base) */
-    background: #ffe7e7; /* Light red/pinkish */
-    color: #d63384;      /* Strong pink */
+.aiohm-type-application {
+    background: #ffe7e7;
+    color: #d63384;
 }
 
-.aiohm-type-text { /* For text/plain, text/csv (using type-text as base) */
-    background: #fff8e7; /* Light yellow/orange */
-    color: #b8860b;      /* Dark yellow/brown */
+.aiohm-type-text {
+    background: #fff8e7;
+    color: #b8860b;
 }
 
-/* Existing types, just ensuring they are here */
-.aiohm-type-pdf { /* This might be redundant if using .aiohm-type-application for PDFs */
+.aiohm-type-pdf {
     background: #ffe7e7;
     color: #d63384;
 }
@@ -847,7 +846,7 @@
     color: #6f42c1;
 }
 
-.aiohm-type-json { /* This might be redundant if using .aiohm-type-application for JSON */
+.aiohm-type-json {
     background: #fff0e6;
     color: #fd7e14;
 }
