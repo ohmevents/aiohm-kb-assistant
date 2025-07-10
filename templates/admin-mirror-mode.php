@@ -41,6 +41,37 @@ $settings['qa_system_message'] = "The following is a conversation with an AI ass
                     <input type="range" id="qa_temperature" name="settings[qa_temperature]" value="<?php echo esc_attr($settings['qa_temperature']); ?>" min="0" max="1" step="0.1">
                     <p class="description">Lower values are more predictable; higher values are more creative.</p>
                 </div>
+
+                <div class="aiohm-setting-block">
+                    <label for="primary_color">Primary Color</label>
+                    <input type="color" id="primary_color" name="settings[primary_color]" value="<?php echo esc_attr($settings['primary_color'] ?? '#1f5014'); ?>">
+                    <p class="description">The main color for headers and buttons.</p>
+                </div>
+
+                <div class="aiohm-setting-block">
+                    <label for="background_color">Background Color</label>
+                    <input type="color" id="background_color" name="settings[background_color]" value="<?php echo esc_attr($settings['background_color'] ?? '#f0f4f8'); ?>">
+                    <p class="description">The background color of the chat widget.</p>
+                </div>
+
+                <div class="aiohm-setting-block">
+                    <label for="text_color">Text Color</label>
+                    <input type="color" id="text_color" name="settings[text_color]" value="<?php echo esc_attr($settings['text_color'] ?? '#ffffff'); ?>">
+                    <p class="description">The color of the text in the header.</p>
+                </div>
+
+                <div class="aiohm-setting-block">
+                    <label for="ai_avatar">AI Avatar</label>
+                    <input type="text" id="ai_avatar" name="settings[ai_avatar]" value="<?php echo esc_attr($settings['ai_avatar'] ?? ''); ?>" placeholder="Enter image URL">
+                    <button type="button" class="button" id="upload_ai_avatar_button">Upload Image</button>
+                    <p class="description">Upload or enter the URL for the AI's avatar.</p>
+                </div>
+
+                <div class="aiohm-setting-block">
+                    <label for="meeting_button_url">"Book a Meeting" URL</label>
+                    <input type="url" id="meeting_button_url" name="settings[meeting_button_url]" value="<?php echo esc_attr($settings['meeting_button_url'] ?? ''); ?>" placeholder="https://your-booking-link.com">
+                    <p class="description">Enter the URL for the "Book a Meeting" button. Leave empty to hide the button.</p>
+                </div>
                 
                 <div class="form-actions">
                     <button type="button" id="save-mirror-mode-settings" class="button button-primary"><?php _e('Save Chat Settings', 'aiohm-kb-assistant'); ?></button>
@@ -98,7 +129,8 @@ $settings['qa_system_message'] = "The following is a conversation with an AI ass
     
     .aiohm-setting-block { margin-bottom: 30px; }
     .aiohm-setting-block label { display: block; font-family: var(--ohm-font-primary); font-weight: bold; font-size: 1.1em; color: var(--ohm-dark-accent); margin-bottom: 8px; }
-    .aiohm-setting-block input[type="text"], .aiohm-setting-block textarea { width: 100%; padding: 10px; font-family: var(--ohm-font-secondary); font-size: 1em; border: 1px solid #ddd; border-radius: 4px; }
+    .aiohm-setting-block input[type="text"], .aiohm-setting-block input[type="url"], .aiohm-setting-block textarea { width: 100%; padding: 10px; font-family: var(--ohm-font-secondary); font-size: 1em; border: 1px solid #ddd; border-radius: 4px; }
+    .aiohm-setting-block input[type="color"] { width: 100px; height: 40px; border: none; padding: 0; cursor: pointer; }
     .aiohm-setting-block p.description { font-family: var(--ohm-font-secondary); color: #666; font-size: 13px; margin-top: 8px; }
 
     input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; background: var(--ohm-light-bg); border-radius: 5px; outline: none; }
@@ -137,6 +169,26 @@ $settings['qa_system_message'] = "The following is a conversation with an AI ass
 
 <script>
 jQuery(document).ready(function($) {
+    // Media uploader
+    let mediaUploader;
+    $('#upload_ai_avatar_button').on('click', function(e) {
+        e.preventDefault();
+        if (mediaUploader) {
+            mediaUploader.open();
+            return;
+        }
+        mediaUploader = wp.media.frames.file_frame = wp.media({
+            title: 'Choose AI Avatar',
+            button: { text: 'Choose Avatar' },
+            multiple: false
+        });
+        mediaUploader.on('select', function() {
+            const attachment = mediaUploader.state().get('selection').first().toJSON();
+            $('#ai_avatar').val(attachment.url);
+        });
+        mediaUploader.open();
+    });
+
     const testChat = {
         $container: $('#aiohm-test-chat'),
         $messages: $('#aiohm-test-chat .aiohm-chat-messages'),

@@ -831,6 +831,53 @@
     color: #fff;
 }
 
+/* New OHM Green Theme */
+.aiohm-chat-theme-ohm-green {
+    background-color: #f0f4f8;
+    border: 1px solid #d9e2ec;
+}
+
+.aiohm-chat-theme-ohm-green .aiohm-chat-header {
+    background-color: #1f5014;
+    color: #ffffff;
+}
+
+.aiohm-chat-theme-ohm-green .aiohm-chat-messages {
+    background-color: #f0f4f8;
+}
+
+.aiohm-chat-theme-ohm-green .aiohm-message-bot .aiohm-message-bubble {
+    background-color: #ffffff;
+    border: 1px solid #d9e2ec;
+}
+
+.aiohm-chat-theme-ohm-green .aiohm-message-user .aiohm-message-bubble {
+    background-color: #cbddd1;
+    color: #272727;
+}
+
+.aiohm-chat-theme-ohm-green .aiohm-chat-input-wrapper {
+    background-color: #ffffff;
+    border-color: #d9e2ec;
+}
+
+.aiohm-chat-theme-ohm-green .aiohm-chat-send-btn {
+    background-color: #1f5014;
+}
+
+.aiohm-chat-theme-ohm-green .book-meeting-btn {
+    display: block;
+    width: calc(100% - 40px);
+    margin: 10px 20px;
+    padding: 10px;
+    background-color: #1f5014;
+    color: #ffffff;
+    text-align: center;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .aiohm-chat-container {
@@ -838,17 +885,6 @@
         border-radius: 0;
         border-left: none;
         border-right: none;
-    }
-    
-    .aiohm-floating-chat {
-        bottom: 10px;
-        right: 10px;
-    }
-    
-    .aiohm-chat-widget {
-        width: calc(100vw - 20px);
-        right: -20px;
-        bottom: 70px;
     }
     
     .aiohm-search-container {
@@ -872,17 +908,6 @@
     
     .aiohm-message-bubble {
         max-width: 85%;
-    }
-    
-    .aiohm-chat-trigger .aiohm-trigger-text {
-        display: none;
-    }
-    
-    .aiohm-chat-trigger {
-        border-radius: 50%;
-        padding: 16px;
-        min-width: 56px;
-        min-height: 56px;
     }
 }
 

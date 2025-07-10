@@ -319,6 +319,11 @@ class AIOHM_KB_Core_Init {
         $settings['business_name'] = sanitize_text_field($settings_input['business_name']);
         $settings['qa_system_message'] = sanitize_textarea_field($settings_input['qa_system_message']);
         $settings['qa_temperature'] = floatval($settings_input['qa_temperature']);
+        $settings['primary_color'] = sanitize_hex_color($settings_input['primary_color']);
+        $settings['background_color'] = sanitize_hex_color($settings_input['background_color']);
+        $settings['text_color'] = sanitize_hex_color($settings_input['text_color']);
+        $settings['ai_avatar'] = esc_url_raw($settings_input['ai_avatar']);
+        $settings['meeting_button_url'] = esc_url_raw($settings_input['meeting_button_url']);
         update_option('aiohm_kb_settings', $settings);
         wp_send_json_success(['message' => 'Mirror Mode settings saved successfully.']);
     }
