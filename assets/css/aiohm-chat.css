@@ -1090,7 +1090,8 @@
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-    * {
+    .aiohm-chat-container *,
+    .aiohm-search-container * {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
@@ -1100,6 +1101,7 @@
         scroll-behavior: auto;
     }
 }
+
 
 /* Print styles */
 @media print {
@@ -1160,26 +1162,6 @@
     .aiohm-result-title a {
         color: #fff;
     }
-}
-
-/* Custom styles for Manage KB page enhancements */
-.visibility-text {
-    font-weight: bold;
-    padding: 3px 8px;
-    border-radius: 4px;
-    display: inline-block;
-}
-
-.visibility-public {
-    color: #28a745; /* Green */
-    background-color: #e6ffe6; /* Light green background */
-    border: 1px solid #28a745;
-}
-
-.visibility-private {
-    color: #007cba; /* Blue (AIOHM primary color) */
-    background-color: #e7f3ff; /* Light blue background */
-    border: 1px solid #007cba;
 }
 
 /* Custom styles for Manage KB page enhancements */
