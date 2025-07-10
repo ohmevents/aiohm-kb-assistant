@@ -114,46 +114,45 @@ class AIOHM_KB_Settings_Page {
     }
 
     public function sanitize_settings($input) {
-        $sanitized = get_option('aiohm_kb_settings', []);
-        $input = wp_parse_args($input, $sanitized);
+        $old_settings = get_option('aiohm_kb_settings', []);
+        $sanitized = [];
 
-        if (isset($input['aiohm_app_arm_user_id'])) {
-            $sanitized['aiohm_app_arm_user_id'] = sanitize_text_field(trim($input['aiohm_app_arm_user_id']));
-        }
-        if (isset($input['aiohm_app_email'])) {
-            $sanitized['aiohm_app_email'] = sanitize_email(trim($input['aiohm_app_email']));
-        }
-        if (isset($input['openai_api_key'])) {
-            $sanitized['openai_api_key'] = sanitize_text_field(trim($input['openai_api_key']));
-        }
-        if (isset($input['gemini_api_key'])) {
-            $sanitized['gemini_api_key'] = sanitize_text_field(trim($input['gemini_api_key']));
-        }
-        if (isset($input['claude_api_key'])) {
-            $sanitized['claude_api_key'] = sanitize_text_field(trim($input['claude_api_key']));
+        // Text fields
+        $text_fields = ['aiohm_app_arm_user_id', 'aiohm_app_email', 'openai_api_key', 'gemini_api_key', 'claude_api_key', 'qa_desktop_width', 'qa_desktop_height', 'business_name'];
+        foreach ($text_fields as $field) {
+            if (isset($input[$field])) {
+                $sanitized[$field] = sanitize_text_field(trim($input[$field]));
+            } elseif (isset($old_settings[$field])) {
+                $sanitized[$field] = $old_settings[$field];
+            }
         }
         
+        // Textarea
+        if (isset($input['qa_system_message'])) {
+            $sanitized['qa_system_message'] = sanitize_textarea_field($input['qa_system_message']);
+        } elseif (isset($old_settings['qa_system_message'])) {
+            $sanitized['qa_system_message'] = $old_settings['qa_system_message'];
+        }
+
+        // Select field
         if (isset($input['scan_schedule'])) { 
             $allowed_schedules = ['none', 'daily', 'weekly', 'monthly'];
             $sanitized['scan_schedule'] = in_array($input['scan_schedule'], $allowed_schedules) ? sanitize_key($input['scan_schedule']) : 'none';
+        } elseif (isset($old_settings['scan_schedule'])) {
+             $sanitized['scan_schedule'] = $old_settings['scan_schedule'];
         }
 
-        $sanitized['chat_enabled'] = isset($input['chat_enabled']) ? (bool) $input['chat_enabled'] : false;
-        $sanitized['show_floating_chat'] = isset($input['show_floating_chat']) ? (bool) $input['show_floating_chat'] : false;
-        $sanitized['enable_private_assistant'] = isset($input['enable_private_assistant']) ? (bool) $input['enable_private_assistant'] : false;
-
-        // Sanitize new Mirror Mode settings
-        if (isset($input['qa_system_message'])) {
-            $sanitized['qa_system_message'] = sanitize_textarea_field($input['qa_system_message']);
+        // Checkboxes
+        $checkboxes = ['chat_enabled', 'show_floating_chat', 'enable_private_assistant'];
+        foreach ($checkboxes as $checkbox) {
+            $sanitized[$checkbox] = isset($input[$checkbox]) ? (bool) $input[$checkbox] : false;
         }
+
+        // Float
         if (isset($input['qa_temperature'])) {
             $sanitized['qa_temperature'] = floatval($input['qa_temperature']);
-        }
-        if (isset($input['qa_desktop_width'])) {
-            $sanitized['qa_desktop_width'] = sanitize_text_field($input['qa_desktop_width']);
-        }
-        if (isset($input['qa_desktop_height'])) {
-            $sanitized['qa_desktop_height'] = sanitize_text_field($input['qa_desktop_height']);
+        } elseif (isset($old_settings['qa_temperature'])) {
+            $sanitized['qa_temperature'] = $old_settings['qa_temperature'];
         }
         
         return $sanitized;

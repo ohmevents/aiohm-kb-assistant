@@ -1102,7 +1102,6 @@
     }
 }
 
-
 /* Print styles */
 @media print {
     .aiohm-floating-chat,
@@ -1185,55 +1184,48 @@
 }
 
 /* Styles for Content Type Badges (used by renderItemsTable) */
-.type-post, .type-page, .aiohm-content-type-badge { /* Added .aiohm-content-type-badge here for consistency with manage-kb styling */
+.type-post, .type-page, .aiohm-content-type-badge {
     display: inline-block; 
     padding: 2px 8px; 
     border-radius: 10px; 
     font-size: 11px; 
     font-weight: 600; 
     text-transform: uppercase; 
-    white-space: nowrap; /* Prevents text from wrapping in badge */
+    white-space: nowrap;
 }
 .type-post { background-color: #e7f5ff; color: #005a87; }
 .type-page { background-color: #f3e7ff; color: #6f42c1; }
 
-/* Specific styles for PDF */
 .type-pdf {
-    background-color: #ffe0e6; /* Light pink */
-    color: #c2185b; /* Darker pink */
+    background-color: #ffe0e6;
+    color: #c2185b;
 }
 
-/* Specific styles for TXT */
 .type-txt {
-    background-color: #e8f5e9; /* Light green */
-    color: #388e3c; /* Darker green */
+    background-color: #e8f5e9;
+    color: #388e3c;
 }
 
-/* Specific styles for CSV */
 .type-csv {
-    background-color: #fffde7; /* Light yellow */
-    color: #fbc02d; /* Yellow-orange */
+    background-color: #fffde7;
+    color: #fbc02d;
 }
 
-/* Specific styles for JSON */
 .type-json {
-    background-color: #e1f5fe; /* Light blue */
-    color: #0288d1; /* Darker blue */
+    background-color: #e1f5fe;
+    color: #0288d1;
 }
 
-/* General type for 'application' (if not specifically PDF/JSON) */
-.type-application { /* For application/pdf, application/json (using type-application as base) */
-    background: #ffe7e7; /* Light red/pinkish */
-    color: #d63384;      /* Strong pink */
+.type-application {
+    background: #ffe7e7;
+    color: #d63384;
 }
 
-/* General type for 'text' (if not specifically TXT/CSV) */
-.type-text { /* For text/plain, text/csv (using type-text as base) */
-    background: #fff8e7; /* Light yellow/orange */
-    color: #b8860b;      /* Dark yellow/brown */
+.type-text {
+    background: #fff8e7;
+    color: #b8860b;
 }
 
-/* Existing types, just ensuring they are here */
 .type-image {
     background: #e7ffe7;
     color: #198754;
@@ -1244,13 +1236,11 @@
     color: #6f42c1;
 }
 
-/* Fallback for default or unrecognized types */
 .type-default {
-    background-color: #e0e0e0; /* Light gray */
-    color: #424242; /* Dark gray */
+    background-color: #e0e0e0;
+    color: #424242;
 }
 
-/* Added in previous turns, just for context */
 .status-knowledge-base { color: #28a745; font-weight: bold; }
 .status-ready-to-add { color: #007cba; }
 .add-single-item-link { cursor: pointer; text-decoration: underline; }
