@@ -12,18 +12,25 @@ class AIOHM_KB_Shortcode_Chat {
 
     public static function init() {
         add_shortcode('aiohm_chat', array(__CLASS__, 'render_chat_shortcode'));
+
+        // Moved the floating chat setup here to ensure it runs on the 'init' hook
         self::setup_floating_chat();
     }
 
     /**
      * Checks settings and adds the floating chat hook if enabled.
-     * This logic is now independent of the main 'chat_enabled' setting.
+     * This is the corrected function that will not load in the Elementor editor.
      */
     public static function setup_floating_chat() {
+        // ** FIX: Do not add the floating chat action if Elementor editor is active **
+        if (did_action('elementor/loaded') && \Elementor\Plugin::$instance->editor->is_edit_mode()) {
+            return;
+        }
+
         $settings = AIOHM_KB_Assistant::get_settings();
         $has_club_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
 
-        // The floating chat now only depends on its own setting and club access.
+        // Only load floating chat if the specific setting is enabled and user has Club access
         if (($settings['show_floating_chat'] ?? false) && $has_club_access) {
             add_action('wp_footer', array(__CLASS__, 'add_floating_chat'));
         }
@@ -36,8 +43,9 @@ class AIOHM_KB_Shortcode_Chat {
         $settings = AIOHM_KB_Assistant::get_settings();
         $has_club_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
         
-        // Check if the shortcode itself is enabled
+        // Check if chat is enabled from settings OR if user has Club access
         if (!($settings['chat_enabled'] ?? false) || !$has_club_access) {
+            // Display message indicating why chat is disabled
             $message = __('Chat is currently disabled.', 'aiohm-kb-assistant');
             if (!$has_club_access) {
                 $message = __('This chat feature requires an AIOHM Club membership.', 'aiohm-kb-assistant');
@@ -59,15 +67,19 @@ class AIOHM_KB_Shortcode_Chat {
             'max_height' => '600'
         ), $atts, 'aiohm_chat');
         
+        // Generate unique chat ID
         static $chat_counter = 0;
         $chat_counter++;
         $chat_id = 'aiohm-chat-' . $chat_counter;
         
+        // Enqueue chat assets if not already done
         wp_enqueue_script('aiohm-chat');
         wp_enqueue_style('aiohm-chat');
         
+        // Build chat container
         $output = '<div class="aiohm-chat-container aiohm-chat-theme-' . esc_attr($atts['theme']) . '" id="' . esc_attr($chat_id) . '"';
         
+        // Add inline styles
         $styles = array();
         if ($atts['width'] !== '100%') {
             $styles[] = 'width: ' . esc_attr($atts['width']);
@@ -78,6 +90,7 @@ class AIOHM_KB_Shortcode_Chat {
         
         $output .= '>';
         
+        // Chat header
         $output .= '<div class="aiohm-chat-header">';
         $output .= '<div class="aiohm-chat-title">' . esc_html($atts['title']) . '</div>';
         $output .= '<div class="aiohm-chat-status">';
@@ -86,8 +99,10 @@ class AIOHM_KB_Shortcode_Chat {
         $output .= '</div>';
         $output .= '</div>';
         
+        // Chat messages area
         $output .= '<div class="aiohm-chat-messages" style="height: ' . esc_attr($atts['height']) . 'px; max-height: ' . esc_attr($atts['max_height']) . 'px;">';
         
+        // Welcome message
         if (!empty($atts['welcome_message'])) {
             $output .= '<div class="aiohm-message aiohm-message-bot">';
             $output .= '<div class="aiohm-message-content">' . esc_html($atts['welcome_message']) . '</div>';
@@ -97,6 +112,7 @@ class AIOHM_KB_Shortcode_Chat {
         
         $output .= '</div>';
         
+        // Chat input area
         $output .= '<div class="aiohm-chat-input-container">';
         $output .= '<div class="aiohm-chat-input-wrapper">';
         $output .= '<textarea class="aiohm-chat-input" placeholder="' . esc_attr($atts['placeholder']) . '" rows="1"></textarea>';
@@ -109,6 +125,7 @@ class AIOHM_KB_Shortcode_Chat {
         $output .= '</div>';
         $output .= '</div>';
         
+        // Branding
         if ($atts['show_branding'] === 'true') {
             $output .= '<div class="aiohm-chat-branding">';
             $output .= '<span>' . __('Powered by', 'aiohm-kb-assistant') . ' <strong>AIOHM</strong></span>';
@@ -117,6 +134,7 @@ class AIOHM_KB_Shortcode_Chat {
         
         $output .= '</div>';
         
+        // Add chat configuration
         $chat_config = array(
             'chat_id' => $chat_id,
             'ajax_url' => admin_url('admin-ajax.php'),
@@ -163,6 +181,7 @@ class AIOHM_KB_Shortcode_Chat {
         
         $output = '<div class="aiohm-floating-chat ' . esc_attr($position_class) . '" id="aiohm-floating-chat">';
         
+        // Chat trigger button
         $output .= '<div class="aiohm-chat-trigger" id="aiohm-chat-trigger">';
         $output .= '<div class="aiohm-trigger-content">';
         $output .= '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">';
@@ -172,6 +191,7 @@ class AIOHM_KB_Shortcode_Chat {
         $output .= '</div>';
         $output .= '</div>';
         
+        // Chat widget (initially hidden)
         $output .= '<div class="aiohm-chat-widget" id="aiohm-chat-widget" style="display: none;">';
         $output .= '<div class="aiohm-widget-header">';
         $output .= '<div class="aiohm-widget-title">' . esc_html($atts['title']) . '</div>';
@@ -183,6 +203,7 @@ class AIOHM_KB_Shortcode_Chat {
         $output .= '</button>';
         $output .= '</div>';
         
+        // Embed the chat shortcode
         $chat_atts = array(
             'title' => '',
             'height' => $atts['height'],
@@ -197,6 +218,7 @@ class AIOHM_KB_Shortcode_Chat {
         $output .= '</div>';
         $output .= '</div>';
         
+        // Add floating chat JavaScript
         $output .= '<script type="text/javascript">';
         $output .= 'jQuery(document).ready(function($) {';
         $output .= '$("#aiohm-chat-trigger").click(function() {';
