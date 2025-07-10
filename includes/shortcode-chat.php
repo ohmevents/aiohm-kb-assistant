@@ -34,14 +34,14 @@ class AIOHM_KB_Shortcode_Chat {
         
         // Parse shortcode attributes
         $atts = shortcode_atts(array(
-            'title' => __('Ask me anything', 'aiohm-kb-assistant'),
+            'title' => $settings['business_name'] ?? __('Ask me anything', 'aiohm-kb-assistant'),
             'placeholder' => __('Type your question here...', 'aiohm-kb-assistant'),
             'height' => '400',
             'width' => '100%',
-            'theme' => 'default',
+            'theme' => 'ohm-green', // Set the new theme as default
             'position' => 'inline',
             'show_branding' => 'true',
-            'welcome_message' => '',
+            'welcome_message' => $settings['welcome_message'] ?? 'Hey there, beautiful soul - welcome to OHM Events Agency! I’m your AI Assistant, here to help you grow your event, boost your visibility, and bring your vision to life - with strategy, clarity, and heart. Ask me anything!',
             'max_height' => '600'
         ), $atts, 'aiohm_chat');
         
@@ -57,10 +57,19 @@ class AIOHM_KB_Shortcode_Chat {
         // Build chat container
         $output = '<div class="aiohm-chat-container aiohm-chat-theme-' . esc_attr($atts['theme']) . '" id="' . esc_attr($chat_id) . '"';
         
-        // Add inline styles
+        // Add inline styles for customization
         $styles = array();
         if ($atts['width'] !== '100%') {
             $styles[] = 'width: ' . esc_attr($atts['width']);
+        }
+        if (!empty($settings['background_color'])) {
+            $styles[] = '--aiohm-secondary-color: ' . esc_attr($settings['background_color']);
+        }
+        if (!empty($settings['primary_color'])) {
+            $styles[] = '--aiohm-primary-color: ' . esc_attr($settings['primary_color']);
+        }
+        if (!empty($settings['text_color'])) {
+            $styles[] = '--aiohm-text-color: ' . esc_attr($settings['text_color']);
         }
         if (!empty($styles)) {
             $output .= ' style="' . implode('; ', $styles) . '"';
@@ -83,8 +92,10 @@ class AIOHM_KB_Shortcode_Chat {
         // Welcome message
         if (!empty($atts['welcome_message'])) {
             $output .= '<div class="aiohm-message aiohm-message-bot">';
-            $output .= '<div class="aiohm-message-content">' . esc_html($atts['welcome_message']) . '</div>';
-            $output .= '<div class="aiohm-message-time">' . current_time('H:i') . '</div>';
+            if (!empty($settings['ai_avatar'])) {
+                $output .= '<div class="aiohm-message-avatar"><img src="' . esc_url($settings['ai_avatar']) . '" alt="AI Avatar" style="width:100%; height:100%; border-radius:50%; object-fit: cover;"></div>';
+            }
+            $output .= '<div class="aiohm-message-bubble"><div class="aiohm-message-content">' . esc_html($atts['welcome_message']) . '</div></div>';
             $output .= '</div>';
         }
         
@@ -103,8 +114,10 @@ class AIOHM_KB_Shortcode_Chat {
         $output .= '</div>';
         $output .= '</div>';
         
-        // Branding
-        if ($atts['show_branding'] === 'true') {
+        // Footer: Conditional "Book a Meeting" button or Branding
+        if (!empty($settings['meeting_button_url'])) {
+            $output .= '<a href="' . esc_url($settings['meeting_button_url']) . '" class="aiohm-chat-footer-button" target="_blank">' . __('Book a Meeting', 'aiohm-kb-assistant') . '</a>';
+        } elseif ($atts['show_branding'] === 'true') {
             $output .= '<div class="aiohm-chat-branding">';
             $output .= '<span>' . __('Powered by', 'aiohm-kb-assistant') . ' <strong>AIOHM</strong></span>';
             $output .= '</div>';
@@ -112,27 +125,15 @@ class AIOHM_KB_Shortcode_Chat {
         
         $output .= '</div>';
         
-        // Add chat configuration
+        // Add chat configuration to be used by JavaScript
         $chat_config = array(
             'chat_id' => $chat_id,
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('aiohm_chat_nonce'),
             'strings' => array(
                 'error' => __('Sorry, something went wrong. Please try again.', 'aiohm-kb-assistant'),
-                'thinking' => __('Thinking...', 'aiohm-kb-assistant'),
-                'send' => __('Send', 'aiohm-kb-assistant'),
-                'ready' => __('Ready', 'aiohm-kb-assistant'),
-                'typing' => __('Typing...', 'aiohm-kb-assistant'),
-                'connecting' => __('Connecting...', 'aiohm-kb-assistant'),
-                'you' => __('You', 'aiohm-kb-assistant'),
-                'assistant' => __('Assistant', 'aiohm-kb-assistant')
             ),
-            'settings' => array(
-                'auto_scroll' => true,
-                'show_timestamps' => true,
-                'enable_sound' => false,
-                'typing_indicator' => true
-            )
+            'settings' => $settings // Pass all settings to JS
         );
         
         $output .= '<script type="text/javascript">';
