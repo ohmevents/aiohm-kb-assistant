@@ -1,14 +1,14 @@
 <?php
 /**
- * Admin Mirror Mode Settings page template for Club members.
+ * Admin Muse Mode Settings page template for Club members.
  * Final, complete, and stable version with all features, styles, and full scripts.
  */
 
 if (!defined('ABSPATH')) exit;
 
-// Fetch all settings and then get the specific part for Mirror Mode
+// Fetch all settings and then get the specific part for Muse Mode
 $all_settings = AIOHM_KB_Assistant::get_settings();
-$settings = $all_settings['mirror_mode'] ?? [];
+$settings = $all_settings['muse_mode'] ?? [];
 $global_settings = $all_settings; // for API keys
 
 // Helper function for color contrast
@@ -32,26 +32,26 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
 ?>
 
 <div class="wrap aiohm-settings-page aiohm-mirror-mode-page">
-    <h1><?php _e('Mirror Mode Customization', 'aiohm-kb-assistant'); ?></h1>
+    <h1><?php _e('Muse Mode Customization', 'aiohm-kb-assistant'); ?></h1>
     <p class="page-description"><?php _e('Fine-tune your AI\'s personality and appearance on the left, and test your changes in real-time on the right.', 'aiohm-kb-assistant'); ?></p>
 
     <div id="aiohm-admin-notice" class="notice" style="display:none; margin-top: 10px;"><p></p></div>
 
-    <div class="aiohm-mirror-mode-layout">
+    <div class="aiohm-muse-mode-layout">
         
         <div class="aiohm-settings-form-wrapper">
             <form id="mirror-mode-settings-form">
                 <?php wp_nonce_field('aiohm_mirror_mode_nonce', 'aiohm_mirror_mode_nonce_field'); ?>
                 
                 <div class="aiohm-setting-block">
-                    <label for="business_name">Business Name</label>
+                    <label for="business_name">Assistant name</label>
                     <input type="text" id="business_name" name="aiohm_kb_settings[mirror_mode][business_name]" value="<?php echo esc_attr($settings['business_name'] ?? get_bloginfo('name')); ?>">
                     <p class="description">This name will appear in the chat header.</p>
                 </div>
 
                 <div class="aiohm-setting-block">
                     <div class="aiohm-setting-header">
-                        <label for="qa_system_message"><?php _e('Soul Signature for Q&A Assistant', 'aiohm-kb-assistant'); ?></label>
+                        <label for="qa_system_message"><?php _e('Soul Signature for Muse Assistant', 'aiohm-kb-assistant'); ?></label>
                         <button type="button" id="reset-prompt-btn" class="button-link"><?php _e('Reset to Default', 'aiohm-kb-assistant'); ?></button>
                     </div>
                     <textarea id="qa_system_message" name="aiohm_kb_settings[mirror_mode][qa_system_message]" rows="15"><?php echo esc_textarea($qa_system_message); ?></textarea>
