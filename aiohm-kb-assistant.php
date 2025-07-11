@@ -91,6 +91,7 @@ class AIOHM_KB_Assistant {
             'openai_api_key'   => '',
             'gemini_api_key' => '',
             'claude_api_key' => '',
+            'default_ai_provider' => 'openai', // New setting
             'chat_enabled'     => true,
             'show_floating_chat' => false,
             'scan_schedule'    => 'none',

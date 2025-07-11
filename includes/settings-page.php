@@ -1,7 +1,7 @@
 <?php
 /**
  * Settings Page controller for AIOHM Knowledge Assistant.
- * This version uses header and footer partials and includes the new Mirror Mode page.
+ * This version contains the corrected class definition and sanitization function.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -46,8 +46,6 @@ class AIOHM_KB_Settings_Page {
         if (strpos($hook, 'aiohm-') !== false || strpos($hook, '_page_aiohm-') !== false) {
             wp_enqueue_style( 'aiohm-admin-styles', AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-chat.css', array(), AIOHM_KB_VERSION );
             
-            // --- THIS IS THE KEY CHANGE ---
-            // Enqueue WordPress media scripts only on the mirror mode page
             if ($hook === 'aiohm_page_aiohm-mirror-mode') {
                 wp_enqueue_media();
             }
@@ -99,13 +97,11 @@ class AIOHM_KB_Settings_Page {
             wp_die(__('You do not have sufficient permissions to access this page.', 'aiohm-kb-assistant'));
         }
         $this->include_header();
-        // The new file will be named admin-mirror-mode.php
         include AIOHM_KB_PLUGIN_DIR . 'templates/admin-mirror-mode.php';
         $this->include_footer();
     }
     
     public function render_muse_mode_page() {
-        // Access control is handled here before rendering
         if (!current_user_can('administrator') && !current_user_can('ohm_brand_collaborator')) {
             wp_die(__('You do not have sufficient permissions to access this page.', 'aiohm-kb-assistant'));
         }
@@ -132,44 +128,29 @@ class AIOHM_KB_Settings_Page {
 
     public function sanitize_settings($input) {
         $old_settings = get_option('aiohm_kb_settings', []);
-        $sanitized = [];
+        $sanitized = $old_settings; // Start with old settings
 
         // Text fields
-        $text_fields = ['aiohm_app_arm_user_id', 'aiohm_app_email', 'openai_api_key', 'gemini_api_key', 'claude_api_key', 'qa_desktop_width', 'qa_desktop_height', 'business_name'];
+        $text_fields = ['aiohm_app_email', 'openai_api_key', 'gemini_api_key', 'claude_api_key'];
         foreach ($text_fields as $field) {
             if (isset($input[$field])) {
                 $sanitized[$field] = sanitize_text_field(trim($input[$field]));
-            } elseif (isset($old_settings[$field])) {
-                $sanitized[$field] = $old_settings[$field];
             }
         }
         
-        // Textarea
-        if (isset($input['qa_system_message'])) {
-            $sanitized['qa_system_message'] = sanitize_textarea_field($input['qa_system_message']);
-        } elseif (isset($old_settings['qa_system_message'])) {
-            $sanitized['qa_system_message'] = $old_settings['qa_system_message'];
+        // Select fields
+        if (isset($input['default_ai_provider'])) {
+            $sanitized['default_ai_provider'] = sanitize_text_field($input['default_ai_provider']);
         }
-
-        // Select field
         if (isset($input['scan_schedule'])) { 
             $allowed_schedules = ['none', 'daily', 'weekly', 'monthly'];
             $sanitized['scan_schedule'] = in_array($input['scan_schedule'], $allowed_schedules) ? sanitize_key($input['scan_schedule']) : 'none';
-        } elseif (isset($old_settings['scan_schedule'])) {
-             $sanitized['scan_schedule'] = $old_settings['scan_schedule'];
         }
 
         // Checkboxes
-        $checkboxes = ['chat_enabled', 'show_floating_chat', 'enable_private_assistant'];
+        $checkboxes = ['chat_enabled', 'show_floating_chat', 'enable_private_assistant', 'enable_search_shortcode'];
         foreach ($checkboxes as $checkbox) {
-            $sanitized[$checkbox] = isset($input[$checkbox]) ? (bool) $input[$checkbox] : false;
-        }
-
-        // Float
-        if (isset($input['qa_temperature'])) {
-            $sanitized['qa_temperature'] = floatval($input['qa_temperature']);
-        } elseif (isset($old_settings['qa_temperature'])) {
-            $sanitized['qa_temperature'] = $old_settings['qa_temperature'];
+            $sanitized[$checkbox] = isset($input[$checkbox]) ? (bool)$input[$checkbox] : false;
         }
         
         return $sanitized;

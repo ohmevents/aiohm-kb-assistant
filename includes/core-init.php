@@ -32,6 +32,7 @@ class AIOHM_KB_Core_Init {
         // Muse Mode (Private Assistant) Actions
         add_action('wp_ajax_aiohm_save_muse_mode_settings', array(__CLASS__, 'handle_save_muse_mode_settings_ajax'));
         add_action('wp_ajax_aiohm_private_assistant_chat', array(__CLASS__, 'handle_private_assistant_chat_ajax'));
+        add_action('wp_ajax_aiohm_test_muse_mode_chat', array(__CLASS__, 'handle_test_muse_mode_chat_ajax'));
 
         // Frontend Actions (Shortcodes)
         add_action('wp_ajax_nopriv_aiohm_frontend_chat', array(__CLASS__, 'handle_frontend_chat_ajax'));
@@ -284,6 +285,43 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'AI request failed: ' . $e->getMessage()]);
         }
     }
+    
+    public static function handle_test_muse_mode_chat_ajax() {
+        if (!check_ajax_referer('aiohm_muse_mode_nonce', 'nonce', false) || !current_user_can('read')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+    
+        try {
+            $user_message = sanitize_textarea_field($_POST['message']);
+            $posted_settings = isset($_POST['settings']) ? $_POST['settings'] : [];
+            $user_id = get_current_user_id();
+    
+            $system_prompt = sanitize_textarea_field($posted_settings['system_prompt'] ?? 'You are a helpful brand assistant.');
+            $temperature = floatval($posted_settings['temperature'] ?? 0.7);
+            $model = sanitize_text_field($posted_settings['ai_model'] ?? 'gpt-4');
+    
+            $ai_client = new AIOHM_KB_AI_GPT_Client();
+            $rag_engine = new AIOHM_KB_RAG_Engine();
+            
+            $context_data = $rag_engine->find_context_for_user($user_message, $user_id, 10);
+            $context_string = "";
+            if (!empty($context_data)) {
+                foreach ($context_data as $data) {
+                    $context_string .= "Source: " . $data['entry']['title'] . "\nContent: " . $data['entry']['content'] . "\n\n";
+                }
+            }
+            
+            $final_system_message = $system_prompt . "\n\n--- CONTEXT ---\n" . $context_string;
+    
+            $answer = $ai_client->get_chat_completion($final_system_message, $user_message, $temperature, $model);
+    
+            wp_send_json_success(['answer' => $answer]);
+    
+        } catch (Exception $e) {
+            AIOHM_KB_Assistant::log('Muse Mode Test Chat Error: ' . $e->getMessage(), 'error');
+            wp_send_json_error(['message' => 'AI request failed: ' . $e->getMessage()]);
+        }
+    }
 
     public static function handle_progressive_scan_ajax() {
         if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
@@ -354,6 +392,15 @@ class AIOHM_KB_Core_Init {
                         wp_send_json_success(['message' => 'OpenAI connection successful!']);
                     } else {
                         wp_send_json_error(['message' => 'OpenAI connection failed: ' . ($result['error'] ?? 'Unknown error.')]);
+                    }
+                    break;
+                case 'gemini':
+                    $ai_client = new AIOHM_KB_AI_GPT_Client(['gemini_api_key' => $api_key]);
+                    $result = $ai_client->test_gemini_api_connection();
+                    if ($result['success']) {
+                        wp_send_json_success(['message' => 'Gemini connection successful!']);
+                    } else {
+                        wp_send_json_error(['message' => 'Gemini connection failed: ' . ($result['error'] ?? 'Unknown error.')]);
                     }
                     break;
                 default:

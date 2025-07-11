@@ -1,7 +1,7 @@
 <?php
 /**
  * AI GPT Client for handling API requests.
- * This version includes an increased timeout for more stability.
+ * This version includes an increased timeout for more stability and corrected Gemini API support.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -9,7 +9,8 @@ class AIOHM_KB_AI_GPT_Client {
     
     private $settings;
     private $openai_api_key;
-    
+    private $gemini_api_key;
+
     public function __construct($settings = null) {
         if ($settings === null) {
             $this->settings = AIOHM_KB_Assistant::get_settings();
@@ -17,6 +18,7 @@ class AIOHM_KB_AI_GPT_Client {
             $this->settings = $settings;
         }
         $this->openai_api_key = $this->settings['openai_api_key'] ?? '';
+        $this->gemini_api_key = $this->settings['gemini_api_key'] ?? '';
     }
     
     private function sanitize_text_for_json($text) {
@@ -42,7 +44,7 @@ class AIOHM_KB_AI_GPT_Client {
             throw new Exception('Failed to JSON-encode embedding request. Content may contain invalid characters.');
         }
 
-        $response = $this->make_http_request($url, $body);
+        $response = $this->make_http_request($url, $body, 'openai');
         
         if (isset($response['data'][0]['embedding'])) {
             return $response['data'][0]['embedding'];
@@ -52,14 +54,28 @@ class AIOHM_KB_AI_GPT_Client {
         }
     }
 
-    public function get_chat_completion($system_message, $user_message, $temperature = 0.7) {
+    public function get_chat_completion($system_message, $user_message, $temperature = 0.7, $model = 'gpt-3.5-turbo') {
+        if (strpos($model, 'gemini') === 0) {
+            if (empty($this->gemini_api_key)) {
+                throw new Exception('Gemini API key is required for chat completions.');
+            }
+            $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
+            $data = [ 'contents' => [ [ 'parts' => [ ['text' => $system_message . "\n\n" . $user_message] ] ] ] ];
+            $response = $this->make_http_request($url, json_encode($data), 'gemini');
+            if (isset($response['candidates'][0]['content']['parts'][0]['text'])) {
+                return $response['candidates'][0]['content']['parts'][0]['text'];
+            } else {
+                 throw new Exception('Invalid chat response from Gemini API.');
+            }
+        }
+
         if (empty($this->openai_api_key)) {
             throw new Exception('OpenAI API key is required for chat completions.');
         }
         
         $url = 'https://api.openai.com/v1/chat/completions';
         $data = [
-            'model' => 'gpt-3.5-turbo',
+            'model' => $model,
             'messages' => [
                 ['role' => 'system', 'content' => $this->sanitize_text_for_json($system_message)],
                 ['role' => 'user', 'content' => $this->sanitize_text_for_json($user_message)]
@@ -72,7 +88,7 @@ class AIOHM_KB_AI_GPT_Client {
             throw new Exception('Failed to JSON-encode chat request.');
         }
 
-        $response = $this->make_http_request($url, $body);
+        $response = $this->make_http_request($url, $body, 'openai');
         
         if (isset($response['choices'][0]['message']['content'])) {
             return $response['choices'][0]['message']['content'];
@@ -82,11 +98,18 @@ class AIOHM_KB_AI_GPT_Client {
         }
     }
 
-    private function make_http_request($url, $body) {
+    private function make_http_request($url, $body, $api_type) {
+        $headers = ['Content-Type' => 'application/json'];
+        if ($api_type === 'openai') {
+            $headers['Authorization'] = 'Bearer ' . $this->openai_api_key;
+        } elseif ($api_type === 'gemini') {
+            $url = add_query_arg('key', $this->gemini_api_key, $url);
+        }
+
         $response = wp_remote_post($url, [
-            'headers' => ['Authorization' => 'Bearer ' . $this->openai_api_key, 'Content-Type' => 'application/json'],
+            'headers' => $headers,
             'body'    => $body,
-            'timeout' => 60 // Increased timeout to 60 seconds
+            'timeout' => 60
         ]);
         
         if (is_wp_error($response)) {
@@ -108,6 +131,18 @@ class AIOHM_KB_AI_GPT_Client {
     public function test_api_connection() {
         try {
             $this->generate_embeddings("test");
+            return ['success' => true];
+        } catch (Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function test_gemini_api_connection() {
+        if (empty($this->gemini_api_key)) {
+            return ['success' => false, 'error' => 'Gemini API key is missing.'];
+        }
+        try {
+            $this->get_chat_completion("Test prompt", "Say 'hello'.", 0.5, 'gemini-1.5-flash-latest');
             return ['success' => true];
         } catch (Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];

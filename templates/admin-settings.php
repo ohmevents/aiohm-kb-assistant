@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin settings template - Final branded version with dual save buttons.
+ * Admin settings template - Final branded version.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -22,6 +22,16 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
         <div class="aiohm-settings-section">
             <h2><?php _e('API Keys & Service Connections', 'aiohm-kb-assistant'); ?></h2>
             <table class="form-table">
+                 <tr>
+                    <th scope="row"><label for="default_ai_provider"><?php _e('Default AI Provider', 'aiohm-kb-assistant'); ?></label></th>
+                    <td>
+                        <select id="default_ai_provider" name="aiohm_kb_settings[default_ai_provider]">
+                            <option value="openai" <?php selected($settings['default_ai_provider'] ?? 'openai', 'openai'); ?>>OpenAI</option>
+                            <option value="gemini" <?php selected($settings['default_ai_provider'] ?? '', 'gemini'); ?>>Gemini</option>
+                        </select>
+                        <p class="description"><?php _e('Select the default AI provider to use for generating responses.', 'aiohm-kb-assistant'); ?></p>
+                    </td>
+                </tr>
                 <tr>
                     <th scope="row"><label for="openai_api_key"><?php _e('OpenAI API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
@@ -55,10 +65,17 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
                         <p class="description"><?php printf(__('You can get your Claude API key from your <a href="%s" target="_blank">Anthropic Account Settings</a>.', 'aiohm-kb-assistant'), 'https://console.anthropic.com/account/keys'); ?></p>
                     </td>
                 </tr>
+                 <tr>
+                    <th scope="row"><label for="private_llm_api_key"><?php _e('Private LLM API Key', 'aiohm-kb-assistant'); ?></label></th>
+                    <td>
+                        <div class="aiohm-api-key-wrapper">
+                            <input type="password" id="private_llm_api_key" name="aiohm_kb_settings[private_llm_api_key]" value="" class="regular-text" disabled>
+                        </div>
+                        <p class="description"><?php _e('This is reserved for future use by AIOHM Private members.', 'aiohm-kb-assistant'); ?></p>
+                    </td>
+                </tr>
             </table>
         </div>
-        
-        <?php submit_button(); ?>
 
         <div class="aiohm-premium-settings-wrapper <?php if (!$can_access_settings) echo 'is-locked'; ?>">
             <?php if (!$can_access_settings) : ?>
@@ -77,6 +94,8 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
                 <table class="form-table">
                     <tr><th scope="row"><?php _e('Enable Q&A Chatbot', 'aiohm-kb-assistant'); ?></th>
                         <td><label><input type="checkbox" name="aiohm_kb_settings[chat_enabled]" value="1" <?php checked($settings['chat_enabled'] ?? false); disabled(!$can_access_settings); ?> /> <?php _e('Enable the `[aiohm_chat]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
+                    <tr><th scope="row"><?php _e('Enable Search Shortcode', 'aiohm-kb-assistant'); ?></th>
+                        <td><label><input type="checkbox" name="aiohm_kb_settings[enable_search_shortcode]" value="1" <?php checked($settings['enable_search_shortcode'] ?? false); disabled(!$can_access_settings); ?> /> <?php _e('Enable the `[aiohm_search]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
                 </table>
             </div>
 
@@ -95,9 +114,9 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
                         <td><select id="scan_schedule" name="aiohm_kb_settings[scan_schedule]" <?php disabled(!$can_access_settings); ?>><option value="none" <?php selected($settings['scan_schedule'] ?? 'none', 'none'); ?>>None</option><option value="daily" <?php selected($settings['scan_schedule'], 'daily'); ?>>Once Daily</option><option value="weekly" <?php selected($settings['scan_schedule'], 'weekly'); ?>>Once Weekly</option><option value="monthly" <?php selected($settings['scan_schedule'], 'monthly'); ?>>Once Monthly</option></select></td></tr>
                 </table>
             </div>
-            
-            <?php submit_button(); ?>
         </div>
+        
+        <?php submit_button('Save All Settings'); ?>
     </form>
 </div>
 
