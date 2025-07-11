@@ -13,7 +13,7 @@ class AIOHM_KB_Settings_Page {
             self::$instance = new self();
         }
         add_action('admin_menu', array(self::$instance, 'register_admin_pages'));
-        add_action('admin_enqueue_scripts', array(self::$instance, 'enqueue_admin_styles'));
+        add_action('admin_enqueue_scripts', array(self::$instance, 'enqueue_admin_scripts'));
     }
 
     private function include_header() {
@@ -31,6 +31,7 @@ class AIOHM_KB_Settings_Page {
 
         if (class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access()) {
             add_submenu_page('aiohm-dashboard', 'Mirror Mode Settings', 'Mirror Mode', 'read', 'aiohm-mirror-mode', array($this, 'render_mirror_mode_page'));
+            add_submenu_page('aiohm-dashboard', 'Muse: Brand Assistant', 'Muse Mode', 'read', 'aiohm-muse-mode', array($this, 'render_muse_mode_page'));
         }
         
         add_submenu_page('aiohm-dashboard', 'Scan Content', 'Scan Content', 'manage_options', 'aiohm-scan-content', array($this, 'render_scan_page'));
@@ -41,9 +42,15 @@ class AIOHM_KB_Settings_Page {
         add_action('admin_init', array($this, 'register_settings'));
     }
 
-    public function enqueue_admin_styles($hook) {
+    public function enqueue_admin_scripts($hook) {
         if (strpos($hook, 'aiohm-') !== false || strpos($hook, '_page_aiohm-') !== false) {
             wp_enqueue_style( 'aiohm-admin-styles', AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-chat.css', array(), AIOHM_KB_VERSION );
+            
+            // --- THIS IS THE KEY CHANGE ---
+            // Enqueue WordPress media scripts only on the mirror mode page
+            if ($hook === 'aiohm_page_aiohm-mirror-mode') {
+                wp_enqueue_media();
+            }
         }
     }
 
@@ -94,6 +101,16 @@ class AIOHM_KB_Settings_Page {
         $this->include_header();
         // The new file will be named admin-mirror-mode.php
         include AIOHM_KB_PLUGIN_DIR . 'templates/admin-mirror-mode.php';
+        $this->include_footer();
+    }
+    
+    public function render_muse_mode_page() {
+        // Access control is handled here before rendering
+        if (!current_user_can('administrator') && !current_user_can('ohm_brand_collaborator')) {
+            wp_die(__('You do not have sufficient permissions to access this page.', 'aiohm-kb-assistant'));
+        }
+        $this->include_header();
+        include AIOHM_KB_PLUGIN_DIR . 'templates/admin-muse-mode.php';
         $this->include_footer();
     }
 

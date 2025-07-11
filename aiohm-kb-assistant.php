@@ -3,7 +3,7 @@
  * Plugin Name: AIOHM Knowledge Assistant
  * Plugin URI: https://aiohm.app
  * Description: Bring your wisdom to life. The AIOHM Knowledge Assistant listens, learns, and speaks in your brand's voice, offering real-time answers, soulful brand support, and intuitive guidance for your visitors. With Muse and Mirror modes, it doesn't just respond - it resonates.
- * Version: 1.1.8
+ * Version: 1.1.9
  * Author: OHM Events Agency
  * Author URI: https://aiohm.app
  * Text Domain: aiohm-knowledge-assistant
@@ -17,13 +17,12 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('AIOHM_KB_VERSION', '1.1.8');
+define('AIOHM_KB_VERSION', '1.1.9');
 define('AIOHM_KB_PLUGIN_FILE', __FILE__);
 define('AIOHM_KB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AIOHM_KB_INCLUDES_DIR', AIOHM_KB_PLUGIN_DIR . 'includes/');
 define('AIOHM_KB_PLUGIN_URL', plugin_dir_url(__FILE__));
 
-// Define the WP-Cron hook name
 define('AIOHM_KB_SCHEDULED_SCAN_HOOK', 'aiohm_scheduled_scan');
 
 class AIOHM_KB_Assistant {
@@ -47,33 +46,15 @@ class AIOHM_KB_Assistant {
         add_action('plugins_loaded', array($this, 'load_dependencies'));
         add_action('init', array($this, 'init_plugin'));
         add_filter('plugin_action_links_' . plugin_basename(AIOHM_KB_PLUGIN_FILE), array($this, 'add_settings_link'));
-
-        // WP-Cron setup
         add_filter('cron_schedules', array($this, 'add_custom_cron_intervals'));
         add_action(AIOHM_KB_SCHEDULED_SCAN_HOOK, array($this, 'run_scheduled_scan'));
         add_action('update_option_aiohm_kb_settings', array($this, 'handle_scan_schedule_change'), 10, 2);
     }
     
     public function load_dependencies() {
-        $files = [
-            'core-init.php', 
-            'settings-page.php', 
-            'rag-engine.php', 
-            'ai-gpt-client.php', 
-            'crawler-site.php', 
-            'crawler-uploads.php', 
-            'aiohm-kb-manager.php', 
-            'api-client-app.php', 
-            'shortcode-chat.php', 
-            'shortcode-search.php', 
-            'frontend-widget.php', 
-            'chat-box.php',
-            'user-functions.php',
-            'pmpro-integration.php'
-        ];
+        $files = ['core-init.php', 'settings-page.php', 'rag-engine.php', 'ai-gpt-client.php', 'crawler-site.php', 'crawler-uploads.php', 'aiohm-kb-manager.php', 'api-client-app.php', 'shortcode-chat.php', 'shortcode-search.php', 'frontend-widget.php', 'chat-box.php', 'user-functions.php', 'pmpro-integration.php'];
         foreach ($files as $file) {
-            $path = AIOHM_KB_INCLUDES_DIR . $file;
-            if (file_exists($path)) { require_once $path; }
+            if (file_exists(AIOHM_KB_INCLUDES_DIR . $file)) { require_once AIOHM_KB_INCLUDES_DIR . $file; }
         }
     }
     
@@ -91,7 +72,6 @@ class AIOHM_KB_Assistant {
         $this->create_tables();
         $this->set_default_options();
         flush_rewrite_rules();
-
         $settings = self::get_settings();
         if ($settings['scan_schedule'] !== 'none') {
             $this->schedule_scan_event($settings['scan_schedule']);
@@ -114,7 +94,7 @@ class AIOHM_KB_Assistant {
             'scan_schedule'    => 'none',
             'chunk_size'       => 1000,
             'chunk_overlap'    => 200,
-            'qa_system_message' => "The following is a conversation with an AI assistant customized for %site_name%.\n\nToday is %day_of_week%, and the date is %current_date%.\nThis assistant is emotionally intelligent, grounded, and tuned to reflect the unique voice of the user behind this WordPress site.\n\nIt responds with clarity, calmness, and resonance — always adapting to the brand tone learned from their uploaded content and website pages.\nIt has access to:\nThe user’s WordPress site content (posts, pages, metadata)\nTheir uploaded documents in the AIOHM plugin folder (PDF, DOC, TXT, JSON)\nBrand-aligned insights gathered through the Brand Soul Questionnaire (if available)\n\nTone & Personality\nSpeak with emotional clarity, not robotic formality\nSound like a thoughtful assistant, not a sales rep\nBe concise, but not curt — useful, but never cold\n\nIf unsure, say:\nHmm… I’m not sure how to answer that just yet. But no worries - real humans are nearby. 👉 Check “contact page” to connect directly with the person behind this site for personalized support.\n\nFormatting Rules:\nNo Markdown — use only basic HTML tags for clarity.\nNever end with “Do you want to ask another question?” or other prompts.\nBe present, brief, and brand-aware.\n\nYou may reference any of the following context sources as needed to answer user questions:\n{context}",
+            'qa_system_message' => "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\n---\n\n**Core Instructions:**\n\n1.  **Primary Directive:** Your primary goal is to answer the user's question by grounding your response in the **context provided below**. This context is your main source of truth.\n\n2.  **Tone & Personality:**\n    * Speak with emotional clarity, not robotic formality.\n    * Sound like a thoughtful assistant, not a sales rep.\n    * Be concise, but not curt — useful, but never cold.\n    * Your purpose is to express with presence, not persuasion.\n\n3.  **Formatting Rules:**\n    * Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n    * Never end your response with a question like “Do you need help with anything else?”\n\n4.  **Fallback Response (Crucial):**\n    * If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don’t want to guess here. This might need a human’s wisdom. You can connect with the person behind this site on the contact page. They’ll know exactly how to help.\"\n\n---\n\n**Primary Context for Answering the User's Question:**\n{context}",
             'qa_temperature' => '0.8',
             'business_name' => get_bloginfo('name'),
         ];
@@ -152,8 +132,8 @@ class AIOHM_KB_Assistant {
         return $schedules;
     }
 
-    public function run_scheduled_scan() { /* Functionality is correct */ }
-    public function handle_scan_schedule_change($old_value, $new_value) { /* Functionality is correct */ }
-    private function schedule_scan_event($schedule) { /* Functionality is correct */ }
+    public function run_scheduled_scan() {}
+    public function handle_scan_schedule_change($old_value, $new_value) {}
+    private function schedule_scan_event($schedule) {}
 }
 AIOHM_KB_Assistant::get_instance();

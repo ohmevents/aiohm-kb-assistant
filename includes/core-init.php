@@ -1,7 +1,7 @@
 <?php
 /**
  * Core initialization and configuration.
- * This is the complete and final version with all working AJAX handlers.
+ * Final version with all AJAX handlers, including the test chat.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -33,7 +33,57 @@ class AIOHM_KB_Core_Init {
         // Frontend Chat Actions
         add_action('wp_ajax_aiohm_frontend_chat', array(__CLASS__, 'handle_frontend_chat_ajax'));
         add_action('wp_ajax_nopriv_aiohm_frontend_chat', array(__CLASS__, 'handle_frontend_chat_ajax'));
+
+        // Private Assistant Chat Action
+        add_action('wp_ajax_aiohm_private_chat', array(__CLASS__, 'handle_private_assistant_ajax'));
     }
+
+    // --- START: New Function to Fix Test Chat ---
+    public static function handle_test_mirror_mode_chat_ajax() {
+        if (!check_ajax_referer('aiohm_mirror_mode_nonce', 'nonce', false) || !current_user_can('read')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+
+        try {
+            $user_message = sanitize_textarea_field($_POST['message']);
+            $posted_settings = isset($_POST['settings']) ? $_POST['settings'] : [];
+
+            $system_message = $posted_settings['qa_system_message'] ?? 'You are a helpful assistant.';
+            $temperature = floatval($posted_settings['qa_temperature'] ?? 0.7);
+            
+            $ai_client = new AIOHM_KB_AI_GPT_Client();
+            $rag_engine = new AIOHM_KB_RAG_Engine();
+            
+            // Get relevant context
+            $context_data = $rag_engine->find_relevant_context($user_message, 5);
+            $context_string = "";
+            foreach ($context_data as $data) {
+                $context_string .= "Source: " . $data['entry']['title'] . "\nContent: " . $data['entry']['content'] . "\n\n";
+            }
+            if (empty($context_string)) {
+                $context_string = "No relevant context found.";
+            }
+
+            // Replace placeholders in system message
+            $replacements = [
+                '{context}'        => $context_string,
+                '%site_name%'      => $posted_settings['business_name'] ?? get_bloginfo('name'),
+                '%business_name%'  => $posted_settings['business_name'] ?? get_bloginfo('name'),
+                '%day_of_week%'    => wp_date('l'),
+                '%current_date%'   => wp_date(get_option('date_format')),
+                '%current_time%'   => wp_date(get_option('time_format')),
+            ];
+            $final_system_message = str_replace(array_keys($replacements), array_values($replacements), $system_message);
+
+            $answer = $ai_client->get_chat_completion($final_system_message, $user_message, $temperature);
+
+            wp_send_json_success(['answer' => $answer]);
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => 'AI request failed: ' . $e->getMessage()]);
+        }
+    }
+    // --- END: New Function ---
 
     public static function handle_progressive_scan_ajax() {
         if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
@@ -132,23 +182,47 @@ class AIOHM_KB_Core_Init {
         wp_send_json_success(['message' => 'The knowledge base has been successfully reset.']);
     }
 
-    public static function handle_brand_assistant_ajax() {
-        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce')) {
-            wp_send_json_error(['message' => 'Security check failed.']);
+    public static function handle_private_assistant_ajax() {
+        check_ajax_referer('aiohm-private-chat-nonce', '_ajax_nonce');
+    
+        if (!current_user_can('administrator') && !current_user_can('ohm_brand_collaborator')) {
+            wp_send_json_error(['message' => 'Permission denied.']);
         }
+    
         try {
+            $user_message = sanitize_textarea_field($_POST['message']);
             $user_id = get_current_user_id();
-            $query = sanitize_text_field($_POST['query']);
+            $settings = AIOHM_KB_Assistant::get_settings();
+            $business_name = $settings['business_name'] ?? get_bloginfo('name');
+            
             $rag_engine = new AIOHM_KB_RAG_Engine();
             $ai_client = new AIOHM_KB_AI_GPT_Client();
-            $relevant_context_data = $rag_engine->find_context_for_user($query, $user_id);
-            $context_string = "";
-            foreach ($relevant_context_data as $data) {
-                $context_string .= "Source Title: " . $data['entry']['title'] . "\nContent: " . $data['entry']['content'] . "\n\n";
+    
+            $context_data = $rag_engine->find_context_for_user($user_message, $user_id, 10);
+            $context = "";
+            foreach ($context_data as $data) {
+                $entry = $data['entry'];
+                $source_title = $entry['title'] === 'My Brand Soul' ? 'Private Brand Soul' : $entry['title'];
+                $context .= "Source (" . $source_title . "):\n" . $entry['content'] . "\n---\n";
             }
-            $system_prompt = "You are a Brand Strategy Assistant. Your role is to help the user develop their brand by using the provided context, which includes public information and the user's private 'Brand Soul' answers. Synthesize this information to provide creative ideas, answer strategic questions, and help draft content. Always prioritize the private 'Brand Soul' context when available.";
-            $answer = $ai_client->get_chat_completion($system_prompt, $query);
-            wp_send_json_success(['response' => $answer]);
+            
+            $system_prompt = "You are Muse, a private brand assistant. Your role is to help the user develop their brand by using the provided context, which includes public information and the user's private 'Brand Soul' answers. Synthesize this information to provide creative ideas, answer strategic questions, and help draft content. Always prioritize the private 'Brand Soul' context when available.";
+    
+            $replacements = [
+                '{context}'        => $context,
+                '%site_name%'      => $business_name,
+                '%business_name%'  => $business_name,
+                '%day_of_week%'    => wp_date('l'),
+                '%current_date%'   => wp_date(get_option('date_format')),
+                '%current_time%'   => wp_date(get_option('time_format')),
+            ];
+            
+            $final_user_message = "Here is some context to inform your response:\n\n" . $context . "\n\nNow, please respond to the following:\n\n" . $user_message;
+    
+            $answer = $ai_client->get_chat_completion($system_prompt, $final_user_message, 0.7);
+    
+            wp_send_json_success(['reply' => $answer]);
+    
         } catch (Exception $e) {
             wp_send_json_error(['message' => 'Chat request failed: ' . $e->getMessage()]);
         }
@@ -267,7 +341,7 @@ class AIOHM_KB_Core_Init {
                     'expression_2' => "What font(s) do you use — or wish to use — for headers and body text?",
                     'expression_3' => "Is there a visual theme (earthy, cosmic, minimalist, ornate) that matches your brand essence?",
                     'expression_4' => "Are there any logos, patterns, or symbols that hold meaning for your brand?",
-                    'expression_5' => "Share any links or files that represent your current branding or moodboard.",
+                    'expression_5' => "What offerings are you currently sharing with the world — and how are they priced or exchanged?",
                 ],
                 '🚀 Direction' => [
                     'direction_1' => "What’s your current main offer or project you want support with?",
@@ -350,83 +424,6 @@ class AIOHM_KB_Core_Init {
             wp_send_json_success(['qa_pair' => ['question' => trim(str_replace('"', '', $question)), 'answer' => trim($answer)]]);
         } catch (Exception $e) {
             wp_send_json_error(['message' => 'Failed to generate Q&A pair: ' . $e->getMessage()]);
-        }
-    }
-
-    public static function handle_test_mirror_mode_chat_ajax() {
-        if (!check_ajax_referer('aiohm_mirror_mode_nonce', 'nonce', false) || !current_user_can('read')) {
-            wp_send_json_error(['message' => 'Security check failed.']);
-        }
-        try {
-            $user_message = isset($_POST['message']) ? sanitize_text_field($_POST['message']) : '';
-            $test_settings = isset($_POST['settings']) ? $_POST['settings'] : [];
-            $rag_engine = new AIOHM_KB_RAG_Engine();
-            $ai_client = new AIOHM_KB_AI_GPT_Client();
-            $context_chunks = $rag_engine->find_relevant_context($user_message);
-            $context = '';
-            foreach ($context_chunks as $chunk) {
-                $context .= $chunk['entry']['content'] . "\n\n";
-            }
-            if (empty(trim($context))) {
-                $context = 'No relevant context found.';
-            }
-            $system_message = $test_settings['qa_system_message'] ?? '';
-            $business_name = esc_html($test_settings['business_name'] ?? get_bloginfo('name'));
-            $replacements = [
-                '{context}'        => $context,
-                '%site_name%'      => $business_name,
-                '%business_name%'  => $business_name,
-                '%day_of_week%'    => date('l'),
-                '%current_date%'   => date(get_option('date_format')),
-            ];
-            $system_message = str_replace(array_keys($replacements), array_values($replacements), $system_message);
-            $temperature = isset($test_settings['qa_temperature']) ? floatval($test_settings['qa_temperature']) : 0.8;
-            $answer = $ai_client->get_chat_completion($system_message, $user_message, $temperature);
-            wp_send_json_success(['answer' => nl2br(esc_html($answer))]);
-        } catch (Exception $e) {
-            wp_send_json_error(['message' => 'AI Error: ' . $e->getMessage()]);
-        }
-    }
-
-    public static function handle_frontend_chat_ajax() {
-        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_chat_nonce')) {
-            wp_send_json_error(['message' => 'Security check failed.']);
-        }
-        try {
-            $user_message = isset($_POST['message']) ? sanitize_text_field($_POST['message']) : '';
-            $settings = AIOHM_KB_Assistant::get_settings();
-            
-            $rag_engine = new AIOHM_KB_RAG_Engine();
-            $ai_client = new AIOHM_KB_AI_GPT_Client();
-
-            $context_chunks = $rag_engine->find_relevant_context($user_message);
-            $context = '';
-            foreach ($context_chunks as $chunk) {
-                $context .= $chunk['entry']['content'] . "\n\n";
-            }
-
-            if (empty(trim($context))) {
-                $context = 'No relevant context found.';
-            }
-
-            $system_message = $settings['qa_system_message'] ?? '';
-            $business_name = esc_html($settings['business_name'] ?? get_bloginfo('name'));
-            $replacements = [
-                '{context}'        => $context,
-                '%site_name%'      => $business_name,
-                '%business_name%'  => $business_name,
-                '%day_of_week%'    => date('l'),
-                '%current_date%'   => date(get_option('date_format')),
-            ];
-            $system_message = str_replace(array_keys($replacements), array_values($replacements), $system_message);
-            
-            $temperature = isset($settings['qa_temperature']) ? floatval($settings['qa_temperature']) : 0.8;
-
-            $answer = $ai_client->get_chat_completion($system_message, $user_message, $temperature);
-
-            wp_send_json_success(['answer' => nl2br(esc_html($answer))]);
-        } catch (Exception $e) {
-            wp_send_json_error(['message' => 'AI Error: ' . $e->getMessage()]);
         }
     }
 }

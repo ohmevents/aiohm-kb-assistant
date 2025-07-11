@@ -1,236 +1,112 @@
 /**
  * AIOHM Knowledge Assistant - Chat and Search Styles
- * Version: 1.0.2 (Button and Icon Fix)
+ * Version: 1.1.6 (Final Layout and Specificity Fix)
  */
 
-/* CSS Custom Properties for Theming */
+/* --- OHM Brand Theme Variables --- */
 :root {
-    --aiohm-primary-color: #007cba;
-    --aiohm-secondary-color: #f8f9fa;
-    --aiohm-text-color: #333333;
-    --aiohm-border-color: #ddd;
-    --aiohm-border-radius: 8px;
-    --aiohm-font-size: 14px;
-    --aiohm-chat-width: 100%;
-    --aiohm-chat-max-width: 600px;
-    --aiohm-success-color: #28a745;
-    --aiohm-error-color: #dc3545;
-    --aiohm-warning-color: #ffc107;
-    --aiohm-info-color: #17a2b8;
-    --aiohm-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    --aiohm-shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.15);
-    --aiohm-transition: all 0.3s ease;
+    --ohm-primary: #457d58;
+    --ohm-dark: #272727;
+    --ohm-light-accent: #cbddd1;
+    --ohm-muted-accent: #7d9b76;
+    --ohm-light-bg: #EBEBEB;
+    --ohm-dark-accent: #1f5014;
+    --ohm-font-primary: 'Montserrat', 'Montserrat Alternates', sans-serif;
+    --ohm-font-secondary: 'PT Sans', sans-serif;
 }
 
-/* Base Chat Container */
+/* --- CHAT WIDGET STYLES --- */
 .aiohm-chat-container {
-    width: var(--aiohm-chat-width);
-    max-width: var(--aiohm-chat-max-width);
-    background: #fff;
-    border: 1px solid var(--aiohm-border-color);
-    border-radius: var(--aiohm-border-radius);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: var(--aiohm-font-size);
-    color: var(--aiohm-text-color);
-    box-shadow: var(--aiohm-shadow);
-    overflow: hidden;
+    max-width: 600px;
     margin: 0 auto;
+    border: 1px solid var(--ohm-light-bg);
+    border-radius: 8px;
+    overflow: hidden;
+    font-family: var(--ohm-font-secondary);
+    display: flex;
+    flex-direction: column;
 }
 
-/* Chat Header */
-.aiohm-chat-header {
-    background: var(--aiohm-primary-color);
+/* Corrected Chat Header Layout */
+.aiohm-chat-container .aiohm-chat-header {
+    background: var(--ohm-dark-accent);
     color: white;
     padding: 15px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.aiohm-chat-container .aiohm-chat-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.aiohm-chat-container .aiohm-status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #28a745;
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
 }
 
-.aiohm-header-content {
-    flex: 1;
+/* --- SEARCH COMPONENT STYLES --- */
+.aiohm-search-container {
+    max-width: 800px;
+    margin: 40px auto 0;
 }
 
-.aiohm-chat-title {
+/* Corrected Search Controls Layout */
+.aiohm-search-container .aiohm-search-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center; /* Vertically align items */
+    margin-bottom: 20px;
+}
+.aiohm-search-container .aiohm-search-form {
+    flex-grow: 1;
+}
+.aiohm-search-container .aiohm-search-input-wrapper {
+    height: 50px; /* Set a fixed height */
+    display: flex;
+    border: 2px solid var(--ohm-light-bg);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.aiohm-search-container .aiohm-search-input {
+    flex-grow: 1;
+    border: none;
+    padding: 0 16px;
     font-size: 16px;
-    font-weight: 600;
-    margin: 0;
-    line-height: 1.3;
-}
-
-/* Chat Messages Area */
-.aiohm-chat-messages {
-    padding: 20px;
-    height: 400px;
-    overflow-y: auto;
-    scroll-behavior: smooth;
-    background: var(--aiohm-secondary-color);
-}
-
-/* Message Styles */
-.aiohm-message {
-    display: flex;
-    margin-bottom: 16px;
-    animation: messageSlideIn 0.3s ease-out;
-}
-
-.aiohm-message-user {
-    flex-direction: row-reverse;
-}
-
-.aiohm-message-bot {
-    flex-direction: row;
-}
-
-.aiohm-message-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 12px;
-    flex-shrink: 0;
-}
-
-.aiohm-message-user .aiohm-message-avatar {
-    background: var(--aiohm-primary-color);
-    color: white;
-}
-
-.aiohm-message-bot .aiohm-message-avatar {
-    background: #6c757d;
-    color: white;
-}
-
-.aiohm-message-bubble {
-    max-width: 70%;
-    position: relative;
-}
-
-.aiohm-message-content {
-    padding: 12px 16px;
-    border-radius: var(--aiohm-border-radius);
-    word-wrap: break-word;
-    line-height: 1.4;
-}
-
-.aiohm-message-user .aiohm-message-content {
-    background: transparent; /* Changed from solid color */
-    border: 2px solid var(--aiohm-primary-color, #1f5014); /* Added border */
-    color: #333333; /* Ensure text is readable on light backgrounds */
-    border-bottom-right-radius: 4px;
-}
-
-.aiohm-message-bot .aiohm-message-content {
-    background: white;
-    color: #333;
-    border: 1px solid var(--aiohm-border-color);
-    border-bottom-left-radius: 4px;
-}
-
-/* Chat Input */
-.aiohm-chat-input-container {
-    padding: 16px 20px;
-    background: white;
-    border-top: 1px solid var(--aiohm-border-color);
-}
-
-.aiohm-chat-input-wrapper {
-    display: flex;
-    align-items: flex-end;
-    gap: 12px;
-    background: #f8f9fa;
-    border: 1px solid #ddd;
-    border-radius: 20px;
-    padding: 8px 12px;
-    transition: var(--aiohm-transition);
-}
-
-.aiohm-chat-input-wrapper:focus-within {
-    border-color: var(--aiohm-primary-color);
-    box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.1);
-}
-
-.aiohm-chat-input {
-    flex: 1;
-    border: none;
-    background: #ffffff !important; /* Force a white background */
-    color: #333333 !important;      /* Force dark text */
-    resize: none;
     outline: none;
-    font-family: inherit;
-    font-size: 14px;
-    line-height: 1.4;
-    padding: 4px 0;
-    max-height: 100px;
-    min-height: 20px;
 }
-
-.aiohm-chat-input::placeholder {
-    color: #999;
-}
-
-.aiohm-chat-send-btn {
-    background: var(--aiohm-primary-color, #1f5014);
-    color: white;
+.aiohm-search-container .aiohm-search-btn {
+    background: var(--ohm-primary);
     border: none;
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    color: white;
+    padding: 0 20px;
+    cursor: pointer;
+}
+.aiohm-search-container .aiohm-search-filters {
+    height: 50px; /* Match height */
     display: flex;
     align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: var(--aiohm-transition);
-    flex-shrink: 0;
+    gap: 10px;
+    border: 2px solid var(--ohm-light-bg);
+    padding: 0 15px;
+    border-radius: 8px;
+    background: #fdfdfd;
 }
-
-.aiohm-chat-send-btn svg {
-    stroke: white !important; /* Force the arrow color to be white */
+.aiohm-search-container .aiohm-search-filters label {
+    font-weight: bold;
+    color: var(--ohm-dark-accent);
 }
-
-.aiohm-chat-send-btn:hover:not(:disabled) {
-    background: #005a87;
-    transform: scale(1.05);
-}
-
-.aiohm-chat-send-btn:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* Green Theme */
-.aiohm-chat-theme-ohm-green {
-    background-color: var(--aiohm-secondary-color, #f0f4f8);
-    border: 1px solid var(--aiohm-border-color, #d9e2ec);
-}
-
-.aiohm-chat-theme-ohm-green .aiohm-chat-header {
-    background-color: var(--aiohm-primary-color, #1f5014);
-    color: var(--aiohm-text-color, #ffffff);
-}
-
-.aiohm-chat-theme-ohm-green .aiohm-message-user .aiohm-message-content {
+.aiohm-search-container .aiohm-search-filters select {
+    border: none;
     background: transparent;
-    border-color: var(--aiohm-primary-color, #1f5014); /* Use the green theme color for the border */
-    color: var(--ohm-dark, #272727); /* Ensure text is dark and readable */
-}
-
-.aiohm-chat-theme-ohm-green .aiohm-chat-send-btn {
-    background-color: var(--aiohm-primary-color, #1f5014);
-}
-
-/* Animations */
-@keyframes messageSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }

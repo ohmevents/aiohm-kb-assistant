@@ -1,7 +1,7 @@
 <?php
 /**
  * Chat shortcode implementation - [aiohm_chat]
- * Final version with arrow icon and contour style update.
+ * Final version with robust classing for CSS specificity.
  */
 
 // Prevent direct access
@@ -93,18 +93,20 @@ class AIOHM_KB_Shortcode_Chat {
         $output .= '<div class="aiohm-chat-input-wrapper">';
         $output .= '<textarea class="aiohm-chat-input" placeholder="' . esc_attr($atts['placeholder']) . '" rows="1" style="background-color: #ffffff; color: #333333;"></textarea>';
         $output .= '<button type="button" class="aiohm-chat-send-btn" disabled>';
-        // --- THIS IS THE UPDATED SVG ICON ---
         $output .= '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>';
         $output .= '</button>';
         $output .= '</div>';
         $output .= '</div>';
         
-        if (!empty($settings['meeting_button_url'])) {
-            $output .= '<a href="' . esc_url($settings['meeting_button_url']) . '" class="aiohm-chat-footer-button" target="_blank">' . __('Book a Meeting', 'aiohm-kb-assistant') . '</a>';
-        } elseif ($atts['show_branding'] === 'true') {
-            $output .= '<div class="aiohm-chat-branding">';
-            $output .= '<span>' . __('Powered by', 'aiohm-kb-assistant') . ' <strong>AIOHM</strong></span>';
-            $output .= '</div>';
+        if ($atts['show_branding'] === 'true') {
+            $branding_text = '<span>' . __('Powered by', 'aiohm-kb-assistant') . ' <strong>AIOHM</strong></span>';
+            $meeting_url = $settings['meeting_button_url'] ?? '';
+
+            if (!empty($meeting_url)) {
+                $output .= '<a href="' . esc_url($meeting_url) . '" class="aiohm-chat-branding aiohm-chat-footer-button" target="_blank">' . __('Book a Meeting', 'aiohm-kb-assistant') . '</a>';
+            } else {
+                $output .= '<div class="aiohm-chat-branding">' . $branding_text . '</div>';
+            }
         }
         
         $output .= '</div>';

@@ -39,7 +39,7 @@ $brand_soul_questions = [
         'expression_2' => "What font(s) do you use — or wish to use — for headers and body text?",
         'expression_3' => "Is there a visual theme (earthy, cosmic, minimalist, ornate) that matches your brand essence?",
         'expression_4' => "Are there any logos, patterns, or symbols that hold meaning for your brand?",
-        'expression_5' => "Share any links or files that represent your current branding or moodboard.",
+        'expression_5' => "What offerings are you currently sharing with the world — and how are they priced or exchanged?",
     ],
     '🚀 Direction' => [
         'direction_1' => "What’s your current main offer or project you want support with?",
