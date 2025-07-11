@@ -47,7 +47,9 @@ class AIOHM_KB_Shortcode_Chat {
         wp_enqueue_script('aiohm-chat');
         wp_enqueue_style('aiohm-chat');
         
-        $output = '<div class="aiohm-chat-container aiohm-chat-theme-' . esc_attr($atts['theme']) . '" id="' . esc_attr($chat_id) . '"';
+        $output = '<div class="aiohm-chat-wrapper">';
+
+        $output .= '<div class="aiohm-chat-container aiohm-chat-theme-' . esc_attr($atts['theme']) . '" id="' . esc_attr($chat_id) . '"';
         
         $styles = array();
         if ($atts['width'] !== '100%') {
@@ -109,7 +111,7 @@ class AIOHM_KB_Shortcode_Chat {
             }
         }
         
-        $output .= '</div>';
+        $output .= '</div>'; // aiohm-chat-container
         
         $chat_config = array(
             'chat_id' => $chat_id,
@@ -126,6 +128,8 @@ class AIOHM_KB_Shortcode_Chat {
         $output .= 'if (typeof window.aiohm_chat_configs === "undefined") window.aiohm_chat_configs = {};';
         $output .= 'window.aiohm_chat_configs["' . $chat_id . '"] = ' . json_encode($chat_config) . ';';
         $output .= '</script>';
+        
+        $output .= '</div>'; // aiohm-chat-wrapper
         
         return $output;
     }

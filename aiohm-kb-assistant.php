@@ -52,7 +52,8 @@ class AIOHM_KB_Assistant {
     }
     
     public function load_dependencies() {
-        $files = ['core-init.php', 'settings-page.php', 'rag-engine.php', 'ai-gpt-client.php', 'crawler-site.php', 'crawler-uploads.php', 'aiohm-kb-manager.php', 'api-client-app.php', 'shortcode-chat.php', 'shortcode-search.php', 'frontend-widget.php', 'chat-box.php', 'user-functions.php', 'pmpro-integration.php'];
+        // Added 'shortcode-private-assistant.php'
+        $files = ['core-init.php', 'settings-page.php', 'rag-engine.php', 'ai-gpt-client.php', 'crawler-site.php', 'crawler-uploads.php', 'aiohm-kb-manager.php', 'api-client-app.php', 'shortcode-chat.php', 'shortcode-search.php', 'shortcode-private-assistant.php', 'frontend-widget.php', 'chat-box.php', 'user-functions.php', 'pmpro-integration.php'];
         foreach ($files as $file) {
             if (file_exists(AIOHM_KB_INCLUDES_DIR . $file)) { require_once AIOHM_KB_INCLUDES_DIR . $file; }
         }
@@ -63,6 +64,7 @@ class AIOHM_KB_Assistant {
         AIOHM_KB_Settings_Page::init();
         AIOHM_KB_Shortcode_Chat::init();
         AIOHM_KB_Shortcode_Search::init();
+        AIOHM_KB_Shortcode_Private_Assistant::init(); // Initialize the new shortcode
         AIOHM_KB_Frontend_Widget::init();
         AIOHM_KB_PMP_Integration::init();
     }
@@ -94,11 +96,23 @@ class AIOHM_KB_Assistant {
             'scan_schedule'    => 'none',
             'chunk_size'       => 1000,
             'chunk_overlap'    => 200,
-            'qa_system_message' => "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\n---\n\n**Core Instructions:**\n\n1.  **Primary Directive:** Your primary goal is to answer the user's question by grounding your response in the **context provided below**. This context is your main source of truth.\n\n2.  **Tone & Personality:**\n    * Speak with emotional clarity, not robotic formality.\n    * Sound like a thoughtful assistant, not a sales rep.\n    * Be concise, but not curt — useful, but never cold.\n    * Your purpose is to express with presence, not persuasion.\n\n3.  **Formatting Rules:**\n    * Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n    * Never end your response with a question like “Do you need help with anything else?”\n\n4.  **Fallback Response (Crucial):**\n    * If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don’t want to guess here. This might need a human’s wisdom. You can connect with the person behind this site on the contact page. They’ll know exactly how to help.\"\n\n---\n\n**Primary Context for Answering the User's Question:**\n{context}",
-            'qa_temperature' => '0.8',
-            'business_name' => get_bloginfo('name'),
+            // START: Settings are now nested
+            'mirror_mode' => [
+                'qa_system_message' => "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\n---\n\n**Core Instructions:**\n\n1.  **Primary Directive:** Your primary goal is to answer the user's question by grounding your response in the **context provided below**. This context is your main source of truth.\n\n2.  **Tone & Personality:**\n    * Speak with emotional clarity, not robotic formality.\n    * Sound like a thoughtful assistant, not a sales rep.\n    * Be concise, but not curt — useful, but never cold.\n    * Your purpose is to express with presence, not persuasion.\n\n3.  **Formatting Rules:**\n    * Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n    * Never end your response with a question like “Do you need help with anything else?”\n\n4.  **Fallback Response (Crucial):**\n    * If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don’t want to guess here. This might need a human’s wisdom. You can connect with the person behind this site on the contact page. They’ll know exactly how to help.\"\n\n---\n\n**Primary Context for Answering the User's Question:**\n{context}",
+                'qa_temperature' => '0.8',
+                'business_name' => get_bloginfo('name'),
+                'ai_model' => 'gpt-3.5-turbo',
+            ],
+            'muse_mode' => [
+                'system_prompt' => "You are Muse, a private brand assistant. Your role is to help the user develop their brand by using the provided context, which includes public information and the user's private 'Brand Soul' answers. Synthesize this information to provide creative ideas, answer strategic questions, and help draft content. Always prioritize the private 'Brand Soul' context when available.",
+                'temperature' => '0.7',
+                'assistant_name' => 'Muse',
+                'ai_model' => 'gpt-4',
+            ]
+            // END: Settings are now nested
         ];
-        return wp_parse_args(get_option('aiohm_kb_settings', []), $default_settings);
+        $saved_settings = get_option('aiohm_kb_settings', []);
+        return wp_parse_args($saved_settings, $default_settings);
     }
 
     private function create_tables() {

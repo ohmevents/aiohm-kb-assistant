@@ -5,14 +5,13 @@
  */
 
 if (!defined('ABSPATH')) exit;
-$settings = AIOHM_KB_Assistant::get_settings();
 
-// --- START: Helper Function for Color Contrast ---
-/**
- * Determines if a hex color is light or dark.
- * @param string $hex The hex color code.
- * @return bool True if dark, false if light.
- */
+// Fetch all settings and then get the specific part for Mirror Mode
+$all_settings = AIOHM_KB_Assistant::get_settings();
+$settings = $all_settings['mirror_mode'] ?? [];
+$global_settings = $all_settings; // for API keys
+
+// Helper function for color contrast
 function aiohm_is_color_dark($hex) {
     if (empty($hex)) return false;
     $hex = str_replace('#', '', $hex);
@@ -26,7 +25,6 @@ function aiohm_is_color_dark($hex) {
     $luminance = (0.299 * $r + 0.587 * $g + 0.114 * $b) / 255;
     return $luminance < 0.5;
 }
-// --- END: Helper Function ---
 
 $default_prompt = "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\n---\n\n**Core Instructions:**\n\n1.  **Primary Directive:** Your primary goal is to answer the user's question by grounding your response in the **context provided below**. This context is your main source of truth.\n\n2.  **Tone & Personality:**\n    * Speak with emotional clarity, not robotic formality.\n    * Sound like a thoughtful assistant, not a sales rep.\n    * Be concise, but not curt — useful, but never cold.\n    * Your purpose is to express with presence, not persuasion.\n\n3.  **Formatting Rules:**\n    * Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n    * Never end your response with a question like “Do you need help with anything else?”\n\n4.  **Fallback Response (Crucial):**\n    * If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don’t want to guess here. This might need a human’s wisdom. You can connect with the person behind this site on the contact page. They’ll know exactly how to help.\"\n\n---\n\n**Primary Context for Answering the User's Question:**\n{context}";
 $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_system_message'] : $default_prompt;
@@ -47,7 +45,7 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
                 
                 <div class="aiohm-setting-block">
                     <label for="business_name">Business Name</label>
-                    <input type="text" id="business_name" name="settings[business_name]" value="<?php echo esc_attr($settings['business_name'] ?? get_bloginfo('name')); ?>">
+                    <input type="text" id="business_name" name="aiohm_kb_settings[mirror_mode][business_name]" value="<?php echo esc_attr($settings['business_name'] ?? get_bloginfo('name')); ?>">
                     <p class="description">This name will appear in the chat header.</p>
                 </div>
 
@@ -56,21 +54,21 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
                         <label for="qa_system_message"><?php _e('Soul Signature for Q&A Assistant', 'aiohm-kb-assistant'); ?></label>
                         <button type="button" id="reset-prompt-btn" class="button-link"><?php _e('Reset to Default', 'aiohm-kb-assistant'); ?></button>
                     </div>
-                    <textarea id="qa_system_message" name="settings[qa_system_message]" rows="15"><?php echo esc_textarea($qa_system_message); ?></textarea>
+                    <textarea id="qa_system_message" name="aiohm_kb_settings[mirror_mode][qa_system_message]" rows="15"><?php echo esc_textarea($qa_system_message); ?></textarea>
                     <p class="description">This is the core instruction set for your AI.</p>
                 </div>
 
                 <div class="aiohm-setting-block">
                     <label for="ai_model_selector">AI Model</label>
-                    <select id="ai_model_selector" name="settings[ai_model]">
-                        <?php if (!empty($settings['openai_api_key'])): ?>
+                    <select id="ai_model_selector" name="aiohm_kb_settings[mirror_mode][ai_model]">
+                        <?php if (!empty($global_settings['openai_api_key'])): ?>
                             <option value="gpt-3.5-turbo" <?php selected($settings['ai_model'] ?? 'gpt-3.5-turbo', 'gpt-3.5-turbo'); ?>>OpenAI: GPT-3.5 Turbo</option>
                             <option value="gpt-4" <?php selected($settings['ai_model'] ?? '', 'gpt-4'); ?>>OpenAI: GPT-4</option>
                         <?php endif; ?>
-                        <?php if (!empty($settings['gemini_api_key'])): ?>
+                        <?php if (!empty($global_settings['gemini_api_key'])): ?>
                             <option value="gemini-pro" <?php selected($settings['ai_model'] ?? '', 'gemini-pro'); ?>>Google: Gemini Pro</option>
                         <?php endif; ?>
-                        <?php if (!empty($settings['claude_api_key'])): ?>
+                        <?php if (!empty($global_settings['claude_api_key'])): ?>
                             <option value="claude-3-sonnet" <?php selected($settings['ai_model'] ?? '', 'claude-3-sonnet'); ?>>Anthropic: Claude 3 Sonnet</option>
                         <?php endif; ?>
                     </select>
@@ -79,29 +77,29 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
 
                 <div class="aiohm-setting-block">
                     <label for="qa_temperature">Temperature: <span class="temp-value"><?php echo esc_attr($settings['qa_temperature'] ?? '0.8'); ?></span></label>
-                    <input type="range" id="qa_temperature" name="settings[qa_temperature]" value="<?php echo esc_attr($settings['qa_temperature'] ?? '0.8'); ?>" min="0" max="1" step="0.1">
+                    <input type="range" id="qa_temperature" name="aiohm_kb_settings[mirror_mode][qa_temperature]" value="<?php echo esc_attr($settings['qa_temperature'] ?? '0.8'); ?>" min="0" max="1" step="0.1">
                     <p class="description">Lower is more predictable; higher is more creative.</p>
                 </div>
                 
                 <div class="aiohm-color-grid">
                     <div class="aiohm-setting-block">
                         <label for="primary_color">Primary</label>
-                        <input type="color" id="primary_color" name="settings[primary_color]" value="<?php echo esc_attr($settings['primary_color'] ?? '#1f5014'); ?>">
+                        <input type="color" id="primary_color" name="aiohm_kb_settings[mirror_mode][primary_color]" value="<?php echo esc_attr($settings['primary_color'] ?? '#1f5014'); ?>">
                     </div>
                     <div class="aiohm-setting-block">
                         <label for="background_color">Background</label>
-                        <input type="color" id="background_color" name="settings[background_color]" value="<?php echo esc_attr($settings['background_color'] ?? '#f0f4f8'); ?>">
+                        <input type="color" id="background_color" name="aiohm_kb_settings[mirror_mode][background_color]" value="<?php echo esc_attr($settings['background_color'] ?? '#f0f4f8'); ?>">
                     </div>
                     <div class="aiohm-setting-block">
                         <label for="text_color">Header Text</label>
-                        <input type="color" id="text_color" name="settings[text_color]" value="<?php echo esc_attr($settings['text_color'] ?? '#ffffff'); ?>">
+                        <input type="color" id="text_color" name="aiohm_kb_settings[mirror_mode][text_color]" value="<?php echo esc_attr($settings['text_color'] ?? '#ffffff'); ?>">
                     </div>
                 </div>
 
                 <div class="aiohm-setting-block">
                     <label for="ai_avatar">AI Avatar</label>
                     <div class="aiohm-avatar-uploader">
-                        <input type="text" id="ai_avatar" name="settings[ai_avatar]" value="<?php echo esc_attr($settings['ai_avatar'] ?? ''); ?>" placeholder="Enter image URL">
+                        <input type="text" id="ai_avatar" name="aiohm_kb_settings[mirror_mode][ai_avatar]" value="<?php echo esc_attr($settings['ai_avatar'] ?? ''); ?>" placeholder="Enter image URL">
                         <button type="button" class="button button-secondary" id="upload_ai_avatar_button">Upload</button>
                     </div>
                      <p class="description">Upload or enter the URL for the AI's avatar.</p>
@@ -109,12 +107,12 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
 
                 <div class="aiohm-setting-block">
                     <label for="meeting_button_url">"Book a Meeting" URL</label>
-                    <input type="url" id="meeting_button_url" name="settings[meeting_button_url]" value="<?php echo esc_attr($settings['meeting_button_url'] ?? ''); ?>" placeholder="https://your-booking-link.com">
+                    <input type="url" id="meeting_button_url" name="aiohm_kb_settings[mirror_mode][meeting_button_url]" value="<?php echo esc_attr($settings['meeting_button_url'] ?? ''); ?>" placeholder="https://your-booking-link.com">
                      <p class="description">Replaces the "Powered by" text with a booking button.</p>
                 </div>
                 
                 <div class="form-actions">
-                    <button type="button" id="save-mirror-mode-settings" class="button button-primary"><?php _e('Save Chat Settings', 'aiohm-kb-assistant'); ?></button>
+                    <button type="button" id="save-mirror-mode-settings" class="button button-primary"><?php _e('Save Mirror Mode Settings', 'aiohm-kb-assistant'); ?></button>
                 </div>
             </form>
         </div>
@@ -143,7 +141,7 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
                     </div>
                 </div>
                 <div class="aiohm-chat-footer-preview">
-                    </div>
+                </div>
             </div>
 
             <div class="aiohm-search-container-wrapper">
@@ -264,233 +262,230 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
     .q-and-a-generator .button-secondary { width: 100%; margin-top: 10px; }
     .q-and-a-container { margin-top: 15px; background: #f8f9fa; padding: 15px; border-radius: 4px; border: 1px solid var(--ohm-light-bg); text-align: left; }
     .q-and-a-container .q-title { font-weight: bold; color: var(--ohm-dark-accent); }
-
 </style>
 
 <script>
-jQuery(document).ready(function($) {
-    const defaultPrompt = <?php echo json_encode($default_prompt); ?>;
+    jQuery(document).ready(function($) {
+        const defaultPrompt = <?php echo json_encode($default_prompt); ?>;
 
-    function isColorDark(hex) {
-        if (!hex) return false;
-        const color = (hex.charAt(0) === '#') ? hex.substring(1, 7) : hex;
-        if (color.length !== 6) return false;
-        const r = parseInt(color.substring(0, 2), 16);
-        const g = parseInt(color.substring(2, 4), 16);
-        const b = parseInt(color.substring(4, 6), 16);
-        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-        return luminance < 0.5;
-    }
+        function isColorDark(hex) {
+            if (!hex) return false;
+            const color = (hex.charAt(0) === '#') ? hex.substring(1, 7) : hex;
+            if (color.length !== 6) return false;
+            const r = parseInt(color.substring(0, 2), 16);
+            const g = parseInt(color.substring(2, 4), 16);
+            const b = parseInt(color.substring(4, 6), 16);
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            return luminance < 0.5;
+        }
 
-    const testChat = {
-        $container: $('#aiohm-test-chat'),
-        $messages: $('#aiohm-test-chat .aiohm-chat-messages'),
-        $input: $('#aiohm-test-chat .aiohm-chat-input'),
-        $sendBtn: $('#aiohm-test-chat .aiohm-chat-send-btn'),
-        isTyping: false,
-        
-        init: function() {
-            this.$input.on('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendMessage(); } });
-            this.$sendBtn.on('click', () => this.sendMessage());
-            this.$input.on('input', (e) => this.handleInput(e));
-        },
-
-        handleInput: function(e) {
-            this.$sendBtn.prop('disabled', $(e.target).val().trim().length === 0);
-        },
-
-        sendMessage: function() {
-            const message = this.$input.val().trim();
-            if (!message || this.isTyping) return;
+        const testChat = {
+            $container: $('#aiohm-test-chat'),
+            $messages: $('#aiohm-test-chat .aiohm-chat-messages'),
+            $input: $('#aiohm-test-chat .aiohm-chat-input'),
+            $sendBtn: $('#aiohm-test-chat .aiohm-chat-send-btn'),
+            isTyping: false,
             
-            this.addMessage(message, 'user');
-            this.$input.val('').trigger('input');
-            this.showTypingIndicator();
+            init: function() {
+                this.$input.on('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendMessage(); } });
+                this.$sendBtn.on('click', () => this.sendMessage());
+                this.$input.on('input', (e) => this.handleInput(e));
+            },
+
+            handleInput: function(e) {
+                this.$sendBtn.prop('disabled', $(e.target).val().trim().length === 0);
+            },
+
+            sendMessage: function() {
+                const message = this.$input.val().trim();
+                if (!message || this.isTyping) return;
+                
+                this.addMessage(message, 'user');
+                this.$input.val('').trigger('input');
+                this.showTypingIndicator();
+
+                $.post(ajaxurl, {
+                    action: 'aiohm_test_mirror_mode_chat',
+                    nonce: $('#aiohm_mirror_mode_nonce_field').val(),
+                    message: message,
+                    settings: { 
+                        qa_system_message: $('#qa_system_message').val(), 
+                        qa_temperature: $('#qa_temperature').val(), 
+                        business_name: $('#business_name').val(),
+                        ai_model: $('#ai_model_selector').val()
+                    }
+                }).done(response => {
+                    const answer = response.success ? response.data.answer : "Sorry, an error occurred.";
+                    this.hideTypingIndicator();
+                    this.addMessage(answer, 'bot');
+                }).fail(() => {
+                    this.hideTypingIndicator();
+                    this.addMessage("Server error. Please try again.", 'bot', true);
+                });
+            },
+
+            addMessage: function(content, type, isError = false) {
+                const botAvatarUrl = $('#ai_avatar').val();
+                let botAvatarHtml = botAvatarUrl ? `<img src="${botAvatarUrl}" alt="AI Avatar" class="aiohm-avatar-preview">` : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6m-3-9 3 3 3-3"></path></svg>`;
+                const userAvatarHtml = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+                
+                const avatar = type === 'user' ? userAvatarHtml : botAvatarHtml;
+                const sanitizedContent = $('<div/>').text(content).html().replace(/\n/g, '<br>');
+                const textColorClass = (type === 'user' && isColorDark($('#primary_color').val())) ? 'text-light' : 'text-dark';
+
+                const messageHtml = `<div class="aiohm-message aiohm-message-${type}"><div class="aiohm-message-avatar">${avatar}</div><div class="aiohm-message-bubble ${textColorClass}"><div class="aiohm-message-content">${isError ? '⚠️ ' : ''}${sanitizedContent}</div></div></div>`;
+                
+                this.$messages.append(messageHtml);
+                this.$messages.scrollTop(this.$messages[0].scrollHeight);
+            },
+
+            showTypingIndicator: function() {
+                this.isTyping = true;
+                const botAvatarUrl = $('#ai_avatar').val();
+                let botAvatarHtml = botAvatarUrl ? `<img src="${botAvatarUrl}" alt="AI Avatar" class="aiohm-avatar-preview">` : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6m-3-9 3 3 3-3"></path></svg>`;
+                this.$messages.append(`<div class="aiohm-message aiohm-message-bot aiohm-typing-indicator"><div class="aiohm-message-avatar">${botAvatarHtml}</div><div class="aiohm-message-bubble"><div class="aiohm-typing-dots"><span></span><span></span><span></span></div></div></div>`);
+                this.$messages.scrollTop(this.$messages[0].scrollHeight);
+            },
+
+            hideTypingIndicator: function() {
+                this.isTyping = false;
+                this.$messages.find('.aiohm-typing-indicator').remove();
+            }
+        };
+        testChat.init();
+
+        function updateLivePreview() {
+            $('#aiohm-test-chat').css('--aiohm-primary-color', $('#primary_color').val());
+            $('#aiohm-test-chat').css('--aiohm-text-color', $('#text_color').val());
+            $('#aiohm-test-chat').css('--aiohm-background-color', $('#background_color').val());
+            $('#aiohm-test-chat .aiohm-chat-title-preview').text($('#business_name').val());
+            $('.aiohm-avatar-preview').attr('src', $('#ai_avatar').val());
+
+            const footerPreview = $('.aiohm-chat-footer-preview');
+            const meetingUrl = $('#meeting_button_url').val().trim();
+            const brandingHtml = `<div class="aiohm-chat-footer-branding"><span>Powered by <strong>AIOHM</strong></span></div>`;
+            const buttonHtml = `<a href="#" class="aiohm-chat-footer-button" onclick="event.preventDefault(); window.open('${meetingUrl}', '_blank');">Book a Meeting</a>`;
+
+            if (meetingUrl) {
+                footerPreview.html(buttonHtml);
+            } else {
+                footerPreview.html(brandingHtml);
+            }
+        }
+        
+        $('#mirror-mode-settings-form input, #mirror-mode-settings-form select, #mirror-mode-settings-form textarea').on('input change', updateLivePreview);
+        
+        $('#qa_temperature').on('input', function() {
+            $('.temp-value').text($(this).val());
+        });
+
+        $('#reset-prompt-btn').on('click', function(e) {
+            e.preventDefault();
+            showAdminNotice(
+                'Are you sure you want to reset the prompt to its default? <button id="confirm-prompt-reset" class="button button-small" style="margin-left: 10px;">Confirm Reset</button>',
+                'warning'
+            );
+        });
+
+        $(document).on('click', '#confirm-prompt-reset', function() {
+            $('#qa_system_message').val(defaultPrompt);
+            $('#aiohm-admin-notice').fadeOut();
+            showAdminNotice('Prompt has been reset to default.', 'success');
+        });
+        
+        $('#upload_ai_avatar_button').on('click', function(e) {
+            e.preventDefault();
+            var mediaUploader = wp.media({
+                title: 'Choose AI Avatar',
+                button: { text: 'Choose Avatar' },
+                multiple: false
+            });
+            mediaUploader.on('select', function() {
+                var attachment = mediaUploader.state().get('selection').first().toJSON();
+                $('#ai_avatar').val(attachment.url).trigger('input');
+            });
+            mediaUploader.open();
+        });
+
+        $('#save-mirror-mode-settings').on('click', function(e) {
+            e.preventDefault();
+            const $btn = $(this);
+            $btn.prop('disabled', true).text('Saving...');
 
             $.post(ajaxurl, {
-                action: 'aiohm_test_mirror_mode_chat',
+                action: 'aiohm_save_mirror_mode_settings',
                 nonce: $('#aiohm_mirror_mode_nonce_field').val(),
-                message: message,
-                settings: { 
-                    qa_system_message: $('#qa_system_message').val(), 
-                    qa_temperature: $('#qa_temperature').val(), 
-                    business_name: $('#business_name').val(),
-                    ai_model: $('#ai_model_selector').val()
-                }
-            }).done(response => {
-                const answer = response.success ? response.data.answer : "Sorry, an error occurred.";
-                this.hideTypingIndicator();
-                this.addMessage(answer, 'bot');
-            }).fail(() => {
-                this.hideTypingIndicator();
-                this.addMessage("Server error. Please try again.", 'bot', true);
+                form_data: $('#mirror-mode-settings-form').serialize()
+            }).done(function(response) {
+                showAdminNotice(response.success ? response.data.message : 'Error: ' + (response.data.message || 'Could not save.'), response.success ? 'success' : 'error');
+            }).fail(function() {
+                showAdminNotice('A server error occurred.', 'error');
+            }).always(function() {
+                $btn.prop('disabled', false).text('Save Mirror Mode Settings');
             });
-        },
-
-        addMessage: function(content, type, isError = false) {
-            const botAvatarUrl = $('#ai_avatar').val();
-            let botAvatarHtml = botAvatarUrl ? `<img src="${botAvatarUrl}" alt="AI Avatar" class="aiohm-avatar-preview">` : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6m-3-9 3 3 3-3"></path></svg>`;
-            const userAvatarHtml = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
-            
-            const avatar = type === 'user' ? userAvatarHtml : botAvatarHtml;
-            const sanitizedContent = $('<div/>').text(content).html().replace(/\n/g, '<br>');
-            const textColorClass = (type === 'user' && isColorDark($('#primary_color').val())) ? 'text-light' : 'text-dark';
-
-            const messageHtml = `<div class="aiohm-message aiohm-message-${type}"><div class="aiohm-message-avatar">${avatar}</div><div class="aiohm-message-bubble ${textColorClass}"><div class="aiohm-message-content">${isError ? '⚠️ ' : ''}${sanitizedContent}</div></div></div>`;
-            
-            this.$messages.append(messageHtml);
-            this.$messages.scrollTop(this.$messages[0].scrollHeight);
-        },
-
-        showTypingIndicator: function() {
-            this.isTyping = true;
-            const botAvatarUrl = $('#ai_avatar').val();
-            let botAvatarHtml = botAvatarUrl ? `<img src="${botAvatarUrl}" alt="AI Avatar" class="aiohm-avatar-preview">` : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6m-3-9 3 3 3-3"></path></svg>`;
-            this.$messages.append(`<div class="aiohm-message aiohm-message-bot aiohm-typing-indicator"><div class="aiohm-message-avatar">${botAvatarHtml}</div><div class="aiohm-message-bubble"><div class="aiohm-typing-dots"><span></span><span></span><span></span></div></div></div>`);
-            this.$messages.scrollTop(this.$messages[0].scrollHeight);
-        },
-
-        hideTypingIndicator: function() {
-            this.isTyping = false;
-            this.$messages.find('.aiohm-typing-indicator').remove();
-        }
-    };
-    testChat.init();
-
-    function updateLivePreview() {
-        $('#aiohm-test-chat').css('--aiohm-primary-color', $('#primary_color').val());
-        $('#aiohm-test-chat').css('--aiohm-text-color', $('#text_color').val());
-        $('#aiohm-test-chat').css('--aiohm-background-color', $('#background_color').val());
-        $('#aiohm-test-chat .aiohm-chat-title-preview').text($('#business_name').val());
-        $('.aiohm-avatar-preview').attr('src', $('#ai_avatar').val());
-
-        const footerPreview = $('.aiohm-chat-footer-preview');
-        const meetingUrl = $('#meeting_button_url').val().trim();
-        const brandingHtml = `<div class="aiohm-chat-footer-branding"><span>Powered by <strong>AIOHM</strong></span></div>`;
-        const buttonHtml = `<a href="#" class="aiohm-chat-footer-button" onclick="event.preventDefault(); window.open('${meetingUrl}', '_blank');">Book a Meeting</a>`;
-
-        if (meetingUrl) {
-            footerPreview.html(buttonHtml);
-        } else {
-            footerPreview.html(brandingHtml);
-        }
-    }
-    
-    $('#mirror-mode-settings-form input, #mirror-mode-settings-form select, #mirror-mode-settings-form textarea').on('input change', updateLivePreview);
-    
-    $('#qa_temperature').on('input', function() {
-        $('.temp-value').text($(this).val());
-    });
-
-    $('#reset-prompt-btn').on('click', function(e) {
-        e.preventDefault();
-        showAdminNotice(
-            'Are you sure you want to reset the prompt to its default? <button id="confirm-prompt-reset" class="button button-small" style="margin-left: 10px;">Confirm Reset</button>',
-            'warning'
-        );
-    });
-
-    $(document).on('click', '#confirm-prompt-reset', function() {
-        $('#qa_system_message').val(defaultPrompt);
-        $('#aiohm-admin-notice').fadeOut();
-        showAdminNotice('Prompt has been reset to default.', 'success');
-    });
-    
-    $('#upload_ai_avatar_button').on('click', function(e) {
-        e.preventDefault();
-        var mediaUploader = wp.media({
-            title: 'Choose AI Avatar',
-            button: { text: 'Choose Avatar' },
-            multiple: false
         });
-        mediaUploader.on('select', function() {
-            var attachment = mediaUploader.state().get('selection').first().toJSON();
-            $('#ai_avatar').val(attachment.url).trigger('input');
-        });
-        mediaUploader.open();
-    });
 
-    $('#save-mirror-mode-settings').on('click', function(e) {
-        e.preventDefault();
-        const $btn = $(this);
-        $btn.prop('disabled', true).text('Saving...');
-
-        $.post(ajaxurl, {
-            action: 'aiohm_save_mirror_mode_settings',
-            nonce: $('#aiohm_mirror_mode_nonce_field').val(),
-            form_data: $('#mirror-mode-settings-form').serialize()
-        }).done(function(response) {
-            showAdminNotice(response.success ? response.data.message : 'Error: ' + (response.data.message || 'Could not save.'), response.success ? 'success' : 'error');
-        }).fail(function() {
-            showAdminNotice('A server error occurred.', 'error');
-        }).always(function() {
-            $btn.prop('disabled', false).text('Save Chat Settings');
-        });
-    });
-
-    function showAdminNotice(message, type = 'success') {
-        const $notice = $('#aiohm-admin-notice');
-        $notice.removeClass('notice-success notice-error notice-warning').addClass('notice-' + type).addClass('is-dismissible');
-        $notice.find('p').html(message);
-        $notice.fadeIn();
-        if (!message.includes('<button')) {
-            setTimeout(function() {
-                $notice.fadeOut();
-            }, 5000);
-        }
-    }
-    
-    $('#generate-q-and-a').on('click', function(e) {
-        e.preventDefault();
-        const $btn = $(this);
-        const $resultsContainer = $('#q-and-a-results');
-        $btn.prop('disabled', true).text('Generating...');
-        $resultsContainer.html('<span class="spinner is-active"></span>');
-
-        $.post(ajaxurl, {
-            action: 'aiohm_generate_mirror_mode_qa',
-            nonce: $('#aiohm_mirror_mode_nonce_field').val(),
-        }).done(function(response) {
-            if (response.success) {
-                const qa = response.data.qa_pair;
-                $resultsContainer.html(`<p><strong class="q-title">Question:</strong><br>${qa.question}</p><p><strong class="q-title">Answer:</strong><br>${qa.answer}</p>`);
-            } else {
-                $resultsContainer.html(`<p style="color:red;">${response.data.message || 'Failed to generate.'}</p>`);
+        function showAdminNotice(message, type = 'success') {
+            const $notice = $('#aiohm-admin-notice');
+            $notice.removeClass('notice-success notice-error notice-warning').addClass('notice-' + type).addClass('is-dismissible');
+            $notice.find('p').html(message);
+            $notice.fadeIn();
+            if (!message.includes('<button')) {
+                setTimeout(function() {
+                    $notice.fadeOut();
+                }, 5000);
             }
-        }).fail(function() {
-            $resultsContainer.html('<p style="color:red;">A server error occurred.</p>');
-        }).always(function() {
-            $btn.prop('disabled', false).text('Generate Sample Q&A');
-        });
-    });
-
-    $('.aiohm-search-btn').on('click', function() {
-        const query = $('.aiohm-search-input').val();
-        const filter = $('#aiohm-test-search-filter').val();
-        const $resultsContainer = $('.aiohm-search-results');
-        $resultsContainer.html('<span class="spinner is-active"></span>');
+        }
         
-        $.post(ajaxurl, {
-            action: 'aiohm_search_knowledge',
-            nonce: '<?php echo wp_create_nonce("aiohm_search_nonce"); ?>',
-            query: query,
-            content_type_filter: filter,
-            max_results: 5,
-            excerpt_length: 20
-        }).done(function(response) {
-            $resultsContainer.empty();
-            if (response.success && response.data.results.length > 0) {
-                response.data.results.forEach(function(item) {
-                    $resultsContainer.append(`<div class="aiohm-search-result-item"><h4><a href="${item.url}" target="_blank">${item.title}</a></h4><p>${item.excerpt}</p><div class="result-meta">Type: ${item.content_type} | Similarity: ${item.similarity}%</div></div>`);
-                });
-            } else {
-                 $resultsContainer.html('<div class="aiohm-search-result-item"><p>No results found.</p></div>');
-            }
-        }).fail(function() {
-             $resultsContainer.html('<div class="aiohm-search-result-item"><p>Search request failed.</p></div>');
+        $('#generate-q-and-a').on('click', function(e) {
+            e.preventDefault();
+            const $btn = $(this);
+            const $resultsContainer = $('#q-and-a-results');
+            $btn.prop('disabled', true).text('Generating...');
+            $resultsContainer.html('<span class="spinner is-active"></span>');
+
+            $.post(ajaxurl, {
+                action: 'aiohm_generate_mirror_mode_qa',
+                nonce: $('#aiohm_mirror_mode_nonce_field').val(),
+            }).done(function(response) {
+                if (response.success) {
+                    const qa = response.data.qa_pair;
+                    $resultsContainer.html(`<p><strong class="q-title">Question:</strong><br>${qa.question}</p><p><strong class="q-title">Answer:</strong><br>${qa.answer}</p>`);
+                } else {
+                    $resultsContainer.html(`<p style="color:red;">${response.data.message || 'Failed to generate.'}</p>`);
+                }
+            }).fail(function() {
+                $resultsContainer.html('<p style="color:red;">A server error occurred.</p>');
+            }).always(function() {
+                $btn.prop('disabled', false).text('Generate Sample Q&A');
+            });
         });
+
+        $('.aiohm-search-btn').on('click', function() {
+            const query = $('.aiohm-search-input').val();
+            const filter = $('#aiohm-test-search-filter').val();
+            const $resultsContainer = $('.aiohm-search-results');
+            $resultsContainer.html('<span class="spinner is-active"></span>');
+            
+            $.post(ajaxurl, {
+                action: 'aiohm_admin_search_knowledge',
+                nonce: $('#aiohm_mirror_mode_nonce_field').val(),
+                query: query,
+                content_type_filter: filter
+            }).done(function(response) {
+                $resultsContainer.empty();
+                if (response.success && response.data.results.length > 0) {
+                    response.data.results.forEach(function(item) {
+                        $resultsContainer.append(`<div class="aiohm-search-result-item"><h4><a href="${item.url}" target="_blank">${item.title}</a></h4><p>${item.excerpt}</p><div class="result-meta">Type: ${item.content_type} | Similarity: ${item.similarity}%</div></div>`);
+                    });
+                } else {
+                     $resultsContainer.html('<div class="aiohm-search-result-item"><p>No results found.</p></div>');
+                }
+            }).fail(function() {
+                 $resultsContainer.html('<div class="aiohm-search-result-item"><p>Search request failed.</p></div>');
+            });
+        });
+        
+        updateLivePreview();
     });
-    
-    updateLivePreview();
-});
 </script>

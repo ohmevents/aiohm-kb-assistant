@@ -1,7 +1,7 @@
 <?php
 /**
  * Search shortcode implementation - [aiohm_search]
- * This version includes a fully functional AJAX handler.
+ * This version includes a fully functional AJAX handler and layout fixes.
  */
 
 // Prevent direct access
@@ -36,8 +36,11 @@ class AIOHM_KB_Shortcode_Search {
         wp_enqueue_script('aiohm-chat');
         wp_enqueue_style('aiohm-chat');
         
-        $output = '<div class="aiohm-search-container" id="' . esc_attr($search_id) . '">';
+        $output = '<div class="aiohm-search-wrapper">';
+
+        $output .= '<div class="aiohm-search-container" id="' . esc_attr($search_id) . '">';
         
+        $output .= '<div class="aiohm-search-controls">';
         $output .= '<div class="aiohm-search-form">';
         $output .= '<div class="aiohm-search-input-wrapper">';
         $output .= '<input type="text" class="aiohm-search-input" placeholder="' . esc_attr($atts['placeholder']) . '" />';
@@ -49,8 +52,6 @@ class AIOHM_KB_Shortcode_Search {
         
         if ($atts['show_categories'] === 'true') {
             $output .= '<div class="aiohm-search-filters">';
-            $output .= '<div class="aiohm-filter-group">';
-            $output .= '<label>' . __('Content Type:', 'aiohm-kb-assistant') . '</label>';
             $output .= '<select class="aiohm-content-type-filter">';
             $output .= '<option value="">' . __('All Types', 'aiohm-kb-assistant') . '</option>';
             $output .= '<option value="post">' . __('Posts', 'aiohm-kb-assistant') . '</option>';
@@ -58,8 +59,8 @@ class AIOHM_KB_Shortcode_Search {
             $output .= '<option value="application/pdf">' . __('Documents', 'aiohm-kb-assistant') . '</option>';
             $output .= '</select>';
             $output .= '</div>';
-            $output .= '</div>';
         }
+        $output .= '</div>'; // .aiohm-search-controls
         
         $output .= '<div class="aiohm-search-status" style="display: none;">';
         $output .= '<span class="aiohm-search-loading">' . __('Searching...', 'aiohm-kb-assistant') . '</span>';
@@ -67,7 +68,7 @@ class AIOHM_KB_Shortcode_Search {
         
         $output .= '<div class="aiohm-search-results"></div>';
         
-        $output .= '</div>';
+        $output .= '</div>'; // .aiohm-search-container
         
         $search_config = array(
             'search_id' => $search_id,
@@ -93,6 +94,8 @@ class AIOHM_KB_Shortcode_Search {
         $output .= 'if (typeof window.aiohm_search_configs === "undefined") window.aiohm_search_configs = {};';
         $output .= 'window.aiohm_search_configs["' . $search_id . '"] = ' . json_encode($search_config) . ';';
         $output .= '</script>';
+
+        $output .= '</div>'; // .aiohm-search-wrapper
         
         return $output;
     }
@@ -105,7 +108,7 @@ class AIOHM_KB_Shortcode_Search {
         $query = sanitize_text_field($_POST['query']);
         $content_type_filter = sanitize_text_field($_POST['content_type_filter']);
         $max_results = intval($_POST['max_results']) ?: 10;
-        $excerpt_length = intval($_POST['excerpt_length']) ?: 25; // Excerpt length in words
+        $excerpt_length = intval($_POST['excerpt_length']) ?: 25;
         
         if (empty($query)) {
             wp_send_json_error(['message' => 'Search query is required']);
