@@ -2,7 +2,7 @@
  * AIOHM Private Assistant Styles - v1.1.10
  *
  * This stylesheet creates a modern, brand-aligned interface for the private assistant.
- * It includes styles for the default embedded view, optional fullscreen mode,
+ * It includes styles for the default fullscreen mode
  * and all interactive sidebar components.
  */
 
@@ -19,33 +19,14 @@
     --pa-font-secondary: 'PT Sans', sans-serif;
 }
 
-/* --- Default Embedded Container --- */
+/* --- Default Fullscreen Container --- */
 .aiohm-private-assistant-container.modern {
     display: flex;
     font-family: var(--pa-font-secondary);
-    border: 1px solid #e0e4e7;
-    border-radius: 12px;
-    height: 80vh;
-    min-height: 650px;
-    max-height: 850px;
-    max-width: 1100px;
-    margin: 2em auto;
     background-color: var(--pa-bg-dark);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
     color: var(--pa-text-primary);
-    position: relative;
-}
-
-/* --- Fullscreen Takeover Mode --- */
-body.aiohm-assistant-fullscreen-active {
-    overflow: hidden !important; /* Prevent scrolling of the page behind the app */
-}
-/* This aggressively hides all direct children of body except our app container */
-body.aiohm-assistant-fullscreen-active > *:not(#aiohm-app-container) {
-    display: none !important;
-}
-.aiohm-private-assistant-container.is-fullscreen {
+    
+    /* Fullscreen styles applied by default */
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -53,10 +34,20 @@ body.aiohm-assistant-fullscreen-active > *:not(#aiohm-app-container) {
     height: 100vh !important;
     max-width: 100%;
     max-height: 100%;
+    margin: 0;
     border-radius: 0;
     border: none;
     z-index: 999999;
-    margin: 0;
+    overflow: hidden;
+}
+
+/* This makes sure nothing else on the page is visible */
+body.aiohm-assistant-fullscreen-active {
+    overflow: hidden !important;
+}
+
+body.aiohm-assistant-fullscreen-active > *:not(.aiohm-private-assistant-container) {
+    display: none !important;
 }
 
 

@@ -90,6 +90,7 @@ class AIOHM_KB_Assistant {
         require_once AIOHM_KB_INCLUDES_DIR . 'rag-engine.php';
         $this->create_tables();
         $this->create_conversation_tables();
+        $this->create_project_tables(); // <-- Added this line
         $this->set_default_options();
         flush_rewrite_rules();
         $settings = self::get_settings();
@@ -190,6 +191,37 @@ class AIOHM_KB_Assistant {
         ) $charset_collate;";
         dbDelta($sql_messages);
     }
+    
+    /**
+     * ---- NEW FUNCTION ----
+     * Creates the projects table and updates the conversations table.
+     */
+    private function create_project_tables() {
+        global $wpdb;
+        $charset_collate = $wpdb->get_charset_collate();
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    
+        // Table for projects
+        $table_name_projects = $wpdb->prefix . 'aiohm_projects';
+        $sql_projects = "CREATE TABLE $table_name_projects (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) UNSIGNED NOT NULL,
+            project_name varchar(255) NOT NULL,
+            creation_date datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            PRIMARY KEY  (id),
+            KEY user_id (user_id)
+        ) $charset_collate;";
+        dbDelta($sql_projects);
+    
+        // Add project_id to the conversations table
+        $table_name_conversations = $wpdb->prefix . 'aiohm_conversations';
+        if($wpdb->get_var("SHOW TABLES LIKE '$table_name_conversations'") == $table_name_conversations) {
+            if ($wpdb->get_var("SHOW COLUMNS FROM `{$table_name_conversations}` LIKE 'project_id'") != 'project_id') {
+                $wpdb->query("ALTER TABLE `{$table_name_conversations}` ADD `project_id` mediumint(9) NOT NULL DEFAULT 0;");
+            }
+        }
+    }
+
 
     private function set_default_options() {
         if (get_option('aiohm_kb_settings') === false) {

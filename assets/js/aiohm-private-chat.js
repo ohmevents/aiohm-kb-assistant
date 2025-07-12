@@ -1,12 +1,10 @@
 /**
- * AIOHM Private Assistant Scripts - v1.1.10
+ * AIOHM Private Assistant Scripts - v1.2.0 (Projects Update)
  *
  * This file handles all client-side functionality for the modern private assistant,
- * including the hybrid embedded/fullscreen mode, conversation management, AJAX chat,
- * and all other UI interactions.
+ * including project and conversation management, AJAX chat, and all UI interactions.
  */
 jQuery(document).ready(function($) {
-    // Exit if the main container for our modern chat doesn't exist.
     if ($('.aiohm-private-assistant-container.modern').length === 0) {
         return;
     }
@@ -16,42 +14,50 @@ jQuery(document).ready(function($) {
     const chatInput = $('#chat-input');
     const sendBtn = $('#send-btn');
     const conversationPanel = $('#conversation-panel');
-    const newProjectBtn = $('.aiohm-pa-new-project-btn');
+    const projectList = $('.aiohm-pa-project-list');
     const conversationList = $('.aiohm-pa-conversation-list');
-    const sidebarToggle = $('.aiohm-pa-sidebar-toggle');
-    const fullscreenToggle = $('.aiohm-pa-fullscreen-toggle');
-    const menuHeaders = $('.aiohm-pa-menu-header');
+    const newProjectBtn = $('#new-project-btn');
+    const newChatBtn = $('#new-chat-btn');
     const addToKbBtn = $('#add-to-kb-btn');
+    const sidebarToggle = $('#sidebar-toggle');
+    const projectTitle = $('#project-title');
+    const menuHeaders = $('.aiohm-pa-menu-header');
 
     // --- State Management ---
+    let activeProjectId = null;
     let activeConversationId = null;
     let isLoading = false;
 
     // --- Core Functions ---
 
     /**
-     * Sends the user's message to the backend via AJAX.
+     * Sends the user's message to the backend.
      */
     function sendMessage() {
         const messageText = chatInput.val().trim();
-        if (!messageText || isLoading) return;
+        if (!messageText || isLoading || !activeProjectId) {
+            if (!activeProjectId) {
+                alert("Please select a project before starting a chat.");
+            }
+            return;
+        }
 
         isLoading = true;
 
         if (!activeConversationId) {
-            conversationPanel.empty();
+            conversationPanel.empty(); // Clear "Select a conversation" message
         }
 
         appendMessage(messageText, 'user');
         chatInput.val('').trigger('input');
         sendBtn.prop('disabled', true);
-        
-        appendMessage('...', 'ai', true);
+        appendMessage('...', 'ai', true); // Typing indicator
 
         $.post(aiohm_private_chat_params.ajax_url, {
             _ajax_nonce: aiohm_private_chat_params.nonce,
             action: 'aiohm_private_assistant_chat',
             message: messageText,
+            project_id: activeProjectId,
             conversation_id: activeConversationId
         })
         .done(function(response) {
@@ -60,15 +66,15 @@ jQuery(document).ready(function($) {
                 appendMessage(response.data.reply, 'ai');
                 if (!activeConversationId) {
                     activeConversationId = response.data.conversation_id;
-                    loadConversations(true);
+                    loadConversations(activeProjectId, true); // Refresh list and activate new chat
                 }
             } else {
-                appendMessage(response.data.message || aiohm_private_chat_params.strings.error, 'error');
+                appendMessage(response.data.answer || 'An unknown error occurred.', 'error');
             }
         })
         .fail(function() {
              $('.message.typing').remove();
-             appendMessage(aiohm_private_chat_params.strings.error, 'error');
+             appendMessage('A server error occurred. Please try again.', 'error');
         })
         .always(function() {
             isLoading = false;
@@ -77,7 +83,7 @@ jQuery(document).ready(function($) {
     }
 
     /**
-     * Appends a new message to the chat panel.
+     * Appends a message to the chat panel.
      */
     function appendMessage(content, type, isTyping = false) {
         let messageClass = isTyping ? 'message ai typing' : `message ${type}`;
@@ -92,28 +98,86 @@ jQuery(document).ready(function($) {
     }
 
     /**
-     * Resets the UI for a new conversation.
+     * Fetches and renders the list of projects.
      */
-    function startNewConversation() {
-        activeConversationId = null;
-        conversationPanel.empty();
-        chatInput.val('').css('height', 'auto');
-        sendBtn.prop('disabled', true);
-        conversationList.find('.conversation-item').removeClass('active');
-        updateAddToKbButtonState();
+    function loadProjects(activateLatest = false) {
+        isLoading = true;
+        projectList.html('<span class="spinner is-active" style="margin: 20px auto; display: block;"></span>');
+        
+        $.post(aiohm_private_chat_params.ajax_url, {
+            action: 'aiohm_get_projects',
+            nonce: aiohm_private_chat_params.nonce,
+        }).done(function(response) {
+            projectList.empty();
+            if (response.success && response.data.length > 0) {
+                response.data.forEach(proj => {
+                    const item = $(`<button class="conversation-item project-item" data-id="${proj.id}">${esc_html(proj.project_name)}</button>`);
+                    projectList.append(item);
+                });
+                if (activateLatest && response.data.length > 0) {
+                    // Activate the first project in the list
+                    setActiveProject(response.data[0].id, response.data[0].project_name);
+                }
+            } else {
+                projectList.html('<p class="aiohm-pa-coming-soon">No projects yet.</p>');
+            }
+        }).always(() => { isLoading = false; });
     }
     
     /**
-     * Fetches and renders the list of past conversations.
+     * Creates a new project.
      */
-    function loadConversations(activateLatest = false) {
-        if (isLoading) return;
+    function createNewProject() {
+        const projectName = prompt("Enter the name for your new project:");
+        if (!projectName || projectName.trim() === '') return;
+        
+        isLoading = true;
+        $.post(aiohm_private_chat_params.ajax_url, {
+            action: 'aiohm_create_project',
+            nonce: aiohm_private_chat_params.nonce,
+            project_name: projectName.trim()
+        }).done(function(response) {
+            if (response.success) {
+                loadProjects(false); // Reload project list
+                setActiveProject(response.data.id, response.data.project_name); // Activate the new project
+            } else {
+                alert('Error: ' + (response.data.message || 'Could not create project.'));
+            }
+        }).always(() => { isLoading = false; });
+    }
+
+    /**
+     * Sets the currently active project and loads its conversations.
+     */
+    function setActiveProject(projectId, projectName) {
+        activeProjectId = projectId;
+        activeConversationId = null; // Reset conversation
+        
+        projectTitle.text(projectName);
+        projectList.find('.project-item').removeClass('active');
+        projectList.find(`.project-item[data-id="${projectId}"]`).addClass('active');
+        
+        loadConversations(projectId);
+        conversationPanel.html('<p class="message system">Select a conversation or start a new one.</p>');
+        updateAddToKbButtonState();
+        chatInput.prop('disabled', false); // Enable input now that a project is selected
+    }
+
+    /**
+     * Fetches conversations for a given project.
+     */
+    function loadConversations(projectId, activateLatest = false) {
+        if (!projectId) {
+            conversationList.html('<p class="aiohm-pa-coming-soon">Select a project.</p>');
+            return;
+        }
         isLoading = true;
         conversationList.html('<span class="spinner is-active" style="margin: 20px auto; display: block;"></span>');
 
         $.post(aiohm_private_chat_params.ajax_url, {
             action: 'aiohm_get_conversations',
             nonce: aiohm_private_chat_params.nonce,
+            project_id: projectId
         }).done(function(response) {
             conversationList.empty();
             if (response.success && response.data.length > 0) {
@@ -125,13 +189,13 @@ jQuery(document).ready(function($) {
                     conversationList.find(`.conversation-item[data-id="${activeConversationId}"]`).addClass('active');
                 }
             } else {
-                conversationList.html('<p class="aiohm-pa-coming-soon">No dialogue history.</p>');
+                conversationList.html('<p class="aiohm-pa-coming-soon">No chats in this project.</p>');
             }
         }).always(() => { isLoading = false; });
     }
 
     /**
-     * Fetches and displays the messages for a specific conversation.
+     * Fetches and displays messages for a specific conversation.
      */
     function loadConversationHistory(id) {
         if (isLoading) return;
@@ -150,8 +214,10 @@ jQuery(document).ready(function($) {
             conversationPanel.empty();
             if (response.success && response.data.length > 0) {
                 response.data.forEach(msg => {
-                    appendMessage(msg.content, msg.sender);
+                    // Note: We use .append() now to maintain chronological order from the server
+                    conversationPanel.append(`<div class="message ${msg.sender}" data-sender="${msg.sender}">${esc_html(msg.content).replace(/\n/g, '<br>')}</div>`);
                 });
+                conversationPanel.scrollTop(conversationPanel[0].scrollHeight); // Scroll to bottom
             } else if (!response.success) {
                 appendMessage(response.data.message || 'Could not load history.', 'error');
             }
@@ -160,15 +226,31 @@ jQuery(document).ready(function($) {
             updateAddToKbButtonState();
         });
     }
+    
+    /**
+     * Resets the UI for a new chat within the current project.
+     */
+    function startNewChat() {
+        if (!activeProjectId) {
+            alert("Please select a project first.");
+            return;
+        }
+        activeConversationId = null;
+        conversationPanel.html('<p class="message system">Start a new conversation.</p>');
+        chatInput.val('').css('height', 'auto');
+        sendBtn.prop('disabled', true);
+        conversationList.find('.conversation-item').removeClass('active');
+        updateAddToKbButtonState();
+    }
+
 
     /**
-     * Handles the "Add Chat to KB" functionality.
+     * Handles adding the current chat to the knowledge base.
      */
     function addChatToKb() {
         if (!activeConversationId || isLoading) return;
 
         const messages = [];
-        // Since we prepend, we need to get messages and reverse them for chronological order
         conversationPanel.find('.message:not(.typing)').each(function() {
             messages.push({
                 sender: $(this).data('sender'),
@@ -176,10 +258,7 @@ jQuery(document).ready(function($) {
             });
         });
 
-        if (messages.length === 0) {
-            alert('There is no conversation to save.');
-            return;
-        }
+        if (messages.length === 0) return;
 
         const btn = $('#add-to-kb-btn');
         const originalHtml = btn.html();
@@ -189,7 +268,7 @@ jQuery(document).ready(function($) {
             action: 'aiohm_add_chat_to_kb',
             nonce: aiohm_private_chat_params.nonce,
             conversation_id: activeConversationId,
-            messages: messages.reverse() // Reverse to get user -> ai order
+            messages: messages // No longer need to reverse, backend handles it
         }).done(function(response) {
             alert(response.success ? response.data.message : 'Error: ' + response.data.message);
         }).fail(function() {
@@ -209,20 +288,10 @@ jQuery(document).ready(function($) {
 
     // --- Event Handlers ---
     sendBtn.on('click', sendMessage);
-    newProjectBtn.on('click', startNewConversation);
+    newProjectBtn.on('click', createNewProject);
+    newChatBtn.on('click', startNewChat);
     sidebarToggle.on('click', () => container.toggleClass('sidebar-open'));
-    fullscreenToggle.on('click', function() {
-        container.toggleClass('is-fullscreen');
-        $('body').toggleClass('aiohm-assistant-fullscreen-active');
-        const icon = $(this).find('.dashicons');
-        if (container.hasClass('is-fullscreen')) {
-            icon.removeClass('dashicons-editor-expand').addClass('dashicons-editor-contract');
-            $(this).attr('title', 'Exit Fullscreen');
-        } else {
-            icon.removeClass('dashicons-editor-contract').addClass('dashicons-editor-expand');
-            $(this).attr('title', 'Toggle Fullscreen');
-        }
-    });
+    addToKbBtn.on('click', addChatToKb);
 
     chatInput.on('keypress', function(e) {
         if (e.which === 13 && !e.shiftKey) {
@@ -233,6 +302,14 @@ jQuery(document).ready(function($) {
         sendBtn.prop('disabled', $(this).val().trim().length === 0);
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    projectList.on('click', '.project-item', function() {
+        const id = $(this).data('id');
+        const name = $(this).text();
+        if (id !== activeProjectId) {
+            setActiveProject(id, name);
+        }
     });
 
     conversationList.on('click', '.conversation-item', function() {
@@ -247,9 +324,14 @@ jQuery(document).ready(function($) {
         $(this).next('.aiohm-pa-menu-content').slideToggle(200);
     });
 
-    addToKbBtn.on('click', addChatToKb);
-
     // --- Initial Load ---
-    startNewConversation();
-    loadConversations();
+    function initializeChat() {
+        projectTitle.text('Select a Project');
+        conversationPanel.html('<p class="message system">Please select a project to begin.</p>');
+        chatInput.prop('disabled', true);
+        sendBtn.prop('disabled', true);
+        loadProjects(true); // Load projects and activate the first one automatically
+    }
+
+    initializeChat();
 });

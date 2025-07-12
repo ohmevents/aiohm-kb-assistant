@@ -1,8 +1,7 @@
 <?php
 /**
  * Core initialization and configuration.
- * v1.1.10 - Adds full AJAX handling for private chat history and chat-to-KB functionality.
- * This is the complete and final version of this file.
+ * v1.2.1
  */
 if (!defined('ABSPATH')) exit;
 
@@ -37,6 +36,11 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_get_conversations', array(__CLASS__, 'handle_get_conversations_ajax'));
         add_action('wp_ajax_aiohm_get_conversation_history', array(__CLASS__, 'handle_get_conversation_history_ajax'));
         add_action('wp_ajax_aiohm_add_chat_to_kb', array(__CLASS__, 'handle_add_chat_to_kb_ajax'));
+        
+        // --- Project Actions ---
+        add_action('wp_ajax_aiohm_get_projects', array(__CLASS__, 'handle_get_projects_ajax'));
+        add_action('wp_ajax_aiohm_create_project', array(__CLASS__, 'handle_create_project_ajax'));
+
 
         // --- Frontend Actions (Shortcodes) ---
         add_action('wp_ajax_nopriv_aiohm_frontend_chat', array(__CLASS__, 'handle_frontend_chat_ajax'));
@@ -46,6 +50,40 @@ class AIOHM_KB_Core_Init {
 
         // --- Admin-Specific Actions ---
         add_action('wp_ajax_aiohm_admin_search_knowledge', array(__CLASS__, 'handle_admin_search_knowledge_ajax'));
+    }
+
+    public static function handle_get_projects_ajax() {
+        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
+            wp_send_json_error([]);
+        }
+        global $wpdb;
+        $user_id = get_current_user_id();
+        $table_name = $wpdb->prefix . 'aiohm_projects';
+        $projects = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, project_name FROM $table_name WHERE user_id = %d ORDER BY creation_date DESC",
+            $user_id
+        ));
+        wp_send_json_success($projects);
+    }
+
+    public static function handle_create_project_ajax() {
+        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission denied.']);
+        }
+        $project_name = isset($_POST['project_name']) ? sanitize_text_field($_POST['project_name']) : '';
+        if (empty($project_name)) {
+            wp_send_json_error(['message' => 'Project name cannot be empty.']);
+        }
+        global $wpdb;
+        $user_id = get_current_user_id();
+        $table_name = $wpdb->prefix . 'aiohm_projects';
+        $wpdb->insert(
+            $table_name,
+            ['user_id' => $user_id, 'project_name' => $project_name],
+            ['%d', '%s']
+        );
+        $project_id = $wpdb->insert_id;
+        wp_send_json_success(['id' => $project_id, 'project_name' => $project_name]);
     }
 
     public static function handle_frontend_chat_ajax() {
@@ -99,14 +137,20 @@ class AIOHM_KB_Core_Init {
         $user_id = get_current_user_id();
         $user_message = sanitize_textarea_field($_POST['message']);
         $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : null;
+        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+
+        if (empty($project_id)) {
+            wp_send_json_error(['answer' => 'Project ID is missing. Cannot save chat.']);
+            return;
+        }
 
         try {
             if (!$conversation_id) {
                 $conversation_title = substr($user_message, 0, 50) . (strlen($user_message) > 50 ? '...' : '');
                 $wpdb->insert(
                     $wpdb->prefix . 'aiohm_conversations',
-                    ['user_id' => $user_id, 'title' => $conversation_title],
-                    ['%d', '%s']
+                    ['user_id' => $user_id, 'title' => $conversation_title, 'project_id' => $project_id],
+                    ['%d', '%s', '%d']
                 );
                 $conversation_id = $wpdb->insert_id;
             }
@@ -154,11 +198,15 @@ class AIOHM_KB_Core_Init {
         }
         global $wpdb;
         $user_id = get_current_user_id();
+        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
         $table_name = $wpdb->prefix . 'aiohm_conversations';
-        $conversations = $wpdb->get_results($wpdb->prepare(
-            "SELECT id, title FROM $table_name WHERE user_id = %d ORDER BY updated_at DESC LIMIT 50",
-            $user_id
-        ));
+        
+        $query = $wpdb->prepare(
+            "SELECT id, title FROM $table_name WHERE user_id = %d AND project_id = %d ORDER BY updated_at DESC LIMIT 50",
+            $user_id, $project_id
+        );
+
+        $conversations = $wpdb->get_results($query);
         wp_send_json_success($conversations);
     }
 
@@ -195,6 +243,9 @@ class AIOHM_KB_Core_Init {
         if (empty($conversation_id) || empty($messages)) {
             wp_send_json_error(['message' => 'Missing conversation data.']);
         }
+
+        // The bug fix from our first conversation: ensuring messages are in the correct order.
+        $messages = array_reverse($messages);
 
         try {
             if (!class_exists('FPDF')) {
