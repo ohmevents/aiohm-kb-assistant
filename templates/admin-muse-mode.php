@@ -2,7 +2,7 @@
 /**
  * Admin Muse Mode Settings page template for Club members.
  * Evolved into the "Digital Doula" experience with advanced, intuitive settings.
- * Based on the stable Mirror Mode template.
+ * This version includes the new element order and dynamic archetype prompts.
  */
 
 if (!defined('ABSPATH')) exit;
@@ -10,32 +10,36 @@ if (!defined('ABSPATH')) exit;
 // Fetch all settings and then get the specific part for Muse Mode
 $all_settings = AIOHM_KB_Assistant::get_settings();
 $settings = $all_settings['muse_mode'] ?? [];
+$mirror_settings = $all_settings['mirror_mode'] ?? []; // For colors
 $global_settings = $all_settings; // for API keys
 
-// Default prompt for Muse Mode
+// --- START: Archetype Prompts ---
+$archetype_prompts = [
+    'the_creator' => "You are The Creator, an innovative and imaginative brand assistant. Your purpose is to help build things of enduring value. You speak with authenticity and a visionary spirit, inspiring new ideas and artistic expression. You avoid generic language and focus on originality and the creative process.",
+    'the_sage' => "You are The Sage, a wise and knowledgeable brand assistant. Your goal is to seek the truth and share it with others. You communicate with clarity, accuracy, and thoughtful insight. You avoid hype and superficiality, instead focusing on providing well-researched, objective information and wisdom.",
+    'the_innocent' => "You are The Innocent, an optimistic and pure brand assistant. Your purpose is to spread happiness and see the good in everything. You speak with simple, honest, and positive language. You avoid cynicism and complexity, focusing on straightforward, wholesome, and uplifting messages.",
+    'the_explorer' => "You are The Explorer, an adventurous and independent brand assistant. Your mission is to help others experience a more authentic and fulfilling life by pushing boundaries. You speak with a rugged, open-minded, and daring tone. You avoid conformity and rigid rules, focusing on freedom, discovery, and the journey.",
+    'the_ruler' => "You are The Ruler, an authoritative and confident brand assistant. Your purpose is to create order and build a prosperous community. You speak with a commanding, polished, and articulate voice. You avoid chaos and mediocrity, focusing on leadership, quality, and control.",
+    'the_hero' => "You are The Hero, a courageous and determined brand assistant. Your mission is to inspire others to triumph over adversity. You speak with a bold, confident, and motivational tone. You avoid negativity and weakness, focusing on mastery, ambition, and overcoming challenges.",
+    'the_lover' => "You are The Lover, an intimate and empathetic brand assistant. Your goal is to help people feel appreciated and connected. You speak with a warm, sensual, and passionate voice. You avoid conflict and isolation, focusing on relationships, intimacy, and creating blissful experiences.",
+    'the_jester' => "You are The Jester, a playful and fun-loving brand assistant. Your purpose is to bring joy to the world and live in the moment. You speak with a witty, humorous, and lighthearted tone. You avoid boredom and seriousness, focusing on entertainment, cleverness, and seeing the funny side of life.",
+    'the_everyman' => "You are The Everyman, a relatable and down-to-earth brand assistant. Your goal is to belong and connect with others on a human level. You speak with a friendly, humble, and authentic voice. You avoid elitism and pretense, focusing on empathy, realism, and shared values.",
+    'the_caregiver' => "You are The Caregiver, a compassionate and nurturing brand assistant. Your purpose is to protect and care for others. You speak with a warm, reassuring, and supportive tone. You avoid selfishness and trouble, focusing on generosity, empathy, and providing a sense of security.",
+    'the_magician' => "You are The Magician, a visionary and charismatic brand assistant. Your purpose is to make dreams come true and create something special. You speak with a mystical, inspiring, and transformative voice. You avoid the mundane and doubt, focusing on moments of wonder, vision, and the power of belief.",
+    'the_outlaw' => "You are The Outlaw, a rebellious and revolutionary brand assistant. Your mission is to challenge the status quo and break the rules. You speak with a raw, disruptive, and unapologetic voice. You avoid conformity and powerlessness, focusing on liberation, revolution, and radical freedom.",
+];
 $default_prompt = "You are Muse, a private brand assistant. Your role is to help the user develop their brand by using the provided context, which includes public information and the user's private 'Brand Soul' answers. Synthesize this information to provide creative ideas, answer strategic questions, and help draft content. Always prioritize the private 'Brand Soul' context when available.";
 $system_prompt = !empty($settings['system_prompt']) ? $settings['system_prompt'] : $default_prompt;
 
 // Archetypes for the dropdown
 $brand_archetypes = [
-    'the_creator' => 'The Creator',
-    'the_sage' => 'The Sage',
-    'the_innocent' => 'The Innocent',
-    'the_explorer' => 'The Explorer',
-    'the_ruler' => 'The Ruler',
-    'the_hero' => 'The Hero',
-    'the_lover' => 'The Lover',
-    'the_jester' => 'The Jester',
-    'the_everyman' => 'The Everyman',
-    'the_caregiver' => 'The Caregiver',
-    'the_magician' => 'The Magician',
-    'the_outlaw' => 'The Outlaw',
+    'the_creator' => 'The Creator', 'the_sage' => 'The Sage', 'the_innocent' => 'The Innocent', 'the_explorer' => 'The Explorer', 'the_ruler' => 'The Ruler', 'the_hero' => 'The Hero', 'the_lover' => 'The Lover', 'the_jester' => 'The Jester', 'the_everyman' => 'The Everyman', 'the_caregiver' => 'The Caregiver', 'the_magician' => 'The Magician', 'the_outlaw' => 'The Outlaw',
 ];
-
+// --- END: Archetype Prompts ---
 ?>
 
 <div class="wrap aiohm-settings-page aiohm-muse-mode-page">
-    <h1><?php _e('Muse Mode: Your Digital Doula', 'aiohm-kb-assistant'); ?></h1>
+    <h1><?php _e('Muse Mode Customization', 'aiohm-kb-assistant'); ?></h1>
     <p class="page-description"><?php _e('Here, you attune your AI to be a true creative partner. Define its energetic signature and workflow to transform your brand dialogue.', 'aiohm-kb-assistant'); ?></p>
 
     <div id="aiohm-admin-notice" class="notice" style="display:none; margin-top: 10px;"><p></p></div>
@@ -47,10 +51,14 @@ $brand_archetypes = [
                 <?php wp_nonce_field('aiohm_muse_mode_nonce', 'aiohm_muse_mode_nonce_field'); ?>
                 
                 <div class="aiohm-settings-section">
-                    <h2><?php _e('Attuned: Energetic Signature', 'aiohm-kb-assistant'); ?></h2>
 
                     <div class="aiohm-setting-block">
-                        <label for="brand_archetype"><?php _e('Brand Archetype', 'aiohm-kb-assistant'); ?></label>
+                        <label for="assistant_name"><?php _e('1. Brand Assistant Name', 'aiohm-kb-assistant'); ?></label>
+                        <input type="text" id="assistant_name" name="aiohm_kb_settings[muse_mode][assistant_name]" value="<?php echo esc_attr($settings['assistant_name'] ?? 'Muse'); ?>">
+                    </div>
+
+                    <div class="aiohm-setting-block">
+                        <label for="brand_archetype"><?php _e('2. Brand Archetype', 'aiohm-kb-assistant'); ?></label>
                         <select id="brand_archetype" name="aiohm_kb_settings[muse_mode][brand_archetype]">
                             <option value=""><?php _e('-- Select an Archetype --', 'aiohm-kb-assistant'); ?></option>
                             <?php foreach ($brand_archetypes as $key => $label) : ?>
@@ -61,36 +69,16 @@ $brand_archetypes = [
                     </div>
 
                     <div class="aiohm-setting-block">
-                        <label for="core_values"><?php _e('Core Values', 'aiohm-kb-assistant'); ?></label>
-                        <input type="text" id="core_values" name="aiohm_kb_settings[muse_mode][core_values]" value="<?php echo esc_attr($settings['core_values'] ?? ''); ?>" placeholder="e.g., Authenticity, Innovation, Playfulness">
-                        <p class="description"><?php _e('Enter 3-5 comma-separated brand values the AI must align with.', 'aiohm-kb-assistant'); ?></p>
-                    </div>
-
-                    <div class="aiohm-setting-block">
-                        <label for="forbidden_phrases"><?php _e('Forbidden Phrases', 'aiohm-kb-assistant'); ?></label>
-                        <textarea id="forbidden_phrases" name="aiohm_kb_settings[muse_mode][forbidden_phrases]" rows="3" placeholder="e.g., buy now, limited time offer, customers"><?php echo esc_textarea($settings['forbidden_phrases'] ?? ''); ?></textarea>
-                        <p class="description"><?php _e('Enter comma-separated words or phrases the AI must never use.', 'aiohm-kb-assistant'); ?></p>
-                    </div>
-                </div>
-                <div class="aiohm-settings-section">
-                     <h2><?php _e('Intuitive: Creative Workflow', 'aiohm-kb-assistant'); ?></h2>
-
-                    <div class="aiohm-setting-block">
-                        <label for="assistant_name"><?php _e('Assistant Name', 'aiohm-kb-assistant'); ?></label>
-                        <input type="text" id="assistant_name" name="aiohm_kb_settings[muse_mode][assistant_name]" value="<?php echo esc_attr($settings['assistant_name'] ?? 'Muse'); ?>">
-                    </div>
-
-                    <div class="aiohm-setting-block">
                         <div class="aiohm-setting-header">
-                            <label for="system_prompt"><?php _e('Soul Signature (System Prompt)', 'aiohm-kb-assistant'); ?></label>
+                            <label for="system_prompt"><?php _e('3. Soul Signature Brand Assistant', 'aiohm-kb-assistant'); ?></label>
                             <button type="button" id="reset-prompt-btn" class="button-link"><?php _e('Reset to Default', 'aiohm-kb-assistant'); ?></button>
                         </div>
                         <textarea id="system_prompt" name="aiohm_kb_settings[muse_mode][system_prompt]" rows="10"><?php echo esc_textarea($system_prompt); ?></textarea>
-                        <p class="description"><?php _e('This is the core instruction set for your AI. The Archetype, Values, and other settings will be added to this.', 'aiohm-kb-assistant'); ?></p>
+                        <p class="description"><?php _e('This is the core instruction set for your AI. Selecting an archetype will provide a starting template.', 'aiohm-kb-assistant'); ?></p>
                     </div>
 
                     <div class="aiohm-setting-block">
-                        <label for="ai_model_selector"><?php _e('AI Model', 'aiohm-kb-assistant'); ?></label>
+                        <label for="ai_model_selector"><?php _e('4. AI Model', 'aiohm-kb-assistant'); ?></label>
                         <select id="ai_model_selector" name="aiohm_kb_settings[muse_mode][ai_model]">
                             <?php if (!empty($global_settings['openai_api_key'])): ?>
                                 <option value="gpt-4" <?php selected($settings['ai_model'] ?? 'gpt-4', 'gpt-4'); ?>>OpenAI: GPT-4</option>
@@ -106,9 +94,29 @@ $brand_archetypes = [
                     </div>
 
                     <div class="aiohm-setting-block">
-                        <label for="temperature"><?php _e('Temperature:', 'aiohm-kb-assistant'); ?> <span class="temp-value"><?php echo esc_attr($settings['temperature'] ?? '0.7'); ?></span></label>
+                        <label for="temperature"><?php _e('5. Temperature:', 'aiohm-kb-assistant'); ?> <span class="temp-value"><?php echo esc_attr($settings['temperature'] ?? '0.7'); ?></span></label>
                         <input type="range" id="temperature" name="aiohm_kb_settings[muse_mode][temperature]" value="<?php echo esc_attr($settings['temperature'] ?? '0.7'); ?>" min="0" max="1" step="0.1">
                         <p class="description"><?php _e('Lower is more predictable; higher is more creative.', 'aiohm-kb-assistant'); ?></p>
+                    </div>
+                </div>
+                <div class="aiohm-settings-section">
+                                    
+                     <div class="aiohm-setting-block">
+                        <label><?php _e('6. Chatbot Colors', 'aiohm-kb-assistant'); ?></label>
+                        <div class="aiohm-color-grid">
+                            <div class="aiohm-sub-setting-block">
+                                <label for="primary_color">Primary</label>
+                                <input type="color" id="primary_color" name="aiohm_kb_settings[mirror_mode][primary_color]" value="<?php echo esc_attr($mirror_settings['primary_color'] ?? '#1f5014'); ?>">
+                            </div>
+                            <div class="aiohm-sub-setting-block">
+                                <label for="background_color">Background</label>
+                                <input type="color" id="background_color" name="aiohm_kb_settings[mirror_mode][background_color]" value="<?php echo esc_attr($mirror_settings['background_color'] ?? '#f0f4f8'); ?>">
+                            </div>
+                            <div class="aiohm-sub-setting-block">
+                                <label for="text_color">Header Text</label>
+                                <input type="color" id="text_color" name="aiohm_kb_settings[mirror_mode][text_color]" value="<?php echo esc_attr($mirror_settings['text_color'] ?? '#ffffff'); ?>">
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="form-actions">
@@ -192,6 +200,10 @@ $brand_archetypes = [
     .aiohm-setting-block input[type="text"], .aiohm-setting-block input[type="url"], .aiohm-setting-block textarea, .aiohm-setting-block select { width: 100%; padding: 10px; font-family: var(--ohm-font-secondary); font-size: 1em; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
     .aiohm-setting-block p.description { font-family: var(--ohm-font-secondary); color: #666; font-size: 13px; margin-top: 5px; }
     
+    .aiohm-color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .aiohm-color-grid .aiohm-sub-setting-block label { font-size: 1em; }
+    .aiohm-color-grid input[type="color"] { width: 100%; height: 44px; border: 1px solid #ddd; padding: 2px; cursor: pointer; border-radius: 4px; box-sizing: border-box; }
+    
     .temp-value { color: var(--ohm-primary); font-weight: bold; }
     .form-actions { margin-top: 30px; }
     
@@ -200,7 +212,7 @@ $brand_archetypes = [
     input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; background: var(--ohm-primary); cursor: pointer; border-radius: 50%; border: 2px solid #fff; }
 
     .aiohm-test-column .aiohm-chat-container { border: 1px solid var(--ohm-light-bg); border-radius: 8px; overflow: hidden; background: #f9f9f9; display: flex; flex-direction: column; min-height: 500px; }
-    .aiohm-test-column .aiohm-chat-header { background: var(--ohm-dark); color: #fff; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; }
+    .aiohm-test-column .aiohm-chat-header { background: var(--aiohm-primary-color, var(--ohm-dark-accent)); color: var(--aiohm-text-color, #ffffff); padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; }
     .aiohm-test-column .aiohm-chat-status { display: flex; align-items: center; gap: 8px; }
     .aiohm-test-column .aiohm-status-indicator { width: 8px; height: 8px; border-radius: 50%; background-color: #28a745; animation: pulse 2s infinite; }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
@@ -211,7 +223,7 @@ $brand_archetypes = [
     
     .aiohm-test-column .aiohm-message-bubble { padding: 10px 15px; border-radius: 12px; line-height: 1.6; }
     .aiohm-test-column .aiohm-message-bot .aiohm-message-bubble { background-color: var(--ohm-light-bg); color: var(--ohm-dark); border-bottom-left-radius: 4px; }
-    .aiohm-test-column .aiohm-message-user .aiohm-message-bubble { background-color: var(--ohm-dark); color: #fff; border-bottom-right-radius: 4px; }
+    .aiohm-test-column .aiohm-message-user .aiohm-message-bubble { background-color: var(--aiohm-primary-color, var(--ohm-primary)); color: #fff; border-bottom-right-radius: 4px; }
 
     .aiohm-test-column .aiohm-chat-input-container { padding: 10px; background-color: #f1f1f1; border-top: 1px solid var(--ohm-light-bg); }
     .aiohm-test-column .aiohm-chat-input-wrapper { display: flex; align-items: center; border: 1px solid var(--ohm-light-bg); border-radius: 8px; padding: 5px; transition: border-color 0.2s, box-shadow 0.2s; background: #fff; }
@@ -238,6 +250,7 @@ $brand_archetypes = [
 <script>
     jQuery(document).ready(function($) {
         const defaultPrompt = <?php echo json_encode($default_prompt); ?>;
+        const archetypePrompts = <?php echo json_encode($archetype_prompts); ?>;
 
         const testChat = {
             $container: $('#aiohm-test-chat'),
@@ -306,10 +319,25 @@ $brand_archetypes = [
         testChat.init();
 
         function updateLivePreview() {
+            $('#aiohm-test-chat .aiohm-chat-header').css({
+                'background-color': $('#primary_color').val(),
+                'color': $('#text_color').val()
+            });
+            $('#aiohm-test-chat .aiohm-message-user .aiohm-message-bubble').css('background-color', $('#primary_color').val());
             $('#aiohm-test-chat .aiohm-chat-title-preview').text($('#assistant_name').val());
+        }
+
+        function handleArchetypeChange() {
+            const selectedArchetype = $('#brand_archetype').val();
+            if (selectedArchetype && archetypePrompts[selectedArchetype]) {
+                $('#system_prompt').val(archetypePrompts[selectedArchetype]);
+            } else {
+                $('#system_prompt').val(defaultPrompt);
+            }
         }
         
         $('#muse-mode-settings-form input, #muse-mode-settings-form select, #muse-mode-settings-form textarea').on('input change', updateLivePreview);
+        $('#brand_archetype').on('change', handleArchetypeChange);
         
         $('#temperature').on('input', function() {
             $('.temp-value').text($(this).val());
@@ -318,6 +346,7 @@ $brand_archetypes = [
         $('#reset-prompt-btn').on('click', function(e) {
             e.preventDefault();
             $('#system_prompt').val(defaultPrompt);
+            $('#brand_archetype').val('');
             showAdminNotice('Prompt has been reset to the default.', 'success');
         });
         
@@ -353,10 +382,10 @@ $brand_archetypes = [
             $resultsContainer.html('<span class="spinner is-active"></span>');
             
             $.post(ajaxurl, {
-                action: 'aiohm_admin_search_knowledge', // Re-using this action from mirror-mode for context testing
-                nonce: $('#aiohm_muse_mode_nonce_field').val(), // Use the correct nonce
+                action: 'aiohm_admin_search_knowledge',
+                nonce: $('#aiohm_muse_mode_nonce_field').val(),
                 query: query,
-                content_type_filter: '' // No filter for this test
+                content_type_filter: ''
             }).done(function(response) {
                 $resultsContainer.empty();
                 if (response.success && response.data.results.length > 0) {
