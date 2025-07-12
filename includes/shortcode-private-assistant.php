@@ -1,6 +1,7 @@
 <?php
 /**
  * Private Assistant shortcode implementation - [aiohm_private_assistant]
+ * Enhanced with a premium UI, conversation management, and a welcome screen.
  */
 
 if (!defined('ABSPATH')) {
@@ -22,54 +23,84 @@ class AIOHM_KB_Shortcode_Private_Assistant {
         $settings = AIOHM_KB_Assistant::get_settings();
         $muse_settings = $settings['muse_mode'] ?? [];
 
-        $chat_atts = shortcode_atts(array(
-            'title' => $muse_settings['assistant_name'] ?? 'Muse: Private Assistant',
-            'placeholder' => 'Ask Muse anything...',
-            'height' => '500',
-            'width' => '100%',
-            'welcome_message' => 'Hello! I am your private brand assistant. How can I help you create today?'
-        ), $atts, 'aiohm_private_assistant');
+        // Enqueue assets
+        wp_enqueue_style('aiohm-private-chat-style', AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-private-chat.css', [], AIOHM_KB_VERSION);
+        wp_enqueue_script('aiohm-private-chat-script', AIOHM_KB_PLUGIN_URL . 'assets/js/aiohm-private-chat.js', ['jquery'], AIOHM_KB_VERSION, true);
         
-        static $chat_counter = 0;
-        $chat_counter++;
-        $chat_id = 'aiohm-muse-chat-' . $chat_counter;
-        
-        wp_enqueue_script('aiohm-chat');
-        wp_enqueue_style('aiohm-chat');
-        
-        $output = '<div class="aiohm-chat-wrapper">';
-        $output .= '<div class="aiohm-chat-container" id="' . esc_attr($chat_id) . '">';
-        
-        $output .= '<div class="aiohm-chat-header">';
-        $output .= '<div class="aiohm-chat-title">' . esc_html($chat_atts['title']) . '</div>';
-        $output .= '</div>';
-        
-        $output .= '<div class="aiohm-chat-messages" style="height: ' . esc_attr($chat_atts['height']) . 'px;">';
-        $output .= '<div class="aiohm-message aiohm-message-bot"><div class="aiohm-message-bubble"><div class="aiohm-message-content">' . esc_html($chat_atts['welcome_message']) . '</div></div></div>';
-        $output .= '</div>';
-        
-        $output .= '<div class="aiohm-chat-input-container">';
-        $output .= '<div class="aiohm-chat-input-wrapper">';
-        $output .= '<textarea class="aiohm-chat-input" placeholder="' . esc_attr($chat_atts['placeholder']) . '" rows="1"></textarea>';
-        $output .= '<button type="button" class="aiohm-chat-send-btn" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>';
-        $output .= '</div>';
-        $output .= '</div>';
-        
-        $output .= '</div>';
-        $output .= '</div>';
-
-        $chat_config = array(
-            'chat_id' => $chat_id,
+        // Localize data for JavaScript
+        wp_localize_script('aiohm-private-chat-script', 'aiohm_private_chat_params', [
             'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('aiohm_private_chat_nonce'),
-            'chat_action' => 'aiohm_private_assistant_chat', // Use a new action
-            'strings' => array(
-                'error' => 'Sorry, something went wrong.',
-            )
-        );
-        
-        wp_add_inline_script('aiohm-chat', 'if (typeof window.aiohm_chat_configs === "undefined") window.aiohm_chat_configs = {}; window.aiohm_chat_configs["' . $chat_id . '"] = ' . json_encode($chat_config) . ';', 'before');
+            'nonce'    => wp_create_nonce('aiohm_private_chat_nonce'),
+            'strings'  => [
+                'new_chat' => __('New Chat', 'aiohm-kb-assistant'),
+                'error' => __('Sorry, something went wrong.', 'aiohm-kb-assistant'),
+            ]
+        ]);
 
-        return $output;
+        ob_start();
+        ?>
+        <div class="aiohm-private-assistant-container">
+            <div class="aiohm-pa-sidebar">
+                <div class="aiohm-pa-sidebar-header">
+                    <img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/AIOHM-logo.png'); ?>" alt="AIOHM Logo" class="aiohm-pa-logo">
+                    <h3><?php esc_html_e('My Dialogues', 'aiohm-kb-assistant'); ?></h3>
+                </div>
+                <div class="aiohm-pa-actions">
+                    <button class="aiohm-pa-new-chat-btn">
+                        <span class="dashicons dashicons-plus"></span>
+                        <?php esc_html_e('New Dialogue', 'aiohm-kb-assistant'); ?>
+                    </button>
+                </div>
+                <div class="aiohm-pa-conversation-list">
+                    <div class="aiohm-pa-loader"></div>
+                </div>
+                <div class="aiohm-pa-sidebar-footer">
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-muse-mode')); ?>" target="_blank">
+                        <span class="dashicons dashicons-admin-settings"></span>
+                        <?php esc_html_e('Customize Muse', 'aiohm-kb-assistant'); ?>
+                    </a>
+                </div>
+            </div>
+
+            <div class="aiohm-pa-main">
+                <div class="aiohm-pa-chat-area">
+                    <div class="aiohm-pa-welcome-screen">
+                        <h2><?php echo esc_html($muse_settings['assistant_name'] ?? 'Muse'); ?>: <?php esc_html_e('Your Private Brand Assistant', 'aiohm-kb-assistant'); ?></h2>
+                        <p><?php esc_html_e("I'm here to help you brainstorm, draft content, and think through ideas in your own brand voice.", 'aiohm-kb-assistant'); ?></p>
+                        <div class="aiohm-pa-prompt-suggestions">
+                            <div class="suggestion-card" data-prompt="Draft three social media posts about my main offer.">
+                                <strong><?php esc_html_e('Draft Social Posts', 'aiohm-kb-assistant'); ?></strong>
+                                <small><?php esc_html_e('Based on your brand direction.', 'aiohm-kb-assistant'); ?></small>
+                            </div>
+                            <div class="suggestion-card" data-prompt="Write a short email to my audience about my deeper purpose.">
+                                <strong><?php esc_html_e('Write an Email', 'aiohm-kb-assistant'); ?></strong>
+                                <small><?php esc_html_e('Using your Brand Soul answers.', 'aiohm-kb-assistant'); ?></small>
+                            </div>
+                            <div class="suggestion-card" data-prompt="Help me brainstorm blog post titles based on my brand's energy.">
+                                <strong><?php esc_html_e('Brainstorm Ideas', 'aiohm-kb-assistant'); ?></strong>
+                                <small><?php esc_html_e('Connecting to your brand energy.', 'aiohm-kb-assistant'); ?></small>
+                            </div>
+                            <div class="suggestion-card" data-prompt="Summarize my brand expression in one paragraph.">
+                                <strong><?php esc_html_e('Summarize My Brand', 'aiohm-kb-assistant'); ?></strong>
+                                <small><?php esc_html_e('Using your brand expression answers.', 'aiohm-kb-assistant'); ?></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="conversation-panel" class="conversation-panel" style="display:none;">
+                        </div>
+                </div>
+                <div class="aiohm-pa-input-area-wrapper">
+                    <div id="context-display" class="context-display" style="display:none;"></div>
+                    <div class="input-area">
+                        <textarea id="chat-input" placeholder="<?php esc_attr_e('Start a dialogue with your Muse...', 'aiohm-kb-assistant'); ?>" rows="1"></textarea>
+                        <button id="send-btn" disabled>
+                            <svg width="20" height="20" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
     }
 }
