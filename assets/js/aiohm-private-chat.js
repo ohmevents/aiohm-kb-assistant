@@ -1,40 +1,53 @@
+/**
+ * AIOHM Private Assistant Scripts - v1.1.10
+ *
+ * This file handles all client-side functionality for the modern private assistant,
+ * including the hybrid embedded/fullscreen mode, conversation management, AJAX chat,
+ * and all other UI interactions.
+ */
 jQuery(document).ready(function($) {
-    // Check if the main container exists before running any code
-    if ($('.aiohm-private-assistant-container').length === 0) {
+    // Exit if the main container for our modern chat doesn't exist.
+    if ($('.aiohm-private-assistant-container.modern').length === 0) {
         return;
     }
 
+    // --- Element Selectors ---
+    const container = $('#aiohm-app-container');
     const chatInput = $('#chat-input');
     const sendBtn = $('#send-btn');
     const conversationPanel = $('#conversation-panel');
-    const welcomeScreen = $('.aiohm-pa-welcome-screen');
-    const newChatBtn = $('.aiohm-pa-new-chat-btn');
+    const newProjectBtn = $('.aiohm-pa-new-project-btn');
     const conversationList = $('.aiohm-pa-conversation-list');
-    
+    const sidebarToggle = $('.aiohm-pa-sidebar-toggle');
+    const fullscreenToggle = $('.aiohm-pa-fullscreen-toggle');
+    const menuHeaders = $('.aiohm-pa-menu-header');
+    const addToKbBtn = $('#add-to-kb-btn');
+
+    // --- State Management ---
     let activeConversationId = null;
-    let conversationCounter = 0; // Simple counter for demo purposes
+    let isLoading = false;
+
+    // --- Core Functions ---
 
     /**
-     * Sends a message to the server via AJAX.
+     * Sends the user's message to the backend via AJAX.
      */
     function sendMessage() {
         const messageText = chatInput.val().trim();
-        if (!messageText) return;
+        if (!messageText || isLoading) return;
 
-        // Hide welcome screen and show chat panel if this is the first message
-        if (welcomeScreen.is(':visible')) {
-            welcomeScreen.hide();
-            conversationPanel.show();
+        isLoading = true;
+
+        if (!activeConversationId) {
+            conversationPanel.empty();
         }
 
         appendMessage(messageText, 'user');
-        chatInput.val('');
+        chatInput.val('').trigger('input');
         sendBtn.prop('disabled', true);
         
-        // Show typing indicator while waiting for response
         appendMessage('...', 'ai', true);
 
-        // AJAX request to the backend
         $.post(aiohm_private_chat_params.ajax_url, {
             _ajax_nonce: aiohm_private_chat_params.nonce,
             action: 'aiohm_private_assistant_chat',
@@ -42,19 +55,12 @@ jQuery(document).ready(function($) {
             conversation_id: activeConversationId
         })
         .done(function(response) {
-            $('.message.typing').remove(); // Remove typing indicator
+            $('.message.typing').remove();
             if (response.success) {
                 appendMessage(response.data.reply, 'ai');
-                
-                // If this was a new chat, update the UI
                 if (!activeConversationId) {
                     activeConversationId = response.data.conversation_id;
-                    loadConversations(); // Refresh list to show the new one
-                } else {
-                    const currentItem = conversationList.find('.conversation-item[data-id="' + activeConversationId + '"]');
-                    if (currentItem.text().includes(aiohm_private_chat_params.strings.new_chat)) {
-                        loadConversations(); // Refresh to get the new title from the first message
-                    }
+                    loadConversations(true);
                 }
             } else {
                 appendMessage(response.data.message || aiohm_private_chat_params.strings.error, 'error');
@@ -63,81 +69,160 @@ jQuery(document).ready(function($) {
         .fail(function() {
              $('.message.typing').remove();
              appendMessage(aiohm_private_chat_params.strings.error, 'error');
+        })
+        .always(function() {
+            isLoading = false;
+            updateAddToKbButtonState();
         });
     }
 
     /**
-     * Appends a message or typing indicator to the chat panel.
+     * Appends a new message to the chat panel.
      */
     function appendMessage(content, type, isTyping = false) {
-        let avatarIconClass = type === 'user' ? 'dashicons-admin-users' : 'dashicons-format-chat';
-        let messageClass = isTyping ? 'message typing' : `message ${type}`;
+        let messageClass = isTyping ? 'message ai typing' : `message ${type}`;
         if (type === 'error') {
-            avatarIconClass = 'dashicons-warning';
-            messageClass = 'message ai error'; // Show errors as if from the assistant
+            messageClass = 'message system';
+            content = `⚠️ ${content}`;
         }
-
+        
         const sanitizedContent = $('<div/>').text(content).html().replace(/\n/g, '<br>');
-
-        const messageHtml = `
-            <div class="${messageClass}">
-                <div class="message-avatar"><span class="dashicons ${avatarIconClass}"></span></div>
-                <div class="message-bubble">${isTyping ? '<div class="aiohm-typing-dots"><span></span><span></span><span></span></div>' : sanitizedContent}</div>
-            </div>`;
-        conversationPanel.append(messageHtml);
-        conversationPanel.scrollTop(conversationPanel[0].scrollHeight);
+        const messageHtml = `<div class="${messageClass}" data-sender="${type}">${isTyping ? '<div class="aiohm-typing-dots"><span></span><span></span><span></span></div>' : sanitizedContent}</div>`;
+        conversationPanel.prepend(messageHtml);
     }
-    
+
     /**
-     * Resets the UI to start a new conversation.
+     * Resets the UI for a new conversation.
      */
     function startNewConversation() {
         activeConversationId = null;
-        conversationPanel.empty().hide();
-        welcomeScreen.show();
+        conversationPanel.empty();
         chatInput.val('').css('height', 'auto');
         sendBtn.prop('disabled', true);
         conversationList.find('.conversation-item').removeClass('active');
-    }
-
-    /**
-     * Loads the list of conversations.
-     * NOTE: This is a placeholder. A real implementation would fetch this from the server.
-     */
-    function loadConversations() {
-        // Clear the list before reloading
-        // conversationList.empty(); 
-        
-        // Placeholder logic:
-        if (activeConversationId && conversationList.find('.conversation-item[data-id="' + activeConversationId + '"]').length === 0) {
-            conversationCounter++;
-            const newChatItem = $(`<button class="conversation-item" data-id="${activeConversationId}">${aiohm_private_chat_params.strings.new_chat} ${conversationCounter}</button>`);
-            conversationList.prepend(newChatItem);
-            switchConversation(activeConversationId);
-        }
+        updateAddToKbButtonState();
     }
     
     /**
-     * Switches the view to a selected conversation.
-     * NOTE: This is a placeholder. A real implementation would fetch the chat history.
+     * Fetches and renders the list of past conversations.
      */
-    function switchConversation(id) {
-        activeConversationId = id;
-        conversationList.find('.conversation-item').removeClass('active');
-        conversationList.find('.conversation-item[data-id="' + id + '"]').addClass('active');
-        
-        // In a real app, you would make an AJAX call to get the chat history for this ID.
-        // For now, we'll just clear the panel and show it.
-        conversationPanel.empty().show();
-        welcomeScreen.hide();
-        appendMessage('Switched to conversation. History would load here.', 'system'); // System message example
+    function loadConversations(activateLatest = false) {
+        if (isLoading) return;
+        isLoading = true;
+        conversationList.html('<span class="spinner is-active" style="margin: 20px auto; display: block;"></span>');
+
+        $.post(aiohm_private_chat_params.ajax_url, {
+            action: 'aiohm_get_conversations',
+            nonce: aiohm_private_chat_params.nonce,
+        }).done(function(response) {
+            conversationList.empty();
+            if (response.success && response.data.length > 0) {
+                response.data.forEach(chat => {
+                    const item = $(`<button class="conversation-item" data-id="${chat.id}">${esc_html(chat.title)}</button>`);
+                    conversationList.append(item);
+                });
+                if (activateLatest && activeConversationId) {
+                    conversationList.find(`.conversation-item[data-id="${activeConversationId}"]`).addClass('active');
+                }
+            } else {
+                conversationList.html('<p class="aiohm-pa-coming-soon">No dialogue history.</p>');
+            }
+        }).always(() => { isLoading = false; });
     }
 
+    /**
+     * Fetches and displays the messages for a specific conversation.
+     */
+    function loadConversationHistory(id) {
+        if (isLoading) return;
+        isLoading = true;
+        activeConversationId = id;
+        conversationPanel.html('<span class="spinner is-active" style="margin: auto;"></span>');
+        
+        conversationList.find('.conversation-item').removeClass('active');
+        conversationList.find(`.conversation-item[data-id="${id}"]`).addClass('active');
+
+        $.post(aiohm_private_chat_params.ajax_url, {
+            action: 'aiohm_get_conversation_history',
+            nonce: aiohm_private_chat_params.nonce,
+            conversation_id: id
+        }).done(function(response) {
+            conversationPanel.empty();
+            if (response.success && response.data.length > 0) {
+                response.data.forEach(msg => {
+                    appendMessage(msg.content, msg.sender);
+                });
+            } else if (!response.success) {
+                appendMessage(response.data.message || 'Could not load history.', 'error');
+            }
+        }).always(() => {
+            isLoading = false;
+            updateAddToKbButtonState();
+        });
+    }
+
+    /**
+     * Handles the "Add Chat to KB" functionality.
+     */
+    function addChatToKb() {
+        if (!activeConversationId || isLoading) return;
+
+        const messages = [];
+        // Since we prepend, we need to get messages and reverse them for chronological order
+        conversationPanel.find('.message:not(.typing)').each(function() {
+            messages.push({
+                sender: $(this).data('sender'),
+                content: $(this).text()
+            });
+        });
+
+        if (messages.length === 0) {
+            alert('There is no conversation to save.');
+            return;
+        }
+
+        const btn = $('#add-to-kb-btn');
+        const originalHtml = btn.html();
+        btn.prop('disabled', true).html('<span class="spinner is-active"></span> Saving...');
+        
+        $.post(aiohm_private_chat_params.ajax_url, {
+            action: 'aiohm_add_chat_to_kb',
+            nonce: aiohm_private_chat_params.nonce,
+            conversation_id: activeConversationId,
+            messages: messages.reverse() // Reverse to get user -> ai order
+        }).done(function(response) {
+            alert(response.success ? response.data.message : 'Error: ' + response.data.message);
+        }).fail(function() {
+            alert('A server error occurred.');
+        }).always(function() {
+            btn.prop('disabled', false).html(originalHtml);
+        });
+    }
+
+    function updateAddToKbButtonState() {
+        addToKbBtn.prop('disabled', !activeConversationId);
+    }
+    
+    function esc_html(str) {
+        return $('<div />').text(str).html();
+    }
 
     // --- Event Handlers ---
-
     sendBtn.on('click', sendMessage);
-    newChatBtn.on('click', startNewConversation);
+    newProjectBtn.on('click', startNewConversation);
+    sidebarToggle.on('click', () => container.toggleClass('sidebar-open'));
+    fullscreenToggle.on('click', function() {
+        container.toggleClass('is-fullscreen');
+        $('body').toggleClass('aiohm-assistant-fullscreen-active');
+        const icon = $(this).find('.dashicons');
+        if (container.hasClass('is-fullscreen')) {
+            icon.removeClass('dashicons-editor-expand').addClass('dashicons-editor-contract');
+            $(this).attr('title', 'Exit Fullscreen');
+        } else {
+            icon.removeClass('dashicons-editor-contract').addClass('dashicons-editor-expand');
+            $(this).attr('title', 'Toggle Fullscreen');
+        }
+    });
 
     chatInput.on('keypress', function(e) {
         if (e.which === 13 && !e.shiftKey) {
@@ -146,24 +231,25 @@ jQuery(document).ready(function($) {
         }
     }).on('input', function() {
         sendBtn.prop('disabled', $(this).val().trim().length === 0);
-        // Auto-resize textarea
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
     });
 
-    // Handle suggestion card clicks
-    $('.suggestion-card').on('click', function() {
-        const prompt = $(this).data('prompt');
-        chatInput.val(prompt).focus();
-        sendMessage();
-    });
-    
-    // Handle switching conversations (delegated event)
     conversationList.on('click', '.conversation-item', function() {
-        const conversationId = $(this).data('id');
-        if (conversationId !== activeConversationId) {
-            switchConversation(conversationId);
+        const id = $(this).data('id');
+        if (id !== activeConversationId) {
+            loadConversationHistory(id);
         }
     });
+    
+    menuHeaders.on('click', function() {
+        $(this).toggleClass('active');
+        $(this).next('.aiohm-pa-menu-content').slideToggle(200);
+    });
 
+    addToKbBtn.on('click', addChatToKb);
+
+    // --- Initial Load ---
+    startNewConversation();
+    loadConversations();
 });
