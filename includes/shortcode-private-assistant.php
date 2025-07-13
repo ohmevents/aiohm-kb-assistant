@@ -1,7 +1,7 @@
 <?php
 /**
  * Shortcode for displaying the private assistant interface.
- * v1.2.5 - Moves settings link to the sidebar footer for better UI flow.
+ * v1.2.9 - Moved action buttons to header and clarified instructions with a table.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -16,7 +16,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
             return '<p class="aiohm-auth-notice">Please <a href="' . esc_url(wp_login_url(get_permalink())) . '">log in</a> to access your private assistant.</p>';
         }
 
-        // --- Fetch settings for dynamic name and the settings page URL ---
+        // --- Fetch settings ---
         $all_settings = AIOHM_KB_Assistant::get_settings();
         $muse_settings = $all_settings['muse_mode'] ?? [];
         $assistant_name = !empty($muse_settings['assistant_name']) ? $muse_settings['assistant_name'] : 'Muse';
@@ -38,21 +38,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
         <div id="aiohm-app-container" class="aiohm-private-assistant-container modern sidebar-open">
             <aside class="aiohm-pa-sidebar">
                 <div class="aiohm-pa-sidebar-header">
-                    <div class="aiohm-pa-logo aiohm-ai-avatar">
-                        <span class="dashicons dashicons-superhero"></span>
-                    </div>
                     <h3 style="color: white; margin-top: 10px;"><?php echo esc_html($assistant_name); ?></h3>
-                </div>
-
-                <div class="aiohm-pa-actions">
-                    <button class="aiohm-pa-action-btn" id="new-project-btn">
-                        <span class="dashicons dashicons-plus"></span>
-                        New Project
-                    </button>
-                    <button class="aiohm-pa-action-btn" id="new-chat-btn">
-                        <span class="dashicons dashicons-format-chat"></span>
-                        New Chat
-                    </button>
                 </div>
 
                 <nav class="aiohm-pa-menu">
@@ -76,32 +62,40 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                     </div>
                 </nav>
 
-<div class="aiohm-pa-sidebar-footer">
-    <div>
-        <a href="<?php echo esc_url($settings_page_url); ?>" class="aiohm-footer-settings-link" title="Muse Mode Settings">
-             Settings
-        </a>
-    </div>
-    <div>
-        <span class="aiohm-footer-version">AIOHM KB Assistant v<?php echo AIOHM_KB_VERSION; ?></span>
-    </div>
-</div>
+                <div class="aiohm-pa-sidebar-footer">
+                    <div>
+                        <a href="<?php echo esc_url($settings_page_url); ?>" class="aiohm-footer-settings-link" title="Muse Mode Settings">
+                             Settings
+                        </a>
+                    </div>
+                    <div>
+                        <span class="aiohm-footer-version">AIOHM KB Assistant v<?php echo AIOHM_KB_VERSION; ?></span>
+                    </div>
+                </div>
 
-                </aside>
+            </aside>
 
             <main class="aiohm-pa-content-wrapper">
                 <header class="aiohm-pa-header">
                     <button class="aiohm-pa-header-btn" id="sidebar-toggle">
                         <span class="dashicons dashicons-menu-alt"></span>
                     </button>
+                    
+                    <div class="aiohm-pa-actions">
+                        <button class="aiohm-pa-action-btn" id="new-project-btn">
+                            <span class="dashicons dashicons-plus"></span>
+                            New Project
+                        </button>
+                        <button class="aiohm-pa-action-btn" id="new-chat-btn">
+                            <span class="dashicons dashicons-format-chat"></span>
+                            New Chat
+                        </button>
+                    </div>
                     <h2 class="aiohm-pa-header-title" id="project-title">Select a Project</h2>
                     
                     <div class="aiohm-pa-window-controls">
-                        <button class="aiohm-pa-header-btn" id="activate-audio-btn" title="Activate voice-to-text">
-                            <span class="dashicons dashicons-microphone"></span>
-                        </button>
-                        <button class="aiohm-pa-header-btn" id="research-online-prompt-btn" title="Research a live website">
-                            <span class="dashicons dashicons-search"></span>
+                        <button class="aiohm-pa-header-btn" id="research-online-prompt-btn" title="Research Online">
+                            <span class="dashicons dashicons-admin-globe"></span>
                         </button>
                         <button class="aiohm-pa-header-btn" id="download-pdf-btn" title="Download chat as PDF">
                             <span class="dashicons dashicons-download"></span>
@@ -114,16 +108,37 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                 </header>
 
                 <div class="conversation-panel" id="conversation-panel">
-                    <div class="message system">
-                        <p>Welcome! Before you start, here's what the buttons in the top-right do:</p>
-                        <ul style="text-align: left; display: inline-block; margin-top: 10px;">
-                            <li><span class="dashicons dashicons-microphone"></span>: Use your voice to ask questions.</li>
-                            <li><span class="dashicons dashicons-search"></span>: Research a live website for real-time information.</li>
-                            <li><span class="dashicons dashicons-download"></span>: Download your current chat history as a PDF.</li>
-                        </ul>
-                        <p>Select a project from the sidebar to begin.</p>
+                    <div class="message system" id="welcome-instructions">
+                        <h4>Welcome to Muse!</h4>
+                        <p>Here’s a quick guide to get started:</p>
+                        <table class="aiohm-instructions-table">
+                            <tbody>
+                                <tr>
+                                    <td class="icon-cell"><span class="dashicons dashicons-plus"></span></td>
+                                    <td>
+                                        <strong>New Project</strong>
+                                        <p>Start here to create a new project and keep your chats organized.</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="icon-cell"><span class="dashicons dashicons-admin-globe"></span></td>
+                                    <td>
+                                        <strong>Research Online</strong>
+                                        <p>Use this to get real-time information from any website for your project.</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="icon-cell"><span class="dashicons dashicons-microphone"></span></td>
+                                    <td>
+                                        <strong>Voice-to-Text</strong>
+                                        <p>Click the microphone in the input bar to dictate your messages.</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p style="margin-top: 20px; font-weight: bold;">Select a project or create a new one to begin!</p>
                     </div>
-                </div>
+                    </div>
                 
                 <div id="aiohm-chat-loading" style="display: none; text-align: center; padding: 10px;">
                     Thinking...
@@ -133,13 +148,32 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                     <form id="private-chat-form">
                         <div class="aiohm-pa-input-area">
                             <textarea id="chat-input" placeholder="Type your message..." rows="1" disabled></textarea>
-                            <button id="send-btn" disabled>
+                            <button id="send-btn" type="submit" disabled>
                                 <span class="dashicons dashicons-arrow-right-alt2"></span>
+                            </button>
+                            <button class="aiohm-pa-header-btn" id="activate-audio-btn" type="button" title="Activate voice-to-text">
+                                <span class="dashicons dashicons-microphone"></span>
                             </button>
                         </div>
                     </form>
                 </div>
             </main>
+
+            <div id="research-prompt-modal" class="aiohm-modal" style="display:none;">
+                <div class="aiohm-modal-content">
+                    <span class="aiohm-modal-close">&times;</span>
+                    <h3>Research Online</h3>
+                    <p>Select a prompt to start your research. Replace the text in [brackets] with your topic.</p>
+                    <ul id="research-prompt-list">
+                        <li data-prompt="Go online and give me a summary of the latest news about [topic].">Summary of latest news about [topic].</li>
+                        <li data-prompt="Research the best practices for [topic] in 2025.">Best practices for [topic].</li>
+                        <li data-prompt="Find tutorials or guides on how to [do something].">Find tutorials on how to [do something].</li>
+                        <li data-prompt="Extract key statistics and data about [industry or subject].">Extract key statistics about [industry].</li>
+                    </ul>
+                    <textarea id="custom-research-prompt" placeholder="Or type your own research prompt here..."></textarea>
+                    <button id="start-research-btn" class="aiohm-pa-action-btn">Start Research</button>
+                </div>
+            </div>
         </div>
         <?php
         return ob_get_clean();

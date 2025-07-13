@@ -1,162 +1,179 @@
-document.addEventListener('DOMContentLoaded', function() {
+jQuery(document).ready(function($) {
+    'use strict';
 
-    // --- Element References ---
-    const appContainer = document.getElementById('aiohm-app-container');
-    const sidebarToggleBtn = document.getElementById('sidebar-toggle');
-    const menuHeaders = document.querySelectorAll('.aiohm-pa-menu-header');
-    
-    const chatHistory = document.getElementById('conversation-panel');
-    const chatInput = document.getElementById('chat-input');
-    const chatForm = document.getElementById('private-chat-form');
-    const sendBtn = document.getElementById('send-btn');
-    const loadingIndicator = document.getElementById('aiohm-chat-loading');
+    // --- State Management ---
+    let currentProjectId = null;
+    let currentConversationId = null;
 
-    // New button references
-    const downloadPdfBtn = document.getElementById('download-pdf-btn');
-    const researchBtn = document.getElementById('research-online-prompt-btn');
-    const activateAudioBtn = document.getElementById('activate-audio-btn');
+    // --- DOM Elements ---
+    const chatInput = $('#chat-input');
+    const sendBtn = $('#send-btn');
+    const conversationPanel = $('#conversation-panel');
+    const projectList = $('.aiohm-pa-project-list');
+    const conversationList = $('.aiohm-pa-conversation-list');
+    const projectTitle = $('#project-title');
+    const loadingIndicator = $('#aiohm-chat-loading');
 
-    // --- START: Restored Sidebar & Menu Logic ---
-    if (sidebarToggleBtn && appContainer) {
-        sidebarToggleBtn.addEventListener('click', function() {
-            appContainer.classList.toggle('sidebar-open');
-        });
+    // --- Helper Functions ---
+    /**
+     * Appends a message to the chat panel.
+     * @param {string} sender - 'user' or the assistant's name.
+     * @param {string} text - The message content.
+     */
+    function appendMessage(sender, text) {
+        const messageClass = sender.toLowerCase() === 'user' ? 'user' : 'assistant';
+        const senderName = sender.toLowerCase() === 'user' ? 'You' : sender;
+        const messageHTML = `
+            <div class="message ${messageClass}">
+                <p><strong>${senderName}:</strong> ${text}</p>
+            </div>`;
+        conversationPanel.append(messageHTML);
+        conversationPanel.scrollTop(conversationPanel[0].scrollHeight); // Auto-scroll
     }
 
-    menuHeaders.forEach(header => {
-        header.addEventListener('click', function() {
-            this.classList.toggle('active');
-            const content = document.getElementById(this.dataset.target);
-            if (content) {
-                // Simple slide toggle effect with jQuery for reliability
-                jQuery(content).slideToggle(200);
-            }
-        });
-    });
-    // --- END: Restored Sidebar & Menu Logic ---
-
-    // --- Feature 1: Download Chat as PDF ---
-    if (downloadPdfBtn) {
-        downloadPdfBtn.addEventListener('click', function() {
-            if (typeof window.jspdf === 'undefined') {
-                alert('Error: The PDF generation library (jsPDF) is not loaded.');
-                return;
-            }
-            if (!chatHistory) return;
-
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            const chatContent = chatHistory.innerText;
-            const lines = doc.splitTextToSize(chatContent, 180);
-
-            doc.text(lines, 10, 10);
-            doc.save('aiohm-chat-history.pdf');
-        });
-    }
-
-    // --- Feature 2: Research Online ---
-    if (researchBtn && chatInput) {
-        researchBtn.addEventListener('click', function() {
-            chatInput.value = "Website: ";
-            chatInput.focus();
-        });
-    }
-
-    // --- Feature 3: Activate Audio (Voice-to-Text) ---
-    if (activateAudioBtn) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            activateAudioBtn.style.display = 'none';
-        } else {
-            const recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.lang = 'en-US';
-
-            activateAudioBtn.addEventListener('click', () => {
-                recognition.start();
-                activateAudioBtn.classList.add('is-listening');
-            });
-
-            recognition.onresult = (event) => {
-                chatInput.value = event.results[0][0].transcript;
-            };
-
-            recognition.onend = () => {
-                activateAudioBtn.classList.remove('is-listening');
-            };
-
-            recognition.onerror = (event) => {
-                alert('Speech recognition error: ' + event.error);
-            };
-        }
-    }
-
-    // --- Core Chat Logic ---
-    if (chatForm) {
-        chatForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const message = chatInput.value.trim();
-            if (message) {
-                handleSendMessage(message);
-                chatInput.value = '';
-            }
-        });
-    }
-
-    function handleSendMessage(message) {
-        let ajaxAction;
-        let dataPayload;
-
-        if (message.toLowerCase().startsWith('website:')) {
-            const urlToResearch = message.substring(message.indexOf(':') + 1).trim();
-            if (!urlToResearch) {
-                appendMessageToChat('System', 'Error: Please provide a URL after "Website:".');
-                return;
-            }
-            ajaxAction = 'aiohm_live_research';
-            dataPayload = { research_url: urlToResearch };
-            appendMessageToChat('User', message);
-        } else {
-            ajaxAction = 'aiohm_private_chat';
-            dataPayload = { prompt: message };
-            appendMessageToChat('User', message);
-        }
-        
-        dataPayload.action = ajaxAction;
-        dataPayload.nonce = aiohm_private_chat_params.nonce;
-
-        loadingIndicator.style.display = 'block';
-        sendBtn.disabled = true;
-
-        jQuery.ajax({
-            type: 'POST',
+    /**
+     * Handles AJAX requests.
+     * @param {string} action - The WordPress AJAX action hook.
+     * @param {object} data - The data to send.
+     * @returns {Promise}
+     */
+    function performAjaxRequest(action, data) {
+        return $.ajax({
             url: aiohm_private_chat_params.ajax_url,
-            data: dataPayload,
-            success: function(response) {
-                if (response.success) {
-                    appendMessageToChat('Assistant', response.data.message);
-                } else {
-                    appendMessageToChat('System', 'Error: ' + (response.data.message || 'The request failed.'));
-                }
+            type: 'POST',
+            data: {
+                action: action,
+                nonce: aiohm_private_chat_params.nonce,
+                ...data
             },
-            error: function() {
-                appendMessageToChat('System', 'An unexpected network error occurred.');
+            beforeSend: function() {
+                loadingIndicator.show();
             },
             complete: function() {
-                loadingIndicator.style.display = 'none';
-                sendBtn.disabled = false;
+                loadingIndicator.hide();
             }
         });
     }
 
-    function appendMessageToChat(sender, message) {
-        if (!chatHistory) return;
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message', sender.toLowerCase());
-        
-        messageElement.textContent = message; 
-        
-        chatHistory.appendChild(messageElement);
-        chatHistory.scrollTop = chatHistory.scrollHeight;
+    // --- Core Functionality ---
+
+    /**
+     * Loads all projects and conversations for the user.
+     */
+    function loadHistory() {
+        performAjaxRequest('aiohm_load_history', {}).done(function(response) {
+            if (response.success) {
+                // Populate Projects
+                projectList.empty();
+                response.data.projects.forEach(proj => {
+                    projectList.append(`<a href="#" class="aiohm-pa-list-item" data-id="${proj.id}">${proj.name}</a>`);
+                });
+
+                // Populate Conversations
+                conversationList.empty();
+                response.data.conversations.forEach(convo => {
+                    conversationList.append(`<a href="#" class="aiohm-pa-list-item" data-id="${convo.id}">${convo.title}</a>`);
+                });
+            }
+        });
     }
+
+    /**
+     * Handles sending a chat message.
+     */
+    function sendMessage() {
+        const message = chatInput.val().trim();
+        if (!message || !currentProjectId) {
+            return;
+        }
+
+        appendMessage('user', message);
+        chatInput.val('');
+
+        performAjaxRequest('aiohm_send_message', {
+            message: message,
+            project_id: currentProjectId,
+            conversation_id: currentConversationId
+        }).done(function(response) {
+            if (response.success) {
+                appendMessage('Assistant', response.data.reply);
+                if (response.data.conversation_id && !currentConversationId) {
+                    currentConversationId = response.data.conversation_id;
+                    loadHistory(); // Refresh lists
+                }
+            } else {
+                appendMessage('System', 'Error: Could not get a response.');
+            }
+        }).fail(function() {
+            appendMessage('System', 'Error: AJAX request failed.');
+        });
+    }
+
+    // --- Event Listeners ---
+
+    // Send message on form submit
+    $('#private-chat-form').on('submit', function(e) {
+        e.preventDefault();
+        sendMessage();
+    });
+
+    // Create New Project
+    $('#new-project-btn').on('click', function() {
+        const projectName = prompt('Enter a name for your new project:', 'New Project');
+        if (projectName && projectName.trim() !== '') {
+            performAjaxRequest('aiohm_create_project', { name: projectName.trim() }).done(function(response) {
+                if (response.success) {
+                    alert('Project created!');
+                    loadHistory();
+                } else {
+                    alert('Error: ' + response.data.message);
+                }
+            });
+        }
+    });
+
+    // Select a Project
+    projectList.on('click', '.aiohm-pa-list-item', function(e) {
+        e.preventDefault();
+        currentProjectId = $(this).data('id');
+        currentConversationId = null; // Start a new conversation
+        projectTitle.text($(this).text());
+        conversationPanel.html('<div class="message system"><p>New chat started in project: ' + $(this).text() + '</p></div>');
+        chatInput.prop('disabled', false);
+        sendBtn.prop('disabled', false);
+    });
+
+    // --- Research Modal Logic ---
+    const researchModal = $('#research-prompt-modal');
+    const researchPromptList = $('#research-prompt-list');
+    const customResearchPrompt = $('#custom-research-prompt');
+
+    $('#research-online-prompt-btn').on('click', function() {
+        if(currentProjectId) {
+             researchModal.show();
+        } else {
+            alert("Please select a project first.");
+        }
+    });
+
+    $('.aiohm-modal-close').on('click', function() {
+        researchModal.hide();
+    });
+
+    researchPromptList.on('click', 'li', function() {
+        const promptTemplate = $(this).data('prompt');
+        chatInput.val(promptTemplate);
+        researchModal.hide();
+    });
+
+    $('#start-research-btn').on('click', function() {
+        const customPrompt = customResearchPrompt.val().trim();
+        if (customPrompt) {
+            chatInput.val(customPrompt);
+            researchModal.hide();
+        }
+    });
+
+    // --- Initial Load ---
+    loadHistory();
 });
