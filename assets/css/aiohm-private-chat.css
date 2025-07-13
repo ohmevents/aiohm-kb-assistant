@@ -1,4 +1,22 @@
-/* --- Base Variables --- */
+/*
+ * AIOHM Private Assistant Stylesheet
+ * v1.2.7
+ *
+ * --- Table of Contents ---
+ * 1.  :root Variables (Brand Colors & Base Styles)
+ * 2.  Base Layout & Fullscreen Mode
+ * 3.  Main Sidebar (Left)
+ * 4.  Notes Sidebar (Right)
+ * 5.  Main Content Wrapper
+ * 6.  Header & Window Controls
+ * 7.  Conversation Panel & Messages
+ * 8.  Input Area
+ * 9.  Notification Bar
+ * 10. Modals
+ * 11. Helper & Utility Classes
+*/
+
+/* --- 1. :root Variables --- */
 :root {
     --pa-bg-darkest: #1e2124;
     --pa-bg-dark: #282b30;
@@ -8,98 +26,74 @@
     --pa-text-secondary: #b9bbbe;
     --pa-border-color: #4f545c;
 
-    /* --- New Brand Colors --- */
-    --pa-brand-color: #5865f2; /* Ohm Brand Color */
+    /* Ohm Brand Colors */
+    --pa-brand-color: #5865f2;
     --pa-brand-color-hover: #4a54c4;
-    --pa-highlight-color: #ffb923; /* Active/Pressed Color */
+    --pa-highlight-color: #ffb923; /* Yellow/Gold for highlights */
     --pa-highlight-text-color: #1e1e1e;
+
+    /* System Colors */
+    --pa-success-color: #28a745;
+    /* BRANDED: Using highlight color for errors as requested */
+    --pa-error-color: var(--pa-highlight-color);
 }
 
-/* --- Base Layout --- */
+/* --- 2. Base Layout & Fullscreen Mode --- */
 .aiohm-private-assistant-container {
     display: flex;
-    height: 80vh; /* Default height */
-    min-height: 600px;
+    height: 85vh; /* Increased default height */
+    min-height: 650px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--pa-bg-dark);
     color: var(--pa-text-primary);
     border-radius: 8px;
     overflow: hidden;
-    position: relative; /* Needed for absolute positioning of notification */
-    box-sizing: border-box; /* Include padding/border in element's total width/height */
+    position: relative;
+    box-sizing: border-box;
+    transition: all 0.3s ease-in-out;
 }
 
-/* Fullscreen Mode */
+/* CORRECTED: Fullscreen Mode */
 .aiohm-private-assistant-container.fullscreen-mode {
-    position: fixed; /* Fixed position relative to viewport */
+    position: fixed;
     top: 0;
     left: 0;
-    width: 100vw; /* 100% of viewport width */
-    height: 100vh; /* 100% of viewport height */
-    min-height: 100vh; /* Ensure it stays full height */
-    z-index: 99999; /* High z-index to cover everything */
-    border-radius: 0; /* No border-radius in fullscreen */
+    width: 100vw;
+    height: 100vh;
+    min-height: 100vh;
+    z-index: 99999;
+    border-radius: 0;
+    margin: 0;
 }
 
-/* Hide WordPress Admin Bar when in fullscreen mode */
-.aiohm-private-assistant-container.fullscreen-mode ~ #wpadminbar {
-    display: none !important;
-}
-.aiohm-private-assistant-container.fullscreen-mode ~ html {
-    margin-top: 0 !important;
-}
-.aiohm-private-assistant-container.fullscreen-mode ~ body {
-    margin-top: 0 !important;
-    overflow: hidden; /* Prevent scrolling outside the chat */
+/* CORRECTED: This is the key to hiding the admin bar reliably. */
+body.aiohm-fullscreen-body-no-scroll {
+    overflow: hidden !important; /* Prevent background scrolling */
 }
 
-/* --- Sidebar --- */
+body.aiohm-fullscreen-body-no-scroll #wpadminbar {
+    display: none !important; /* Hide the admin bar */
+}
+
+/* --- 3. Main Sidebar (Left) --- */
 .aiohm-pa-sidebar {
     width: 280px;
     background-color: var(--pa-bg-darkest);
     display: flex;
     flex-direction: column;
     transition: width 0.3s ease;
-    flex-shrink: 0; /* Prevent shrinking */
+    flex-shrink: 0;
 }
 
-/* Notes Sidebar */
-.aiohm-pa-notes-sidebar {
-    width: 0; /* Initially hidden */
-    background-color: var(--pa-bg-darkest); /* Match left sidebar */
-    display: flex;
-    flex-direction: column;
-    transition: width 0.3s ease;
-    overflow: hidden; /* Hide content when collapsed */
-    flex-shrink: 0; /* Prevent shrinking */
-    padding: 0; /* Control padding with transition */
-}
-
-.aiohm-private-assistant-container.notes-open .aiohm-pa-notes-sidebar {
-    width: 300px; /* Desired width when open */
-    padding: 20px; /* Add padding when open */
-}
-
-
-.aiohm-pa-sidebar-header, .aiohm-pa-sidebar-footer, .aiohm-pa-notes-header {
+.aiohm-pa-sidebar-header {
     padding: 20px;
     text-align: center;
     flex-shrink: 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--pa-border-color); /* Add border for consistency */
+    border-bottom: 1px solid var(--pa-border-color);
 }
 
-.aiohm-pa-notes-header h3 {
-    margin: 0;
-    color: var(--pa-text-primary);
-}
-
-
-/* --- Action Buttons --- */
 .aiohm-pa-actions {
-    padding: 10px 20px;
+    padding: 15px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -116,7 +110,7 @@
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    font-weight: bold;
+    font-weight: 600;
     transition: background-color 0.2s ease;
 }
 
@@ -124,13 +118,6 @@
     background-color: var(--pa-brand-color-hover);
 }
 
-.aiohm-pa-action-btn:active {
-    background-color: var(--pa-highlight-color);
-    color: var(--pa-highlight-text-color);
-}
-
-
-/* --- Menu / History Lists --- */
 .aiohm-pa-menu {
     flex-grow: 1;
     overflow-y: auto;
@@ -173,11 +160,13 @@
     font-weight: bold;
 }
 
-
-/* --- Sidebar Footer --- */
 .aiohm-pa-sidebar-footer {
+    padding: 20px;
     border-top: 1px solid var(--pa-border-color);
     font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 .aiohm-footer-settings-link {
     color: var(--pa-text-secondary);
@@ -188,17 +177,81 @@
     color: var(--pa-highlight-color);
 }
 .aiohm-footer-version {
-    color: var(--pa-text-secondary);
     opacity: 0.6;
 }
 
-/* --- Main Content --- */
+/* --- 4. Notes Sidebar (Right) --- */
+.aiohm-pa-notes-sidebar {
+    width: 0;
+    background-color: var(--pa-bg-darkest);
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease, padding 0.3s ease;
+    overflow: hidden;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.aiohm-private-assistant-container.notes-open .aiohm-pa-notes-sidebar {
+    width: 320px;
+    padding: 0 15px 15px 15px;
+    border-left: 1px solid var(--pa-border-color);
+}
+
+.aiohm-pa-notes-header {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--pa-border-color);
+    margin-bottom: 15px;
+}
+
+.aiohm-pa-notes-header h3 {
+    margin: 0;
+}
+
+.aiohm-pa-notes-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+.aiohm-pa-notes-content textarea {
+    width: 100%;
+    flex-grow: 1;
+    background-color: var(--pa-bg-light);
+    border: 1px solid var(--pa-border-color);
+    color: var(--pa-text-primary);
+    padding: 10px;
+    border-radius: 5px;
+    resize: vertical;
+    margin-bottom: 15px;
+    box-sizing: border-box;
+}
+.aiohm-pa-notes-content .button-primary {
+    background-color: var(--pa-brand-color);
+    color: var(--pa-text-primary);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+    width: 100%;
+}
+.aiohm-pa-notes-content .button-primary:hover {
+    background-color: var(--pa-brand-color-hover);
+}
+
+/* --- 5. Main Content Wrapper --- */
 .aiohm-pa-content-wrapper {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     background-color: var(--pa-bg-dark);
 }
+
+/* --- 6. Header & Window Controls --- */
 .aiohm-pa-header {
     display: flex;
     align-items: center;
@@ -214,8 +267,8 @@
 }
 .aiohm-pa-window-controls {
     margin-left: auto;
-    display: flex; /* Ensure buttons are in a row */
-    gap: 5px; /* Spacing between buttons */
+    display: flex;
+    gap: 5px;
 }
 .aiohm-pa-header-btn {
     background: none;
@@ -230,18 +283,24 @@
     background-color: var(--pa-bg-lighter);
     color: var(--pa-text-primary);
 }
+.aiohm-pa-header-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
 
 
-/* --- Conversation Panel --- */
+/* --- 7. Conversation Panel & Messages --- */
 .conversation-panel {
     flex-grow: 1;
     overflow-y: auto;
     padding: 20px;
 }
 .message {
-    margin-bottom: 15px;
+    margin-bottom: 20px;
     max-width: 85%;
     line-height: 1.6;
+    display: flex;
+    flex-direction: column;
 }
 .message.system {
     text-align: center;
@@ -249,8 +308,11 @@
     color: var(--pa-text-secondary);
 }
 .message.user {
+    align-items: flex-end;
     margin-left: auto;
-    text-align: right;
+}
+.message.assistant {
+    align-items: flex-start;
 }
 .message p {
     background-color: var(--pa-bg-light);
@@ -262,21 +324,25 @@
 }
 .message.user p {
     background-color: var(--pa-brand-color);
+    color: var(--pa-text-primary);
+    border-bottom-right-radius: 5px;
+}
+.message.assistant p {
+    border-bottom-left-radius: 5px;
 }
 
-/* --- New Welcome Instructions Styles --- */
+/* NEW: Styles for the improved welcome message */
 #welcome-instructions h4 {
     margin-top: 0;
     font-size: 20px;
+    margin-bottom: 25px;
 }
 .aiohm-instructions-list {
     list-style: none;
     padding: 0;
-    margin-top: 20px;
     text-align: left;
-    max-width: 450px;
-    margin-left: auto;
-    margin-right: auto;
+    max-width: 500px;
+    margin: 0 auto 20px auto;
 }
 .aiohm-instructions-list li {
     display: flex;
@@ -290,23 +356,23 @@
 .aiohm-instructions-list .dashicons {
     font-size: 24px;
     color: var(--pa-highlight-color);
-    padding-top: 5px;
+    padding-top: 3px;
 }
 .aiohm-instructions-list strong {
     font-size: 16px;
     color: var(--pa-text-primary);
+    display: block;
+    margin-bottom: 2px;
 }
 .aiohm-instructions-list p {
-    margin: 5px 0 0 0;
+    margin: 0;
     color: var(--pa-text-secondary);
     font-size: 14px;
     background: none;
     padding: 0;
-    border-radius: 0;
 }
 
-
-/* --- Input Area --- */
+/* --- 8. Input Area --- */
 .aiohm-pa-input-area-wrapper {
     padding: 15px 20px;
     border-top: 1px solid var(--pa-border-color);
@@ -338,19 +404,56 @@
     cursor: pointer;
     transition: color 0.2s ease;
 }
-#send-btn:hover {
+#send-btn:hover:not(:disabled) {
     color: var(--pa-brand-color);
 }
 #send-btn .dashicons {
     font-size: 24px;
 }
 
+/* --- 9. Notification Bar --- */
+.aiohm-pa-notification-bar {
+    position: absolute;
+    top: 70px; /* Position below the header */
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    padding: 12px 25px;
+    border-radius: 5px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1000;
+    transition: top 0.3s ease, opacity 0.3s ease;
+}
+/* Default is success */
+.aiohm-pa-notification-bar {
+    background-color: var(--pa-success-color);
+}
+/* BRANDED: Error state uses highlight color */
+.aiohm-pa-notification-bar.error {
+    background-color: var(--pa-error-color);
+    color: var(--pa-highlight-text-color);
+}
+.aiohm-pa-notification-bar p {
+    margin: 0;
+    padding: 0;
+    font-size: 14px;
+    font-weight: 500;
+    background: none;
+}
+.aiohm-pa-notification-bar .close-btn {
+    cursor: pointer;
+    margin-left: 15px;
+    font-size: 18px;
+}
 
-/* --- Modal Styles --- */
+/* --- 10. Modals --- */
 .aiohm-modal {
     display: none;
     position: fixed;
-    z-index: 1000;
+    z-index: 100000;
     left: 0;
     top: 0;
     width: 100%;
@@ -359,134 +462,38 @@
 }
 .aiohm-modal-content {
     background-color: var(--pa-bg-dark);
-    color: var(--pa-text-primary);
     margin: 15% auto;
     padding: 25px;
     border: 1px solid var(--pa-border-color);
-    width: 80%;
+    width: 90%;
     max-width: 500px;
     border-radius: 8px;
     position: relative;
     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
 }
 .aiohm-modal-close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
     color: #aaa;
-    float: right;
     font-size: 28px;
     font-weight: bold;
-    position: absolute;
-    top: 10px;
-    right: 20px;
+    cursor: pointer;
 }
-.aiohm-modal-close:hover,
-.aiohm-modal-close:focus {
+.aiohm-modal-close:hover {
     color: var(--pa-text-primary);
-    text-decoration: none;
-    cursor: pointer;
-}
-#research-prompt-list {
-    list-style: none;
-    padding: 0;
-    margin: 15px 0;
-}
-#research-prompt-list li {
-    background-color: var(--pa-bg-light);
-    padding: 10px 15px;
-    margin-bottom: 8px;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-#research-prompt-list li:hover {
-    background-color: var(--pa-brand-color);
-}
-#custom-research-prompt {
-    width: 100%;
-    padding: 10px;
-    margin-top: 10px;
-    margin-bottom: 15px;
-    background-color: var(--pa-bg-darkest);
-    border: 1px solid var(--pa-border-color);
-    color: #fff;
-    border-radius: 5px;
 }
 
-/* Notes specific styles */
-.aiohm-pa-notes-content {
-    padding: 20px;
+/* --- 11. Helper & Utility Classes --- */
+.aiohm-no-items {
+    padding: 10px 15px;
+    font-style: italic;
     color: var(--pa-text-secondary);
-    font-size: 14px;
-    flex-grow: 1; /* Allow content to take remaining space */
-    display: flex;
-    flex-direction: column;
+    opacity: 0.7;
 }
 
-.aiohm-pa-notes-content .description {
-    margin-bottom: 15px;
-    color: var(--pa-text-secondary); /* Ensure description text color is visible */
-}
-
-.aiohm-pa-notes-content textarea {
-    width: 100%;
-    flex-grow: 1; /* Allow textarea to take available space */
-    background-color: var(--pa-bg-light); /* Match chat input background */
-    border: 1px solid var(--pa-border-color);
-    color: var(--pa-text-primary);
-    padding: 10px;
-    border-radius: 5px;
-    resize: vertical;
-    margin-bottom: 15px;
-    box-sizing: border-box;
-}
-
-.aiohm-pa-notes-content .button-primary {
-    background-color: var(--pa-brand-color);
-    color: var(--pa-text-primary);
-    border: none;
-    padding: 10px 15px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: background-color 0.2s ease;
-    width: 100%; /* Make button full width */
-}
-
-.aiohm-pa-notes-content .button-primary:hover {
-    background-color: var(--pa-brand-color-hover);
-}
-
-/* Frontend Notification Bar */
-.aiohm-pa-notification-bar {
-    position: absolute;
-    top: 50px; /* Below the header */
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #28a745; /* Success green */
-    color: white;
-    padding: 10px 20px;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: fit-content;
-    z-index: 100;
-}
-
-.aiohm-pa-notification-bar.error {
-    background-color: #dc3545; /* Error red */
-}
-
-.aiohm-pa-notification-bar p {
-    margin: 0;
-    padding: 0;
-    font-size: 14px;
-    background: none; /* Override default message p styles */
-    border-radius: 0;
-}
-
-.aiohm-pa-notification-bar .close-btn {
-    cursor: pointer;
-    margin-left: 15px;
-    font-size: 18px;
+#aiohm-chat-loading {
+    padding: 15px;
+    text-align: center;
+    color: var(--pa-text-secondary);
 }

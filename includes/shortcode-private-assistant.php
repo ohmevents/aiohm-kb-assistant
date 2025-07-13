@@ -1,52 +1,73 @@
 <?php
 /**
  * Shortcode for displaying the private assistant interface.
- * v1.2.6 - Removed logo and moved audio button to input bar.
+ * v1.2.7 - Improved UX with dynamic welcome and smarter button states.
  */
 if (!defined('ABSPATH')) exit;
 
 class AIOHM_KB_Shortcode_Private_Assistant {
 
+    /**
+     * Initializes the shortcode.
+     */
     public static function init() {
         add_shortcode('aiohm_private_assistant', array(__CLASS__, 'render_private_assistant'));
     }
 
-    public static function render_private_assistant() {
+    /**
+     * Renders the private assistant interface.
+     *
+     * @param array $atts Shortcode attributes.
+     * @return string The HTML for the private assistant.
+     */
+    public static function render_private_assistant($atts = []) {
+        // Ensure the user is logged in before rendering the assistant.
         if (!is_user_logged_in()) {
             return '<p class="aiohm-auth-notice">Please <a href="' . esc_url(wp_login_url(get_permalink())) . '">log in</a> to access your private assistant.</p>';
         }
 
-        // --- Fetch settings for dynamic name and the settings page URL ---
+        // --- Process Shortcode Attributes ---
+        // This makes the welcome message customizable.
+        // Example: [aiohm_private_assistant welcome_title="Hello there!" welcome_message="Let's get started."]
+        $atts = shortcode_atts([
+            'welcome_title' => 'Welcome! Here’s a quick guide to the buttons:',
+            'welcome_message' => 'Select a project from the sidebar to begin.',
+        ], $atts, 'aiohm_private_assistant');
+
+
+        // --- Fetch Settings ---
         $all_settings = AIOHM_KB_Assistant::get_settings();
         $muse_settings = $all_settings['muse_mode'] ?? [];
-        $assistant_name = !empty($muse_settings['assistant_name']) ? $muse_settings['assistant_name'] : 'Muse';
+        $assistant_name = !empty($muse_settings['assistant_name']) ? esc_html($muse_settings['assistant_name']) : 'Muse';
         $settings_page_url = admin_url('admin.php?page=aiohm-muse-mode');
 
-        // Enqueue scripts and styles
+        // --- Enqueue Necessary Scripts and Styles ---
         wp_enqueue_style('aiohm-private-chat-style', AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-private-chat.css', [], AIOHM_KB_VERSION);
         wp_enqueue_script('aiohm-private-chat-js', AIOHM_KB_PLUGIN_URL . 'assets/js/aiohm-private-chat.js', ['jquery'], AIOHM_KB_VERSION, true);
         
-        // Localize script parameters
+        // Pass data from PHP to our JavaScript file.
         wp_localize_script('aiohm-private-chat-js', 'aiohm_private_chat_params', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('aiohm_private_chat_nonce'),
             'user_name' => wp_get_current_user()->display_name,
         ]);
 
+        // Start output buffering to capture the HTML.
         ob_start();
         ?>
         <div id="aiohm-app-container" class="aiohm-private-assistant-container modern sidebar-open">
+            
             <aside class="aiohm-pa-sidebar">
                 <div class="aiohm-pa-sidebar-header">
-                    <h3 style="color: white; margin-top: 10px;"><?php echo esc_html($assistant_name); ?></h3>
+                    <h3 style="color: white; margin-top: 10px;"><?php echo $assistant_name; ?></h3>
                 </div>
 
                 <div class="aiohm-pa-actions">
-                    <button class="aiohm-pa-action-btn" id="new-project-btn">
+                    <button class="aiohm-pa-action-btn" id="new-project-btn" title="Start a new project folder">
                         <span class="dashicons dashicons-plus"></span>
                         New Project
                     </button>
-                    <button class="aiohm-pa-action-btn" id="new-chat-btn">
+                    <button class="aiohm-pa-action-btn" id="new-chat-btn" title="Start a fresh conversation">
                         <span class="dashicons dashicons-format-chat"></span>
                         New Chat
                     </button>
@@ -74,21 +95,14 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                 </nav>
 
                 <div class="aiohm-pa-sidebar-footer">
-                    <div>
-                        <a href="<?php echo esc_url($settings_page_url); ?>" class="aiohm-footer-settings-link" title="Muse Mode Settings">
-                             Settings
-                        </a>
-                    </div>
-                    <div>
-                        <span class="aiohm-footer-version">AIOHM KB Assistant v<?php echo AIOHM_KB_VERSION; ?></span>
-                    </div>
+                    <a href="<?php echo esc_url($settings_page_url); ?>" class="aiohm-footer-settings-link" title="Muse Mode Settings">Settings</a>
+                    <span class="aiohm-footer-version">AIOHM KB v<?php echo AIOHM_KB_VERSION; ?></span>
                 </div>
-
             </aside>
 
             <main class="aiohm-pa-content-wrapper">
                 <header class="aiohm-pa-header">
-                    <button class="aiohm-pa-header-btn" id="sidebar-toggle">
+                    <button class="aiohm-pa-header-btn" id="sidebar-toggle" title="Toggle Sidebar">
                         <span class="dashicons dashicons-menu-alt"></span>
                     </button>
                     <h2 class="aiohm-pa-header-title" id="project-title">Select a Project</h2>
@@ -110,7 +124,6 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                             <span class="dashicons dashicons-fullscreen-alt"></span>
                         </button>
                     </div>
-
                 </header>
                 
                 <div id="aiohm-pa-notification" class="aiohm-pa-notification-bar" style="display: none;">
@@ -119,15 +132,15 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                 </div>
 
                 <div class="conversation-panel" id="conversation-panel">
-                    <div class="message system">
-                        <p>Welcome! Before you start, here's what the buttons in the top-right do:</p>
-                        <ul style="text-align: left; display: inline-block; margin-top: 10px;">
-                            <li><span class="dashicons dashicons-search"></span>: Research a live website for real-time information.</li>
-                            <li><span class="dashicons dashicons-download"></span>: Download your current chat history as a PDF.</li>
-                            <li><span class="dashicons dashicons-edit"></span>: Toggle the Notes sidebar to jot down ideas.</li>
-                            <li><span class="dashicons dashicons-fullscreen-alt"></span>: Toggle Fullscreen mode.</li>
+                    <div class="message system" id="welcome-instructions">
+                        <h4><?php echo esc_html($atts['welcome_title']); ?></h4>
+                        <ul class="aiohm-instructions-list">
+                            <li><span class="dashicons dashicons-search"></span> <div><strong>Research Online</strong><p>Fetch real-time information from a website.</p></div></li>
+                            <li><span class="dashicons dashicons-download"></span> <div><strong>Download Chat</strong><p>Save your current conversation as a PDF.</p></div></li>
+                            <li><span class="dashicons dashicons-edit"></span> <div><strong>Toggle Notes</strong><p>Open a sidebar to jot down ideas.</p></div></li>
+                            <li><span class="dashicons dashicons-fullscreen-alt"></span> <div><strong>Go Fullscreen</strong><p>Expand the interface to fill the screen.</p></div></li>
                         </ul>
-                        <p>Select a project from the sidebar to begin.</p>
+                        <p><?php echo esc_html($atts['welcome_message']); ?></p>
                     </div>
                 </div>
                 
@@ -139,10 +152,10 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                     <form id="private-chat-form">
                         <div class="aiohm-pa-input-area">
                             <textarea id="chat-input" placeholder="Type your message..." rows="1" disabled></textarea>
-                            <button id="send-btn" disabled>
+                            <button id="send-btn" type="submit" disabled>
                                 <span class="dashicons dashicons-arrow-right-alt2"></span>
                             </button>
-                            <button class="aiohm-pa-header-btn" id="activate-audio-btn" title="Activate voice-to-text">
+                            <button class="aiohm-pa-header-btn" id="activate-audio-btn" type="button" title="Activate voice-to-text">
                                 <span class="dashicons dashicons-microphone"></span>
                             </button>
                         </div>
@@ -165,6 +178,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
             </aside>
         </div>
         <?php
+        // Return the captured HTML.
         return ob_get_clean();
     }
 }

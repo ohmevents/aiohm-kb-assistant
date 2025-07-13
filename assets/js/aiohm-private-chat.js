@@ -1,11 +1,24 @@
+/**
+ * AIOHM Private Assistant Frontend Script
+ * v1.2.7
+ *
+ * - Handles all frontend logic for the private assistant, including AJAX communication,
+ * UI updates, and state management.
+ * - Replaces browser popups with integrated UI elements for a better user experience.
+ * - Manages application state to intelligently enable/disable UI controls.
+ */
 jQuery(document).ready(function($) {
     'use strict';
 
-    // --- State Management ---
+    // ====================================================================
+    // 1. STATE MANAGEMENT
+    // ====================================================================
     let currentProjectId = null;
     let currentConversationId = null;
 
-    // --- DOM Elements ---
+    // ====================================================================
+    // 2. DOM ELEMENT CACHING
+    // ====================================================================
     const appContainer = $('#aiohm-app-container');
     const chatInput = $('#chat-input');
     const sendBtn = $('#send-btn');
@@ -14,20 +27,41 @@ jQuery(document).ready(function($) {
     const conversationList = $('.aiohm-pa-conversation-list');
     const projectTitle = $('#project-title');
     const loadingIndicator = $('#aiohm-chat-loading');
-    const notesInput = $('#muse-notes-input'); // Added for notes
-    const notificationBar = $('#aiohm-pa-notification'); // Added for notification
-    const notificationMessage = $('#aiohm-pa-notification p'); // Added for notification message
+    const notificationBar = $('#aiohm-pa-notification');
+    const notificationMessage = $('#aiohm-pa-notification p');
+    const welcomeInstructions = $('#welcome-instructions');
+
+    // --- Buttons ---
+    const newProjectBtn = $('#new-project-btn');
+    const newChatBtn = $('#new-chat-btn');
+    const addToKbBtn = $('#add-to-kb-btn');
+    const fullscreenBtn = $('#fullscreen-toggle-btn');
+    const projectActionsContainer = $('.aiohm-pa-actions');
 
 
-    // --- Helper Functions ---
+    // ====================================================================
+    // 3. HELPER FUNCTIONS
+    // ====================================================================
+
+    /**
+     * Displays a slide-in notification message.
+     * @param {string} message - The message to display.
+     * @param {string} type - 'success' or 'error'.
+     */
+    function showNotification(message, type = 'success') {
+        notificationMessage.text(message);
+        notificationBar.removeClass('success error').addClass(type);
+        notificationBar.fadeIn().delay(4000).fadeOut(); // Show for 4 seconds
+    }
+
     /**
      * Appends a message to the chat panel.
-     * @param {string} sender - 'user' or the assistant's name.
-     * @param {string} text - The message content.
+     * @param {string} sender - 'user', 'assistant', or 'system'.
+     * @param {string} text - The message content (HTML is allowed).
      */
     function appendMessage(sender, text) {
-        const messageClass = sender.toLowerCase() === 'user' ? 'user' : 'assistant';
-        const senderName = sender.toLowerCase() === 'user' ? 'You' : sender;
+        const messageClass = sender.toLowerCase();
+        const senderName = sender.toLowerCase() === 'user' ? 'You' : (sender.charAt(0).toUpperCase() + sender.slice(1));
         const messageHTML = `
             <div class="message ${messageClass}">
                 <p><strong>${senderName}:</strong> ${text}</p>
@@ -37,12 +71,13 @@ jQuery(document).ready(function($) {
     }
 
     /**
-     * Handles AJAX requests.
-     * @param {string} action - The WordPress AJAX action hook.
+     * Performs a standardized AJAX request.
+     * @param {string} action - The WordPress AJAX action.
      * @param {object} data - The data to send.
      * @returns {Promise}
      */
     function performAjaxRequest(action, data) {
+        loadingIndicator.show();
         return $.ajax({
             url: aiohm_private_chat_params.ajax_url,
             type: 'POST',
@@ -50,40 +85,46 @@ jQuery(document).ready(function($) {
                 action: action,
                 nonce: aiohm_private_chat_params.nonce,
                 ...data
-            },
-            beforeSend: function() {
-                loadingIndicator.show();
-                notificationBar.fadeOut(); // Hide any existing notifications
-            },
-            complete: function() {
-                loadingIndicator.hide();
             }
+        }).always(function() {
+            loadingIndicator.hide();
         });
     }
 
     /**
-     * Displays a notification message.
-     * @param {string} message - The message to display.
-     * @param {string} type - 'success' or 'error'.
+     * Updates the state of UI controls based on the current context.
+     * This is crucial for enabling/disabling buttons correctly.
      */
-    function showNotification(message, type = 'success') {
-        notificationMessage.text(message);
-        notificationBar.removeClass('success error').addClass(type);
-        notificationBar.fadeIn().delay(3000).fadeOut(); // Show for 3 seconds
+    function updateChatUIState() {
+        const isProjectSelected = !!currentProjectId;
+        const isConversationActive = !!currentConversationId;
+
+        // Enable chat input and send button only when a project is selected
+        chatInput.prop('disabled', !isProjectSelected);
+        sendBtn.prop('disabled', !isProjectSelected);
+
+        // Enable "Add to KB" button only when a conversation has been started/loaded
+        addToKbBtn.prop('disabled', !isConversationActive);
+
+        if (!isProjectSelected) {
+            projectTitle.text('Select a Project');
+        }
     }
 
 
-    // --- Core Functionality ---
+    // ====================================================================
+    // 4. CORE FUNCTIONALITY
+    // ====================================================================
 
     /**
-     * Loads all projects and conversations for the user.
+     * Loads the initial project and conversation history.
      */
     function loadHistory() {
         performAjaxRequest('aiohm_load_history', {}).done(function(response) {
             if (response.success) {
                 // Populate Projects
                 projectList.empty();
-                if (response.data.projects.length > 0) {
+                if (response.data.projects && response.data.projects.length > 0) {
                     response.data.projects.forEach(proj => {
                         projectList.append(`<a href="#" class="aiohm-pa-list-item" data-id="${proj.id}">${proj.name}</a>`);
                     });
@@ -91,10 +132,9 @@ jQuery(document).ready(function($) {
                     projectList.append('<p class="aiohm-no-items">No projects yet.</p>');
                 }
 
-
                 // Populate Conversations
                 conversationList.empty();
-                if (response.data.conversations.length > 0) {
+                if (response.data.conversations && response.data.conversations.length > 0) {
                     response.data.conversations.forEach(convo => {
                         conversationList.append(`<a href="#" class="aiohm-pa-list-item" data-id="${convo.id}">${convo.title}</a>`);
                     });
@@ -110,14 +150,18 @@ jQuery(document).ready(function($) {
     }
 
     /**
-     * Handles sending a chat message.
+     * Handles sending a chat message from the user.
      */
     function sendMessage() {
         const message = chatInput.val().trim();
         if (!message || !currentProjectId) {
+            if (!currentProjectId) {
+                showNotification('Please select a project first!', 'error');
+            }
             return;
         }
 
+        welcomeInstructions.hide(); // Hide instructions on first message
         appendMessage('user', message);
         chatInput.val('');
 
@@ -127,165 +171,168 @@ jQuery(document).ready(function($) {
             conversation_id: currentConversationId
         }).done(function(response) {
             if (response.success) {
-                appendMessage('Assistant', response.data.reply);
+                appendMessage('assistant', response.data.reply);
+                // If this was the first message, a new conversation was created.
                 if (response.data.conversation_id && !currentConversationId) {
                     currentConversationId = response.data.conversation_id;
-                    loadHistory(); // Refresh lists to show new conversation
+                    loadHistory(); // Refresh lists to show the new conversation.
                 }
             } else {
-                appendMessage('System', 'Error: Could not get a response. ' + (response.data.message || ''));
-                showNotification('Error getting AI response: ' + (response.data.message || 'Unknown error.'), 'error');
+                appendMessage('System', 'Error: ' + (response.data.message || 'Could not get a response.'));
             }
         }).fail(function() {
-            appendMessage('System', 'Error: AJAX request failed.');
-            showNotification('Error sending message. Please check your connection.', 'error');
+            appendMessage('System', 'Error: The request to the server failed. Please check your connection.');
+        }).always(function() {
+            updateChatUIState(); // Re-check button states
         });
     }
 
-    // --- Event Listeners ---
+    /**
+     * Displays an inline form for creating a new project.
+     * REPLACES the old `prompt()` popup.
+     */
+    function showNewProjectForm() {
+        // Hide the main buttons
+        newProjectBtn.hide();
+        newChatBtn.hide();
 
-    // Send message on form submit
+        // Show the form
+        const formHTML = `
+            <div id="new-project-form" class="aiohm-pa-inline-form">
+                <input type="text" id="new-project-name" placeholder="Enter project name..." />
+                <button id="create-project-confirm" class="aiohm-pa-form-btn-confirm">Create</button>
+                <button id="create-project-cancel" class="aiohm-pa-form-btn-cancel">Cancel</button>
+            </div>
+        `;
+        projectActionsContainer.append(formHTML);
+        $('#new-project-name').focus();
+    }
+
+    /**
+     * Hides the inline new project form and restores the buttons.
+     */
+    function hideNewProjectForm() {
+        $('#new-project-form').remove();
+        newProjectBtn.show();
+        newChatBtn.show();
+    }
+
+
+    // ====================================================================
+    // 5. EVENT LISTENERS
+    // ====================================================================
+
+    // --- Main Chat Form ---
     $('#private-chat-form').on('submit', function(e) {
         e.preventDefault();
         sendMessage();
     });
 
-    // Create New Project
-    $('#new-project-btn').on('click', function() {
-        const projectName = prompt('Enter a name for your new project:', 'New Project');
-        if (projectName && projectName.trim() !== '') {
-            performAjaxRequest('aiohm_create_project', { name: projectName.trim() }).done(function(response) {
-                if (response.success) {
-                    showNotification('Project "' + projectName.trim() + '" created successfully!');
-                    loadHistory();
-                } else {
-                    showNotification('Error creating project: ' + (response.data.message || 'Unknown error.'), 'error');
-                }
-            }).fail(function() {
-                showNotification('Error creating project. Please try again.', 'error');
-            });
+    // --- New Project Creation (No Popup) ---
+    newProjectBtn.on('click', showNewProjectForm);
+
+    projectActionsContainer.on('click', '#create-project-cancel', hideNewProjectForm);
+
+    projectActionsContainer.on('click', '#create-project-confirm', function() {
+        const projectName = $('#new-project-name').val().trim();
+        if (!projectName) {
+            showNotification('Project name cannot be empty.', 'error');
+            return;
         }
+
+        performAjaxRequest('aiohm_create_project', { name: projectName }).done(function(response) {
+            if (response.success) {
+                showNotification(`Project "${projectName}" created successfully!`, 'success');
+                loadHistory(); // Refresh the project list
+            } else {
+                showNotification('Error: ' + (response.data.message || 'Could not create project.'), 'error');
+            }
+        }).fail(function() {
+            showNotification('An unexpected error occurred while creating the project.', 'error');
+        }).always(function() {
+            hideNewProjectForm();
+        });
     });
 
-    // Select a Project
+    // --- Sidebar Item Selection ---
     projectList.on('click', '.aiohm-pa-list-item', function(e) {
         e.preventDefault();
-        $('.aiohm-pa-list-item').removeClass('active'); // Remove active from all
-        $(this).addClass('active'); // Add active to clicked item
+        $('.aiohm-pa-list-item').removeClass('active');
+        $(this).addClass('active');
 
         currentProjectId = $(this).data('id');
-        currentConversationId = null; // Start a new conversation for this project
+        currentConversationId = null; // Always start a new chat when a project is clicked
         projectTitle.text($(this).text());
-        conversationPanel.html('<div class="message system"><p>New chat started in project: ' + $(this).text() + '</p></div>');
-        chatInput.prop('disabled', false);
-        sendBtn.prop('disabled', false);
-        // Maybe fetch previous conversations for this project here
+        conversationPanel.html('<div class="message system"><p>New chat started in project: <strong>' + $(this).text() + '</strong></p></div>');
+        welcomeInstructions.hide();
+        updateChatUIState();
     });
 
-    // Select a Conversation
     conversationList.on('click', '.aiohm-pa-list-item', function(e) {
         e.preventDefault();
-        $('.aiohm-pa-list-item').removeClass('active'); // Remove active from all
-        $(this).addClass('active'); // Add active to clicked item
+        $('.aiohm-pa-list-item').removeClass('active');
+        $(this).addClass('active');
 
         currentConversationId = $(this).data('id');
-        projectTitle.text($(this).text()); // Set title to conversation title
-        chatInput.prop('disabled', false);
-        sendBtn.prop('disabled', false);
 
-        // Fetch conversation history
         performAjaxRequest('aiohm_load_conversation', { conversation_id: currentConversationId }).done(function(response) {
             if (response.success && response.data.messages) {
-                conversationPanel.empty(); // Clear current messages
+                conversationPanel.empty();
+                welcomeInstructions.hide();
                 response.data.messages.forEach(msg => {
-                    appendMessage(msg.sender, msg.message_content); // Assuming message_content field
+                    appendMessage(msg.sender, msg.message_content);
                 });
-                // Set the current project ID based on the conversation's project_id
-                currentProjectId = response.data.project_id; 
+                currentProjectId = response.data.project_id; // Important: update the project context
+                projectTitle.text(response.data.project_name || 'Conversation'); // Update title
             } else {
                 showNotification('Error loading conversation: ' + (response.data.message || 'Unknown error.'), 'error');
             }
         }).fail(function() {
-            showNotification('Error loading conversation. Please try again.', 'error');
+            showNotification('Failed to load conversation history.', 'error');
+        }).always(function() {
+            updateChatUIState();
         });
     });
 
+    // --- Header Buttons ---
 
-    // --- Research Modal Logic (Existing) ---
-    const researchModal = $('#research-prompt-modal'); // Ensure this ID is correct, typically it's specific for a modal.
-    const researchPromptList = $('#research-prompt-list');
-    const customResearchPrompt = $('#custom-research-prompt');
-
-    $('#research-online-prompt-btn').on('click', function() {
-        if(currentProjectId) {
-             researchModal.show();
-        } else {
-            showNotification("Please select a project first to research online.", 'error');
-        }
-    });
-
-    $('.aiohm-modal-close').on('click', function() {
-        researchModal.hide();
-    });
-
-    researchPromptList.on('click', 'li', function() {
-        const promptTemplate = $(this).data('prompt');
-        chatInput.val(promptTemplate);
-        researchModal.hide();
-    });
-
-    $('#start-research-btn').on('click', function() {
-        const customPrompt = customResearchPrompt.val().trim();
-        if (customPrompt) {
-            chatInput.val(customPrompt);
-            researchModal.hide();
-        }
-    });
-
-    // --- Notes Sidebar Toggle Logic ---
-    $('#toggle-notes-btn').on('click', function() {
-        appContainer.toggleClass('notes-open');
-    });
-
-    $('#close-notes-btn').on('click', function() {
-        appContainer.removeClass('notes-open');
-    });
-
-    // --- Add Note to KB Logic (Frontend only for now, needs backend AJAX) ---
-    $('#add-note-to-kb-btn').on('click', function() {
-        const noteContent = notesInput.val().trim();
-        if (!noteContent) {
-            showNotification('Note cannot be empty!', 'error');
-            return;
-        }
+    // ** New Chat Button **
+    newChatBtn.on('click', function() {
         if (!currentProjectId) {
-            showNotification('Please select a project before adding a note to the Knowledge Base.', 'error');
+            showNotification('Please select a project before starting a new chat.', 'error');
             return;
         }
-
-        // TODO: Implement actual AJAX call to save note to KB
-        performAjaxRequest('aiohm_add_note_to_kb', {
-            project_id: currentProjectId,
-            note_content: noteContent
-        }).done(function(response) {
-            if (response.success) {
-                showNotification('Note added to Knowledge Base successfully!');
-                notesInput.val(''); // Clear the notes input
-                // Optionally, refresh a notes list if one is implemented later
-            } else {
-                showNotification('Error adding note to KB: ' + (response.data.message || 'Unknown error.'), 'error');
-            }
-        }).fail(function() {
-            showNotification('Error adding note to KB. Please try again.', 'error');
-        });
+        currentConversationId = null;
+        conversationPanel.html('<div class="message system"><p>New chat started.</p></div>');
+        welcomeInstructions.hide();
+        updateChatUIState();
     });
 
-    // Close notification bar when close button is clicked
+    // ** Fullscreen Toggle Button **
+    fullscreenBtn.on('click', function() {
+        appContainer.toggleClass('fullscreen-mode');
+        // This class on the body is what allows the CSS to hide the admin bar
+        $('body').toggleClass('aiohm-fullscreen-body-no-scroll');
+
+        // Update tooltip/icon if desired
+        if (appContainer.hasClass('fullscreen-mode')) {
+            $(this).attr('title', 'Exit Fullscreen');
+            $(this).find('.dashicons').removeClass('dashicons-fullscreen-alt').addClass('dashicons-fullscreen-exit-alt');
+        } else {
+            $(this).attr('title', 'Toggle Fullscreen');
+            $(this).find('.dashicons').removeClass('dashicons-fullscreen-exit-alt').addClass('dashicons-fullscreen-alt');
+        }
+    });
+
+    // --- Notification Close Button ---
     notificationBar.on('click', '.close-btn', function() {
         notificationBar.fadeOut();
     });
 
 
-    // --- Initial Load ---
+    // ====================================================================
+    // 6. INITIALIZATION
+    // ====================================================================
     loadHistory();
+    updateChatUIState(); // Set initial button states
 });
