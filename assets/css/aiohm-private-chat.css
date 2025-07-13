@@ -25,6 +25,7 @@
     color: var(--pa-text-primary);
     border-radius: 8px;
     overflow: hidden;
+    position: relative; /* Needed for absolute positioning of notification */
 }
 
 /* --- Sidebar --- */
@@ -34,13 +35,42 @@
     display: flex;
     flex-direction: column;
     transition: width 0.3s ease;
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
-.aiohm-pa-sidebar-header, .aiohm-pa-sidebar-footer {
+/* Notes Sidebar */
+.aiohm-pa-notes-sidebar {
+    width: 0; /* Initially hidden */
+    background-color: var(--pa-bg-darkest); /* Match left sidebar */
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease;
+    overflow: hidden; /* Hide content when collapsed */
+    flex-shrink: 0; /* Prevent shrinking */
+    padding: 0; /* Control padding with transition */
+}
+
+.aiohm-private-assistant-container.notes-open .aiohm-pa-notes-sidebar {
+    width: 300px; /* Desired width when open */
+    padding: 20px; /* Add padding when open */
+}
+
+
+.aiohm-pa-sidebar-header, .aiohm-pa-sidebar-footer, .aiohm-pa-notes-header {
     padding: 20px;
     text-align: center;
     flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--pa-border-color); /* Add border for consistency */
 }
+
+.aiohm-pa-notes-header h3 {
+    margin: 0;
+    color: var(--pa-text-primary);
+}
+
 
 /* --- Action Buttons --- */
 .aiohm-pa-actions {
@@ -159,6 +189,8 @@
 }
 .aiohm-pa-window-controls {
     margin-left: auto;
+    display: flex; /* Ensure buttons are in a row */
+    gap: 5px; /* Spacing between buttons */
 }
 .aiohm-pa-header-btn {
     background: none;
@@ -352,4 +384,84 @@
     border: 1px solid var(--pa-border-color);
     color: #fff;
     border-radius: 5px;
+}
+
+/* Notes specific styles */
+.aiohm-pa-notes-content {
+    padding: 20px;
+    color: var(--pa-text-secondary);
+    font-size: 14px;
+    flex-grow: 1; /* Allow content to take remaining space */
+    display: flex;
+    flex-direction: column;
+}
+
+.aiohm-pa-notes-content .description {
+    margin-bottom: 15px;
+    color: var(--pa-text-secondary); /* Ensure description text color is visible */
+}
+
+.aiohm-pa-notes-content textarea {
+    width: 100%;
+    flex-grow: 1; /* Allow textarea to take available space */
+    background-color: var(--pa-bg-light); /* Match chat input background */
+    border: 1px solid var(--pa-border-color);
+    color: var(--pa-text-primary);
+    padding: 10px;
+    border-radius: 5px;
+    resize: vertical;
+    margin-bottom: 15px;
+    box-sizing: border-box;
+}
+
+.aiohm-pa-notes-content .button-primary {
+    background-color: var(--pa-brand-color);
+    color: var(--pa-text-primary);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+    width: 100%; /* Make button full width */
+}
+
+.aiohm-pa-notes-content .button-primary:hover {
+    background-color: var(--pa-brand-color-hover);
+}
+
+/* Frontend Notification Bar */
+.aiohm-pa-notification-bar {
+    position: absolute;
+    top: 50px; /* Below the header */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #28a745; /* Success green */
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: fit-content;
+    z-index: 100;
+}
+
+.aiohm-pa-notification-bar.error {
+    background-color: #dc3545; /* Error red */
+}
+
+.aiohm-pa-notification-bar p {
+    margin: 0;
+    padding: 0;
+    font-size: 14px;
+    background: none; /* Override default message p styles */
+    border-radius: 0;
+}
+
+.aiohm-pa-notification-bar .close-btn {
+    cursor: pointer;
+    margin-left: 15px;
+    font-size: 18px;
 }

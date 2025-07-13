@@ -103,9 +103,17 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                         <button class="aiohm-pa-header-btn" id="add-to-kb-btn" title="Add Chat to Knowledge Base" disabled>
                             <span class="dashicons dashicons-database-add"></span>
                         </button>
+                        <button class="aiohm-pa-header-btn" id="toggle-notes-btn" title="Open Notes">
+                            <span class="dashicons dashicons-edit"></span>
+                        </button>
                     </div>
 
                 </header>
+                
+                <div id="aiohm-pa-notification" class="aiohm-pa-notification-bar" style="display: none;">
+                    <p></p>
+                    <span class="close-btn dashicons dashicons-no-alt"></span>
+                </div>
 
                 <div class="conversation-panel" id="conversation-panel">
                     <div class="message system">
@@ -113,6 +121,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                         <ul style="text-align: left; display: inline-block; margin-top: 10px;">
                             <li><span class="dashicons dashicons-search"></span>: Research a live website for real-time information.</li>
                             <li><span class="dashicons dashicons-download"></span>: Download your current chat history as a PDF.</li>
+                            <li><span class="dashicons dashicons-edit"></span>: Toggle the Notes sidebar to jot down ideas.</li>
                         </ul>
                         <p>Select a project from the sidebar to begin.</p>
                     </div>
@@ -136,6 +145,20 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                     </form>
                 </div>
             </main>
+
+            <aside class="aiohm-pa-notes-sidebar">
+                <div class="aiohm-pa-notes-header">
+                    <h3>Notes</h3>
+                    <button class="aiohm-pa-header-btn" id="close-notes-btn" title="Close Notes">
+                        <span class="dashicons dashicons-no-alt"></span>
+                    </button>
+                </div>
+                <div class="aiohm-pa-notes-content">
+                    <p class="description">Jot down ideas or important points here. Add them to your Knowledge Base for future reference.</p>
+                    <textarea id="muse-notes-input" placeholder="Write your notes here..." rows="10"></textarea>
+                    <button type="button" id="add-note-to-kb-btn" class="button button-primary">Add Note to KB</button>
+                </div>
+            </aside>
         </div>
         <?php
         return ob_get_clean();

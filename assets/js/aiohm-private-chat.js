@@ -6,6 +6,7 @@ jQuery(document).ready(function($) {
     let currentConversationId = null;
 
     // --- DOM Elements ---
+    const appContainer = $('#aiohm-app-container');
     const chatInput = $('#chat-input');
     const sendBtn = $('#send-btn');
     const conversationPanel = $('#conversation-panel');
@@ -13,6 +14,10 @@ jQuery(document).ready(function($) {
     const conversationList = $('.aiohm-pa-conversation-list');
     const projectTitle = $('#project-title');
     const loadingIndicator = $('#aiohm-chat-loading');
+    const notesInput = $('#muse-notes-input'); // Added for notes
+    const notificationBar = $('#aiohm-pa-notification'); // Added for notification
+    const notificationMessage = $('#aiohm-pa-notification p'); // Added for notification message
+
 
     // --- Helper Functions ---
     /**
@@ -48,12 +53,25 @@ jQuery(document).ready(function($) {
             },
             beforeSend: function() {
                 loadingIndicator.show();
+                notificationBar.fadeOut(); // Hide any existing notifications
             },
             complete: function() {
                 loadingIndicator.hide();
             }
         });
     }
+
+    /**
+     * Displays a notification message.
+     * @param {string} message - The message to display.
+     * @param {string} type - 'success' or 'error'.
+     */
+    function showNotification(message, type = 'success') {
+        notificationMessage.text(message);
+        notificationBar.removeClass('success error').addClass(type);
+        notificationBar.fadeIn().delay(3000).fadeOut(); // Show for 3 seconds
+    }
+
 
     // --- Core Functionality ---
 
@@ -65,16 +83,29 @@ jQuery(document).ready(function($) {
             if (response.success) {
                 // Populate Projects
                 projectList.empty();
-                response.data.projects.forEach(proj => {
-                    projectList.append(`<a href="#" class="aiohm-pa-list-item" data-id="${proj.id}">${proj.name}</a>`);
-                });
+                if (response.data.projects.length > 0) {
+                    response.data.projects.forEach(proj => {
+                        projectList.append(`<a href="#" class="aiohm-pa-list-item" data-id="${proj.id}">${proj.name}</a>`);
+                    });
+                } else {
+                    projectList.append('<p class="aiohm-no-items">No projects yet.</p>');
+                }
+
 
                 // Populate Conversations
                 conversationList.empty();
-                response.data.conversations.forEach(convo => {
-                    conversationList.append(`<a href="#" class="aiohm-pa-list-item" data-id="${convo.id}">${convo.title}</a>`);
-                });
+                if (response.data.conversations.length > 0) {
+                    response.data.conversations.forEach(convo => {
+                        conversationList.append(`<a href="#" class="aiohm-pa-list-item" data-id="${convo.id}">${convo.title}</a>`);
+                    });
+                } else {
+                    conversationList.append('<p class="aiohm-no-items">No conversations yet.</p>');
+                }
+            } else {
+                showNotification('Failed to load history: ' + (response.data.message || 'Unknown error.'), 'error');
             }
+        }).fail(function() {
+            showNotification('Error loading history. Please try again.', 'error');
         });
     }
 
@@ -99,13 +130,15 @@ jQuery(document).ready(function($) {
                 appendMessage('Assistant', response.data.reply);
                 if (response.data.conversation_id && !currentConversationId) {
                     currentConversationId = response.data.conversation_id;
-                    loadHistory(); // Refresh lists
+                    loadHistory(); // Refresh lists to show new conversation
                 }
             } else {
-                appendMessage('System', 'Error: Could not get a response.');
+                appendMessage('System', 'Error: Could not get a response. ' + (response.data.message || ''));
+                showNotification('Error getting AI response: ' + (response.data.message || 'Unknown error.'), 'error');
             }
         }).fail(function() {
             appendMessage('System', 'Error: AJAX request failed.');
+            showNotification('Error sending message. Please check your connection.', 'error');
         });
     }
 
@@ -123,11 +156,13 @@ jQuery(document).ready(function($) {
         if (projectName && projectName.trim() !== '') {
             performAjaxRequest('aiohm_create_project', { name: projectName.trim() }).done(function(response) {
                 if (response.success) {
-                    alert('Project created!');
+                    showNotification('Project "' + projectName.trim() + '" created successfully!');
                     loadHistory();
                 } else {
-                    alert('Error: ' + response.data.message);
+                    showNotification('Error creating project: ' + (response.data.message || 'Unknown error.'), 'error');
                 }
+            }).fail(function() {
+                showNotification('Error creating project. Please try again.', 'error');
             });
         }
     });
@@ -135,16 +170,49 @@ jQuery(document).ready(function($) {
     // Select a Project
     projectList.on('click', '.aiohm-pa-list-item', function(e) {
         e.preventDefault();
+        $('.aiohm-pa-list-item').removeClass('active'); // Remove active from all
+        $(this).addClass('active'); // Add active to clicked item
+
         currentProjectId = $(this).data('id');
-        currentConversationId = null; // Start a new conversation
+        currentConversationId = null; // Start a new conversation for this project
         projectTitle.text($(this).text());
         conversationPanel.html('<div class="message system"><p>New chat started in project: ' + $(this).text() + '</p></div>');
         chatInput.prop('disabled', false);
         sendBtn.prop('disabled', false);
+        // Maybe fetch previous conversations for this project here
     });
 
-    // --- Research Modal Logic ---
-    const researchModal = $('#research-prompt-modal');
+    // Select a Conversation
+    conversationList.on('click', '.aiohm-pa-list-item', function(e) {
+        e.preventDefault();
+        $('.aiohm-pa-list-item').removeClass('active'); // Remove active from all
+        $(this).addClass('active'); // Add active to clicked item
+
+        currentConversationId = $(this).data('id');
+        projectTitle.text($(this).text()); // Set title to conversation title
+        chatInput.prop('disabled', false);
+        sendBtn.prop('disabled', false);
+
+        // Fetch conversation history
+        performAjaxRequest('aiohm_load_conversation', { conversation_id: currentConversationId }).done(function(response) {
+            if (response.success && response.data.messages) {
+                conversationPanel.empty(); // Clear current messages
+                response.data.messages.forEach(msg => {
+                    appendMessage(msg.sender, msg.message_content); // Assuming message_content field
+                });
+                // Set the current project ID based on the conversation's project_id
+                currentProjectId = response.data.project_id; 
+            } else {
+                showNotification('Error loading conversation: ' + (response.data.message || 'Unknown error.'), 'error');
+            }
+        }).fail(function() {
+            showNotification('Error loading conversation. Please try again.', 'error');
+        });
+    });
+
+
+    // --- Research Modal Logic (Existing) ---
+    const researchModal = $('#research-prompt-modal'); // Ensure this ID is correct, typically it's specific for a modal.
     const researchPromptList = $('#research-prompt-list');
     const customResearchPrompt = $('#custom-research-prompt');
 
@@ -152,7 +220,7 @@ jQuery(document).ready(function($) {
         if(currentProjectId) {
              researchModal.show();
         } else {
-            alert("Please select a project first.");
+            showNotification("Please select a project first to research online.", 'error');
         }
     });
 
@@ -173,6 +241,50 @@ jQuery(document).ready(function($) {
             researchModal.hide();
         }
     });
+
+    // --- Notes Sidebar Toggle Logic ---
+    $('#toggle-notes-btn').on('click', function() {
+        appContainer.toggleClass('notes-open');
+    });
+
+    $('#close-notes-btn').on('click', function() {
+        appContainer.removeClass('notes-open');
+    });
+
+    // --- Add Note to KB Logic (Frontend only for now, needs backend AJAX) ---
+    $('#add-note-to-kb-btn').on('click', function() {
+        const noteContent = notesInput.val().trim();
+        if (!noteContent) {
+            showNotification('Note cannot be empty!', 'error');
+            return;
+        }
+        if (!currentProjectId) {
+            showNotification('Please select a project before adding a note to the Knowledge Base.', 'error');
+            return;
+        }
+
+        // TODO: Implement actual AJAX call to save note to KB
+        performAjaxRequest('aiohm_add_note_to_kb', {
+            project_id: currentProjectId,
+            note_content: noteContent
+        }).done(function(response) {
+            if (response.success) {
+                showNotification('Note added to Knowledge Base successfully!');
+                notesInput.val(''); // Clear the notes input
+                // Optionally, refresh a notes list if one is implemented later
+            } else {
+                showNotification('Error adding note to KB: ' + (response.data.message || 'Unknown error.'), 'error');
+            }
+        }).fail(function() {
+            showNotification('Error adding note to KB. Please try again.', 'error');
+        });
+    });
+
+    // Close notification bar when close button is clicked
+    notificationBar.on('click', '.close-btn', function() {
+        notificationBar.fadeOut();
+    });
+
 
     // --- Initial Load ---
     loadHistory();
