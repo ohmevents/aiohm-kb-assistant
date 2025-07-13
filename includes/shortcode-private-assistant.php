@@ -1,7 +1,7 @@
 <?php
 /**
  * Shortcode for displaying the private assistant interface.
- * v1.2.0
+ * v1.2.5 - Moves settings link to the sidebar footer for better UI flow.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -16,8 +16,17 @@ class AIOHM_KB_Shortcode_Private_Assistant {
             return '<p class="aiohm-auth-notice">Please <a href="' . esc_url(wp_login_url(get_permalink())) . '">log in</a> to access your private assistant.</p>';
         }
 
+        // --- Fetch settings for dynamic name and the settings page URL ---
+        $all_settings = AIOHM_KB_Assistant::get_settings();
+        $muse_settings = $all_settings['muse_mode'] ?? [];
+        $assistant_name = !empty($muse_settings['assistant_name']) ? $muse_settings['assistant_name'] : 'Muse';
+        $settings_page_url = admin_url('admin.php?page=aiohm-muse-mode');
+
+        // Enqueue scripts and styles
         wp_enqueue_style('aiohm-private-chat-style', AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-private-chat.css', [], AIOHM_KB_VERSION);
         wp_enqueue_script('aiohm-private-chat-js', AIOHM_KB_PLUGIN_URL . 'assets/js/aiohm-private-chat.js', ['jquery'], AIOHM_KB_VERSION, true);
+        
+        // Localize script parameters
         wp_localize_script('aiohm-private-chat-js', 'aiohm_private_chat_params', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('aiohm_private_chat_nonce'),
@@ -29,8 +38,10 @@ class AIOHM_KB_Shortcode_Private_Assistant {
         <div id="aiohm-app-container" class="aiohm-private-assistant-container modern sidebar-open">
             <aside class="aiohm-pa-sidebar">
                 <div class="aiohm-pa-sidebar-header">
-                    <img src="<?php echo esc_url(get_avatar_url(get_current_user_id())); ?>" alt="User Avatar" class="aiohm-pa-logo">
-                    <h3 style="color: white; margin-top: 10px;"><?php echo esc_html(wp_get_current_user()->display_name); ?></h3>
+                    <div class="aiohm-pa-logo aiohm-ai-avatar">
+                        <span class="dashicons dashicons-superhero"></span>
+                    </div>
+                    <h3 style="color: white; margin-top: 10px;"><?php echo esc_html($assistant_name); ?></h3>
                 </div>
 
                 <div class="aiohm-pa-actions">
@@ -51,8 +62,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                             <span class="dashicons dashicons-arrow-down-alt2"></span>
                         </button>
                         <div class="aiohm-pa-menu-content" id="projects-content" style="display: block;">
-                            <div class="aiohm-pa-project-list">
-                                </div>
+                            <div class="aiohm-pa-project-list"></div>
                         </div>
                     </div>
                     <div class="aiohm-pa-menu-item">
@@ -61,16 +71,18 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                             <span class="dashicons dashicons-arrow-down-alt2"></span>
                         </button>
                         <div class="aiohm-pa-menu-content" id="conversations-content">
-                            <div class="aiohm-pa-conversation-list">
-                                </div>
+                            <div class="aiohm-pa-conversation-list"></div>
                         </div>
                     </div>
                 </nav>
 
                 <div class="aiohm-pa-sidebar-footer">
-                    AIOHM KB Assistant v<?php echo AIOHM_KB_VERSION; ?>
+                    <a href="<?php echo esc_url($settings_page_url); ?>" class="aiohm-footer-settings-link" title="Muse Mode Settings">
+                        <span class="dashicons dashicons-admin-generic"></span> Settings
+                    </a>
+                    <span class="aiohm-footer-version">AIOHM KB Assistant v<?php echo AIOHM_KB_VERSION; ?></span>
                 </div>
-            </aside>
+                </aside>
 
             <main class="aiohm-pa-content-wrapper">
                 <header class="aiohm-pa-header">
@@ -78,23 +90,49 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                         <span class="dashicons dashicons-menu-alt"></span>
                     </button>
                     <h2 class="aiohm-pa-header-title" id="project-title">Select a Project</h2>
+                    
                     <div class="aiohm-pa-window-controls">
+                        <button class="aiohm-pa-header-btn" id="activate-audio-btn" title="Activate voice-to-text">
+                            <span class="dashicons dashicons-microphone"></span>
+                        </button>
+                        <button class="aiohm-pa-header-btn" id="research-online-prompt-btn" title="Research a live website">
+                            <span class="dashicons dashicons-search"></span>
+                        </button>
+                        <button class="aiohm-pa-header-btn" id="download-pdf-btn" title="Download chat as PDF">
+                            <span class="dashicons dashicons-download"></span>
+                        </button>
                         <button class="aiohm-pa-header-btn" id="add-to-kb-btn" title="Add Chat to Knowledge Base" disabled>
                             <span class="dashicons dashicons-database-add"></span>
                         </button>
                     </div>
+
                 </header>
 
                 <div class="conversation-panel" id="conversation-panel">
+                    <div class="message system">
+                        <p>Welcome! Before you start, here's what the buttons in the top-right do:</p>
+                        <ul style="text-align: left; display: inline-block; margin-top: 10px;">
+                            <li><span class="dashicons dashicons-microphone"></span>: Use your voice to ask questions.</li>
+                            <li><span class="dashicons dashicons-search"></span>: Research a live website for real-time information.</li>
+                            <li><span class="dashicons dashicons-download"></span>: Download your current chat history as a PDF.</li>
+                        </ul>
+                        <p>Select a project from the sidebar to begin.</p>
                     </div>
+                </div>
+                
+                <div id="aiohm-chat-loading" style="display: none; text-align: center; padding: 10px;">
+                    Thinking...
+                </div>
 
                 <div class="aiohm-pa-input-area-wrapper">
-                    <div class="aiohm-pa-input-area">
-                        <textarea id="chat-input" placeholder="Type your message..." rows="1"></textarea>
-                        <button id="send-btn" disabled>
-                            <span class="dashicons dashicons-arrow-right-alt2"></span>
-                        </button>
-                    </div>
+                    <form id="private-chat-form">
+                        <div class="aiohm-pa-input-area">
+                            <textarea id="chat-input" placeholder="Type your message..." rows="1" disabled></textarea>
+                            <button id="send-btn" disabled>
+                                <span class="dashicons dashicons-arrow-right-alt2"></span>
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </main>
         </div>

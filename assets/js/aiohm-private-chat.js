@@ -1,34 +1,56 @@
 document.addEventListener('DOMContentLoaded', function() {
 
     // --- Element References ---
-    const chatHistory = document.getElementById('private-chat-history');
-    const chatInput = document.getElementById('private-chat-input');
+    const appContainer = document.getElementById('aiohm-app-container');
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+    const menuHeaders = document.querySelectorAll('.aiohm-pa-menu-header');
+    
+    const chatHistory = document.getElementById('conversation-panel');
+    const chatInput = document.getElementById('chat-input');
     const chatForm = document.getElementById('private-chat-form');
+    const sendBtn = document.getElementById('send-btn');
     const loadingIndicator = document.getElementById('aiohm-chat-loading');
 
+    // New button references
     const downloadPdfBtn = document.getElementById('download-pdf-btn');
     const researchBtn = document.getElementById('research-online-prompt-btn');
     const activateAudioBtn = document.getElementById('activate-audio-btn');
+
+    // --- START: Restored Sidebar & Menu Logic ---
+    if (sidebarToggleBtn && appContainer) {
+        sidebarToggleBtn.addEventListener('click', function() {
+            appContainer.classList.toggle('sidebar-open');
+        });
+    }
+
+    menuHeaders.forEach(header => {
+        header.addEventListener('click', function() {
+            this.classList.toggle('active');
+            const content = document.getElementById(this.dataset.target);
+            if (content) {
+                // Simple slide toggle effect with jQuery for reliability
+                jQuery(content).slideToggle(200);
+            }
+        });
+    });
+    // --- END: Restored Sidebar & Menu Logic ---
 
     // --- Feature 1: Download Chat as PDF ---
     if (downloadPdfBtn) {
         downloadPdfBtn.addEventListener('click', function() {
             if (typeof window.jspdf === 'undefined') {
-                alert('Error: The PDF generation library (jsPDF) is not loaded. Please ensure it is enqueued.');
+                alert('Error: The PDF generation library (jsPDF) is not loaded.');
                 return;
             }
-            if (!chatHistory) {
-                alert('Error: Could not find the chat history container.');
-                return;
-            }
+            if (!chatHistory) return;
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            const chatContent = chatHistory.innerText; // Grabs all text content
-            const lines = doc.splitTextToSize(chatContent, 180); // 180mm max width for A4
+            const chatContent = chatHistory.innerText;
+            const lines = doc.splitTextToSize(chatContent, 180);
 
             doc.text(lines, 10, 10);
-            doc.save('aiohm-muse-chat-history.pdf');
+            doc.save('aiohm-chat-history.pdf');
         });
     }
 
@@ -45,7 +67,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             activateAudioBtn.style.display = 'none';
-            console.warn('Speech Recognition is not supported in this browser.');
         } else {
             const recognition = new SpeechRecognition();
             recognition.continuous = false;
@@ -54,7 +75,6 @@ document.addEventListener('DOMContentLoaded', function() {
             activateAudioBtn.addEventListener('click', () => {
                 recognition.start();
                 activateAudioBtn.classList.add('is-listening');
-                activateAudioBtn.disabled = true;
             });
 
             recognition.onresult = (event) => {
@@ -63,12 +83,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
             recognition.onend = () => {
                 activateAudioBtn.classList.remove('is-listening');
-                activateAudioBtn.disabled = false;
             };
 
             recognition.onerror = (event) => {
                 alert('Speech recognition error: ' + event.error);
-                console.error('Speech recognition error:', event.error);
             };
         }
     }
@@ -103,16 +121,16 @@ document.addEventListener('DOMContentLoaded', function() {
             dataPayload = { prompt: message };
             appendMessageToChat('User', message);
         }
-
+        
         dataPayload.action = ajaxAction;
-        // Ensure you localize this nonce value from PHP
-        dataPayload.nonce = aiohm_private_chat_params.nonce; 
+        dataPayload.nonce = aiohm_private_chat_params.nonce;
 
         loadingIndicator.style.display = 'block';
+        sendBtn.disabled = true;
 
         jQuery.ajax({
             type: 'POST',
-            url: aiohm_private_chat_params.ajax_url, // Localized ajax url
+            url: aiohm_private_chat_params.ajax_url,
             data: dataPayload,
             success: function(response) {
                 if (response.success) {
@@ -126,6 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             complete: function() {
                 loadingIndicator.style.display = 'none';
+                sendBtn.disabled = false;
             }
         });
     }
@@ -133,17 +152,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function appendMessageToChat(sender, message) {
         if (!chatHistory) return;
         const messageElement = document.createElement('div');
-        messageElement.classList.add('chat-message', `message-from-${sender.toLowerCase()}`);
+        messageElement.classList.add('message', sender.toLowerCase());
         
-        const senderTag = document.createElement('strong');
-        senderTag.textContent = `${sender}: `;
-        messageElement.appendChild(senderTag);
-
-        const messageContent = document.createElement('p');
-        messageContent.textContent = message;
-        messageElement.appendChild(messageContent);
+        messageElement.textContent = message; 
         
         chatHistory.appendChild(messageElement);
-        chatHistory.scrollTop = chatHistory.scrollHeight; // Auto-scroll to the bottom
+        chatHistory.scrollTop = chatHistory.scrollHeight;
     }
 });

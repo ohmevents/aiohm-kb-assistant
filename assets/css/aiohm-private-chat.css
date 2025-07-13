@@ -1,13 +1,14 @@
 /**
- * AIOHM Private Assistant Styles - v1.1.10
+ * AIOHM Private Assistant Styles - v1.2.5
  *
  * This stylesheet creates a modern, brand-aligned interface for the private assistant.
- * It includes styles for the default fullscreen mode
- * and all interactive sidebar components.
+ * It includes styles for the default fullscreen mode, all interactive sidebar
+ * components, and updated brand color scheme for all buttons and links.
  */
 
 :root {
-    --ohm-primary: #457d58;
+    --ohm-primary: #457d58; /* Main Brand Green */
+    --ohm-active: #ffb923;  /* New Active/Hover Gold */
     --ohm-dark-accent: #1f5014;
     --pa-bg-dark: #2f3136;
     --pa-bg-darker: #292b2f;
@@ -26,7 +27,6 @@
     background-color: var(--pa-bg-dark);
     color: var(--pa-text-primary);
     
-    /* Fullscreen styles applied by default */
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -41,7 +41,6 @@
     overflow: hidden;
 }
 
-/* This makes sure nothing else on the page is visible */
 body.aiohm-assistant-fullscreen-active {
     overflow: hidden !important;
 }
@@ -51,7 +50,7 @@ body.aiohm-assistant-fullscreen-active > *:not(.aiohm-private-assistant-containe
 }
 
 
-/* --- Sidebar (Works for both modes) --- */
+/* --- Sidebar --- */
 .aiohm-pa-sidebar {
     width: 280px;
     background-color: var(--pa-bg-darker);
@@ -59,14 +58,24 @@ body.aiohm-assistant-fullscreen-active > *:not(.aiohm-private-assistant-containe
     display: flex;
     flex-direction: column;
     transition: margin-left 0.3s ease-in-out;
-    margin-left: -280px; /* Hidden by default now */
+    margin-left: 0; /* Changed to be open by default */
     flex-shrink: 0;
 }
-.aiohm-private-assistant-container.sidebar-open .aiohm-pa-sidebar {
-    margin-left: 0;
+.aiohm-private-assistant-container:not(.sidebar-open) .aiohm-pa-sidebar {
+    margin-left: -280px;
 }
 .aiohm-pa-sidebar-header { padding: 15px; text-align: center; }
-.aiohm-pa-logo { height: 50px; width: 50px; border-radius: 50%; object-fit: cover; }
+.aiohm-pa-logo.aiohm-ai-avatar .dashicons {
+    font-size: 40px;
+    color: var(--ohm-primary);
+    width: 50px;
+    height: 50px;
+    line-height: 50px;
+    text-align: center;
+    background: var(--pa-bg-darkest);
+    border-radius: 50%;
+    display: inline-block;
+}
 
 /* Sidebar Actions */
 .aiohm-pa-actions {
@@ -76,18 +85,19 @@ body.aiohm-assistant-fullscreen-active > *:not(.aiohm-private-assistant-containe
     flex-direction: column;
     gap: 10px;
 }
-.aiohm-pa-action-btn {
+/* Stronger specificity for button colors */
+.aiohm-private-assistant-container .aiohm-pa-action-btn {
     width: 100%; display: flex; align-items: center; justify-content: flex-start;
     gap: 8px; padding: 10px; border: none; border-radius: 6px; cursor: pointer;
     font-size: 14px; font-family: var(--pa-font-primary); font-weight: bold;
-    transition: background-color 0.2s;
+    transition: all 0.2s ease;
+    background-color: var(--ohm-primary) !important; /* Ohm Green */
+    color: #fff !important;
 }
-.aiohm-pa-action-btn .dashicons { font-size: 18px; height: auto; width: auto; }
-.aiohm-pa-new-project-btn { background-color: var(--ohm-primary); color: #fff; }
-.aiohm-pa-new-project-btn:hover { background-color: var(--ohm-dark-accent); }
-#add-to-kb-btn { background-color: var(--pa-bg-light); color: var(--pa-text-primary); }
-#add-to-kb-btn:hover { background-color: #4f545c; }
-#add-to-kb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.aiohm-private-assistant-container .aiohm-pa-action-btn:hover {
+    background-color: var(--ohm-active) !important; /* Active Gold */
+    color: var(--pa-bg-darkest) !important;
+}
 
 /* Sidebar Menu */
 .aiohm-pa-menu { flex-grow: 1; overflow-y: auto; padding: 10px; }
@@ -103,23 +113,40 @@ body.aiohm-assistant-fullscreen-active > *:not(.aiohm-private-assistant-containe
 .aiohm-pa-menu-content { display: none; padding-left: 15px; margin-left: 16px; border-left: 2px solid var(--pa-bg-light); }
 .aiohm-pa-menu-header.active + .aiohm-pa-menu-content { display: block; }
 
-.aiohm-pa-conversation-list { padding-top: 5px; }
-.conversation-item {
+.aiohm-pa-conversation-list, .aiohm-pa-project-list { padding-top: 5px; }
+.conversation-item, .project-item {
     display: block; width: 100%; text-align: left; padding: 8px 12px; border-radius: 6px;
     margin-bottom: 5px; cursor: pointer; background: transparent; border: none;
     font-size: 14px; color: var(--pa-text-secondary); white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; transition: all 0.2s;
 }
-.conversation-item:hover { background-color: #40444b; color: #fff; }
-.conversation-item.active { background-color: var(--ohm-primary); color: #fff; }
-.aiohm-pa-coming-soon { text-align:center; padding: 20px; font-style: italic; color: #777; }
+.conversation-item:hover, .project-item:hover { background-color: #40444b; color: #fff; }
+.conversation-item.active, .project-item.active { background-color: var(--ohm-primary); color: #fff; }
 
 /* Sidebar Footer */
 .aiohm-pa-sidebar-footer {
-    padding: 15px; text-align: center; font-size: 12px;
+    padding: 15px; text-align: center;
     color: var(--pa-text-secondary); margin-top: auto;
     border-top: 1px solid var(--pa-bg-darkest); flex-shrink: 0;
 }
+/* New Footer Styles */
+.aiohm-footer-settings-link {
+    display: block;
+    margin-bottom: 10px;
+    padding: 8px;
+    background-color: var(--pa-bg-light);
+    color: var(--pa-text-primary) !important;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+.aiohm-footer-settings-link .dashicons { vertical-align: middle; margin-right: 5px; }
+.aiohm-footer-settings-link:hover {
+    background-color: var(--ohm-active) !important;
+    color: var(--pa-bg-darkest) !important;
+}
+.aiohm-footer-version { font-size: 12px; }
 
 /* --- Main Content --- */
 .aiohm-pa-content-wrapper { width: 100%; display: flex; flex-direction: column; min-width: 0; }
@@ -129,20 +156,43 @@ body.aiohm-assistant-fullscreen-active > *:not(.aiohm-private-assistant-containe
     flex-shrink: 0;
 }
 .aiohm-pa-header-title { flex-grow: 1; text-align: center; font-family: var(--pa-font-primary); font-weight: bold; }
-.aiohm-pa-header-btn { background: transparent; border: none; color: #b9bbbe; cursor: pointer; padding: 5px; }
-.aiohm-pa-header-btn:hover { color: #fff; }
-.aiohm-pa-window-controls { margin-left: auto; }
+
+/* Top Right Header Buttons */
+.aiohm-pa-window-controls { margin-left: auto; display: flex; gap: 5px; }
+.aiohm-private-assistant-container .aiohm-pa-header-btn {
+    background: transparent !important;
+    border: none !important;
+    color: #b9bbbe !important; /* Default subtle grey */
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+.aiohm-private-assistant-container .aiohm-pa-header-btn:hover {
+    background-color: var(--ohm-active) !important; /* Active Gold on hover */
+    color: var(--pa-bg-darkest) !important;
+}
+.aiohm-private-assistant-container .aiohm-pa-header-btn.is-listening {
+    background-color: var(--ohm-active) !important; /* Active Gold when listening */
+    color: var(--pa-bg-darkest) !important;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 185, 35, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 185, 35, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 185, 35, 0); }
+}
 
 .conversation-panel {
     flex-grow: 1; overflow-y: auto; padding: 20px;
-    display: flex; flex-direction: column-reverse; /* Puts new messages at the bottom */
+    display: flex; flex-direction: column;
 }
-.conversation-panel::before { content: ''; flex-grow: 1; }
 
-.message { padding: 10px 16px; border-radius: 18px; max-width: 80%; line-height: 1.6; margin-bottom: 12px; }
+.message { padding: 10px 16px; border-radius: 18px; max-width: 80%; line-height: 1.6; margin-bottom: 12px; align-self: flex-start; }
 .message.user { background-color: var(--ohm-primary); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
-.message.ai { background-color: var(--pa-bg-light); color: var(--pa-text-primary); align-self: flex-start; border-bottom-left-radius: 4px; }
-.message.system { text-align: center; width: 100%; color: #72767d; font-size: 13px; }
+.message.ai, .message.assistant { background-color: var(--pa-bg-light); color: var(--pa-text-primary); border-bottom-left-radius: 4px; }
+.message.system { text-align: center; width: 100%; color: #72767d; font-size: 13px; align-self: center; background: transparent; }
 
 /* Input Area */
 .aiohm-pa-input-area-wrapper { padding: 0 20px 20px 20px; flex-shrink: 0; }
@@ -150,13 +200,27 @@ body.aiohm-assistant-fullscreen-active > *:not(.aiohm-private-assistant-containe
     display: flex; align-items: center; gap: 10px;
     background-color: var(--pa-bg-light); border-radius: 8px; padding: 8px;
 }
-.aiohm-pa-input-area textarea {
+.aiohm-pa-input-area textarea, #chat-input {
     flex-grow: 1; border: none; background: transparent; padding: 10px;
     resize: none; font-size: 16px; outline: none; color: #dcddde; max-height: 200px;
 }
-.aiohm-pa-input-area textarea::placeholder { color: #72767d; }
-#send-btn {
-    background-color: var(--ohm-primary); border: none; border-radius: 6px; color: #fff;
+.aiohm-pa-input-area textarea::placeholder, #chat-input::placeholder { color: #72767d; }
+
+.aiohm-private-assistant-container .aiohm-pa-input-area button,
+.aiohm-private-assistant-container #send-btn {
+    background-color: var(--ohm-primary) !important; /* Ohm Green */
+    border: none; border-radius: 6px; color: #fff !important;
     width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s ease;
 }
-#send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.aiohm-private-assistant-container .aiohm-pa-input-area button:hover,
+.aiohm-private-assistant-container #send-btn:hover {
+    background-color: var(--ohm-active) !important; /* Active Gold */
+    color: var(--pa-bg-darkest) !important;
+}
+.aiohm-private-assistant-container .aiohm-pa-input-area button:disabled,
+.aiohm-private-assistant-container #send-btn:disabled {
+    opacity: 0.5; cursor: not-allowed;
+    background-color: var(--pa-bg-light) !important;
+    color: var(--pa-text-secondary) !important;
+}
