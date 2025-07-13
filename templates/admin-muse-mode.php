@@ -3,6 +3,8 @@
  * Admin Muse Mode Settings page template for Club members.
  * Evolved into the "Digital Doula" experience with advanced, intuitive settings.
  * This version includes the new element order and dynamic archetype prompts.
+ *
+ * *** UPDATED: Includes new top bar for "Download PDF", "Research Online", and "Audio" buttons. ***
  */
 
 if (!defined('ABSPATH')) exit;
@@ -129,25 +131,36 @@ $brand_archetypes = [
             <div id="aiohm-test-chat" class="aiohm-chat-container">
                 <div class="aiohm-chat-header">
                     <div class="aiohm-chat-title-preview"><?php echo esc_html($settings['assistant_name'] ?? 'Muse'); ?></div>
-                    <div class="aiohm-chat-status">
-                        <span class="aiohm-status-indicator" data-status="ready"></span>
-                        <span class="aiohm-status-text">Ready</span>
+                    <div class="aiohm-chat-top-bar">
+                        <button id="download-pdf-btn" class="aiohm-top-bar-btn" title="Download chat as PDF">
+                            <span class="dashicons dashicons-download"></span>
+                        </button>
+                        <button id="research-online-prompt-btn" class="aiohm-top-bar-btn" title="Research a live website">
+                            <span class="dashicons dashicons-search"></span>
+                        </button>
+                        <button id="activate-audio-btn" class="aiohm-top-bar-btn" title="Activate voice-to-text">
+                            <span class="dashicons dashicons-microphone"></span>
+                        </button>
                     </div>
                 </div>
-                <div class="aiohm-chat-messages">
-                    <div class="aiohm-message aiohm-message-bot">
-                        <div class="aiohm-message-bubble"><div class="aiohm-message-content">I'm your private brand assistant. Ask me to help you create content or brainstorm ideas. Your settings are applied here in real-time.</div></div>
+                <div id="private-chat-history" class="aiohm-chat-messages">
+                    <div class="chat-message message-from-assistant">
+                        <strong>Assistant:</strong><p>I'm your private brand assistant. Ask me to help you create content or brainstorm ideas.</p>
                     </div>
+                </div>
+                <div id="aiohm-chat-loading" style="display: none; text-align: center; padding: 10px;">
+                    <span class="spinner is-active"></span> Thinking...
                 </div>
                 <div class="aiohm-chat-input-container">
-                    <div class="aiohm-chat-input-wrapper">
-                        <textarea class="aiohm-chat-input" placeholder="Ask your question here..." rows="1"></textarea>
-                        <button type="button" class="aiohm-chat-send-btn" disabled><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
-                    </div>
+                    <form id="private-chat-form">
+                        <div class="aiohm-chat-input-wrapper">
+                            <textarea id="private-chat-input" placeholder="Ask your question here..." rows="1"></textarea>
+                            <button type="submit" class="aiohm-chat-send-btn"><span class="dashicons dashicons-arrow-right-alt2"></span></button>
+                        </div>
+                    </form>
                 </div>
             </div>
-
-             <div class="aiohm-search-container-wrapper">
+            <div class="aiohm-search-container-wrapper">
                 <h3><?php _e('Test Knowledge Base Context', 'aiohm-kb-assistant'); ?></h3>
                 <p class="description">Check what information the AI can find in your knowledge base for a given query.</p>
                 <div class="aiohm-search-controls">

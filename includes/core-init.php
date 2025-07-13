@@ -11,6 +11,9 @@ class AIOHM_KB_Core_Init {
         // --- Admin & Scanning Actions ---
         add_action('wp_ajax_aiohm_progressive_scan', array(__CLASS__, 'handle_progressive_scan_ajax'));
         add_action('wp_ajax_aiohm_check_api_key', array(__CLASS__, 'handle_check_api_key_ajax'));
+        
+        // In your function that enqueues admin scripts and styles:
+		wp_enqueue_script('jspdf', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', array(), '2.5.1', true);
 
         // --- Knowledge Base Management Actions ---
         add_action('wp_ajax_aiohm_export_kb', array(__CLASS__, 'handle_export_kb_ajax'));
