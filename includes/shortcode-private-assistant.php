@@ -76,12 +76,17 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                     </div>
                 </nav>
 
-                <div class="aiohm-pa-sidebar-footer">
-                    <a href="<?php echo esc_url($settings_page_url); ?>" class="aiohm-footer-settings-link" title="Muse Mode Settings">
-                        <span class="dashicons dashicons-admin-generic"></span> Settings
-                    </a>
-                    <span class="aiohm-footer-version">AIOHM KB Assistant v<?php echo AIOHM_KB_VERSION; ?></span>
-                </div>
+<div class="aiohm-pa-sidebar-footer">
+    <div>
+        <a href="<?php echo esc_url($settings_page_url); ?>" class="aiohm-footer-settings-link" title="Muse Mode Settings">
+             Settings
+        </a>
+    </div>
+    <div>
+        <span class="aiohm-footer-version">AIOHM KB Assistant v<?php echo AIOHM_KB_VERSION; ?></span>
+    </div>
+</div>
+
                 </aside>
 
             <main class="aiohm-pa-content-wrapper">
