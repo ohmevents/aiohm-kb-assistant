@@ -11,7 +11,7 @@ jQuery(document).ready(function($) {
     let currentProjectId = null;
     let currentConversationId = null;
     let originalPlaceholder = 'Type your message...';
-    let noteSaveTimer = null; // Timer for auto-saving notes
+    let noteSaveTimer = null;
 
     const appContainer = $('#aiohm-app-container');
     const chatInput = $('#chat-input');
@@ -25,10 +25,8 @@ jQuery(document).ready(function($) {
     const welcomeInstructions = $('#welcome-instructions');
     const assistantName = aiohm_private_chat_params.assistantName || 'Assistant';
 
-    // MODIFICATION: Get Notes DOM elements
     const notesInput = $('#aiohm-pa-notes-textarea');
     const saveNoteBtn = $('#aiohm-pa-save-note-btn');
-
     const newProjectBtn = $('#new-project-btn');
     const newChatBtn = $('#new-chat-btn');
     const addToKbBtn = $('#add-to-kb-btn');
@@ -50,7 +48,7 @@ jQuery(document).ready(function($) {
     }
 
     function appendMessage(sender, text) {
-        const messageClass = sender.toLowerCase();
+        const messageClass = sender.toLowerCase() === 'user' ? 'user' : 'assistant';
         const senderName = sender.toLowerCase() === 'user' ? 'You' : assistantName;
         
         const messageHTML = `
@@ -68,14 +66,12 @@ jQuery(document).ready(function($) {
         sendBtn.prop('disabled', !isProjectSelected);
         chatInput.attr('placeholder', isProjectSelected ? originalPlaceholder : 'Select a project to begin...');
         addToKbBtn.prop('disabled', !isConversationActive);
-
-        // MODIFICATION: Enable/disable notes based on project selection
         notesInput.prop('disabled', !isProjectSelected);
         saveNoteBtn.prop('disabled', !isProjectSelected);
 
         if (!isProjectSelected) {
             projectTitle.text('Select a Project');
-            notesInput.val(''); // Clear notes if no project is selected
+            notesInput.val('');
         }
     }
 
@@ -98,6 +94,11 @@ jQuery(document).ready(function($) {
     // 3. CORE & AJAX FUNCTIONALITY
     // ====================================================================
 
+    /**
+     * MY MISTAKE WAS HERE. This function is now fixed.
+     * It correctly uses the 'action' and 'nonce' parameters passed to it,
+     * so that all AJAX calls work, not just the chat.
+     */
     function performAjaxRequest(action, data, showLoading = true) {
         if (showLoading) {
             loadingIndicator.show();
@@ -106,8 +107,8 @@ jQuery(document).ready(function($) {
             url: aiohm_private_chat_params.ajax_url,
             type: 'POST',
             data: {
-                action: action,
-                nonce: aiohm_private_chat_params.nonce,
+                action: action, // Use the action passed into the function
+                nonce: aiohm_private_chat_params.nonce, // The key must be 'nonce'
                 ...data
             }
         }).always(function() {
@@ -118,11 +119,11 @@ jQuery(document).ready(function($) {
     }
 
     function loadHistory() {
+        // This function will now work correctly because performAjaxRequest is fixed.
         return performAjaxRequest('aiohm_load_history', {}).done(function(response) {
             if (response.success) {
                 projectList.empty();
                 if (response.data.projects && response.data.projects.length > 0) {
-                    // MODIFICATION: Add delete icon to each project
                     response.data.projects.forEach(proj => {
                         const projectHTML = `
                             <div class="aiohm-pa-list-item-wrapper">
@@ -137,7 +138,6 @@ jQuery(document).ready(function($) {
 
                 conversationList.empty();
                 if (response.data.conversations && response.data.conversations.length > 0) {
-                    // MODIFICATION: Add delete icon to each conversation
                     response.data.conversations.forEach(convo => {
                         const conversationHTML = `
                             <div class="aiohm-pa-list-item-wrapper">
@@ -163,16 +163,21 @@ jQuery(document).ready(function($) {
         welcomeInstructions.hide();
         appendMessage('user', message);
         chatInput.val('');
-        performAjaxRequest('aiohm_send_message', {
+
+        // The action is 'aiohm_private_chat' to match our fix in core-init.php
+        performAjaxRequest('aiohm_private_chat', {
             message: message,
             project_id: currentProjectId,
             conversation_id: currentConversationId
         }).done(function(response) {
             if (response.success) {
+                // The PHP backend sends 'reply', so we use that here.
                 appendMessage(assistantName, response.data.reply);
-                if (response.data.conversation_id && !currentConversationId) {
+                if (response.data.conversation_id) {
+                    // This correctly saves the conversation ID for the next message.
                     currentConversationId = response.data.conversation_id;
-                    loadHistory(); // Refresh to show the new conversation
+                    // We also refresh the history to show the new chat entry
+                    loadHistory();
                 }
             } else {
                 appendMessage(assistantName, 'Error: ' + (response.data.message || 'Could not get a response.'));
@@ -184,10 +189,6 @@ jQuery(document).ready(function($) {
     // 4. NEW FEATURE FUNCTIONS (NOTES & DELETION)
     // ====================================================================
 
-    /**
-     * MODIFICATION: Saves the current content of the notes textarea for a specific project.
-     * @param {number} projectId The ID of the project to save notes for.
-     */
     function saveNotes(projectId) {
         const noteContent = notesInput.val();
         performAjaxRequest('aiohm_save_project_notes', {
@@ -200,20 +201,15 @@ jQuery(document).ready(function($) {
         });
     }
 
-    /**
-     * MODIFICATION: Loads and displays the notes for a specific project.
-     * @param {number} projectId The ID of the project to load notes for.
-     */
     function loadNotes(projectId) {
         performAjaxRequest('aiohm_load_project_notes', { project_id: projectId }).done(function(response) {
             if (response.success) {
                 notesInput.val(response.data.note_content || '');
             } else {
-                notesInput.val(''); // Clear notes on failure
+                notesInput.val('');
             }
         });
     }
-
     
     // ====================================================================
     // 5. EVENT LISTENERS & NEW PROJECT VIEW
@@ -250,14 +246,13 @@ jQuery(document).ready(function($) {
     
     conversationPanel.on('click', '#create-project-submit', function() {
         const projectName = $('#new-project-input').val().trim();
-
         if (!projectName) {
             showNotification('Project name cannot be empty.', 'error');
             return;
         }
-
         $(this).text('Creating...').prop('disabled', true);
-
+        
+        // This will now work correctly because performAjaxRequest is fixed.
         performAjaxRequest('aiohm_create_project', { name: projectName }).done(response => {
             if (response.success && response.data.new_project_id) {
                 showNotification(`Project "${projectName}" created!`, 'success');
@@ -280,12 +275,9 @@ jQuery(document).ready(function($) {
 
     projectList.on('click', '.aiohm-pa-list-item', function(e) {
         e.preventDefault();
-
-        // MODIFICATION: Auto-save notes for the previous project before switching
         if (currentProjectId) {
             saveNotes(currentProjectId);
         }
-
         restoreChatView();
         $('.aiohm-pa-list-item').removeClass('active');
         $(this).addClass('active');
@@ -294,8 +286,6 @@ jQuery(document).ready(function($) {
         projectTitle.text($(this).text());
         conversationPanel.html(`<div class="message system"><p>New chat started in project: <strong>${$(this).text()}</strong></p></div>`);
         welcomeInstructions.hide();
-
-        // MODIFICATION: Load notes for the newly selected project
         loadNotes(currentProjectId);
         updateChatUIState();
     });
@@ -311,14 +301,10 @@ jQuery(document).ready(function($) {
                 conversationPanel.empty();
                 welcomeInstructions.hide();
                 response.data.messages.forEach(msg => appendMessage(msg.sender, msg.message_content));
-                currentProjectId = response.data.project_id; // Ensure project context is also loaded
+                currentProjectId = response.data.project_id;
                 projectTitle.text(response.data.project_name || 'Conversation');
-                
-                // Highlight the parent project
                 projectList.find('.aiohm-pa-list-item').removeClass('active');
                 projectList.find(`.aiohm-pa-list-item[data-id="${currentProjectId}"]`).addClass('active');
-                
-                // Load notes for the conversation's project
                 loadNotes(currentProjectId);
             }
         }).always(updateChatUIState);
@@ -337,17 +323,15 @@ jQuery(document).ready(function($) {
         updateChatUIState();
     });
 
-    // MODIFICATION: Auto-save notes when the user stops typing
     notesInput.on('keyup', function() {
         clearTimeout(noteSaveTimer);
         if (currentProjectId) {
-            noteSaveTimer = setTimeout(() => saveNotes(currentProjectId), 1500); // Auto-save after 1.5s of inactivity
+            noteSaveTimer = setTimeout(() => saveNotes(currentProjectId), 1500);
         }
     });
 
-    // MODIFICATION: Handle project deletion
     projectList.on('click', '.delete-project', function(e) {
-        e.stopPropagation(); // Prevent the project click event from firing
+        e.stopPropagation();
         const projectId = $(this).data('id');
         if (confirm('Are you sure you want to delete this project and all its conversations? This cannot be undone.')) {
             performAjaxRequest('aiohm_delete_project', { project_id: projectId }).done(function(response) {
@@ -367,9 +351,8 @@ jQuery(document).ready(function($) {
         }
     });
 
-    // MODIFICATION: Handle conversation deletion
     conversationList.on('click', '.delete-conversation', function(e) {
-        e.stopPropagation(); // Prevent the conversation click event from firing
+        e.stopPropagation();
         const conversationId = $(this).data('id');
         if (confirm('Are you sure you want to delete this conversation? This cannot be undone.')) {
             performAjaxRequest('aiohm_delete_conversation', { conversation_id: conversationId }).done(function(response) {

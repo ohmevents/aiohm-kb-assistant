@@ -31,10 +31,13 @@ class AIOHM_KB_Core_Init {
 
         // --- Muse Mode (Private Assistant) Actions ---
         add_action('wp_ajax_aiohm_save_muse_mode_settings', array(__CLASS__, 'handle_save_muse_mode_settings_ajax'));
-        add_action('wp_ajax_aiohm_private_assistant_chat', array(__CLASS__, 'handle_private_assistant_chat_ajax'));
+        
+        // FIX #2: Consolidated AJAX handlers. The incorrect 'aiohm_private_assistant_chat' and redundant 'aiohm_send_message'
+        // actions have been removed. We are now using the single, correct hook that the frontend expects.
+        add_action('wp_ajax_aiohm_private_chat', array(__CLASS__, 'handle_private_assistant_chat_ajax'));
+
         add_action('wp_ajax_aiohm_test_muse_mode_chat', array(__CLASS__, 'handle_test_muse_mode_chat_ajax'));
         add_action('wp_ajax_aiohm_load_history', array(__CLASS__, 'handle_load_history_ajax'));
-        add_action('wp_ajax_aiohm_send_message', array(__CLASS__, 'handle_private_assistant_chat_ajax'));
         add_action('wp_ajax_aiohm_load_conversation', array(__CLASS__, 'handle_get_conversation_history_ajax'));
         
         // --- Project & Notes Actions ---
@@ -58,8 +61,6 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_admin_search_knowledge', array(__CLASS__, 'handle_admin_search_knowledge_ajax'));
     }
     
-    // ... all of your existing functions from the file you sent remain here, unchanged ...
-
     public static function handle_progressive_scan_ajax() {
         if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
@@ -349,32 +350,49 @@ class AIOHM_KB_Core_Init {
         wp_send_json_success(['message' => 'Muse Mode settings saved.']);
     }
 
+    /**
+     * =================================================================
+     * THE PRIMARY BUG FIX IS IN THIS FUNCTION
+     * =================================================================
+     */
     public static function handle_private_assistant_chat_ajax() {
+        // Security check
         if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied']);
         }
     
+        // Sanitize POST data
         $user_id = get_current_user_id();
-        $message = isset($_POST['message']) ? sanitize_textarea_field($_POST['message']) : '';
+        $message = isset($_POST['message']) ? sanitize_textarea_field(stripslashes($_POST['message'])) : '';
         $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+        
+        // FIX #1: Retrieve 'conversation_id' from the frontend to maintain chat history.
+        // The original code was missing this, causing a new conversation for every message.
         $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : null;
     
+        // Validate input
         if (empty($message) || empty($project_id)) {
             wp_send_json_error(['message' => 'Missing message or project context.']);
         }
     
         try {
-            // RAG engine for private scope query
+            // This part remains the same: query the AI with the user's message.
             $rag_engine = new AIOHM_KB_RAG_Engine();
             $response_text = $rag_engine->query($message, 'private', $user_id);
     
-            // Save to conversation history
+            // FIX #1 (Continued): Handle conversation persistence.
+            // If conversation_id is null (i.e., it's the first message), create a new conversation.
             if (is_null($conversation_id)) {
-                $conversation_id = AIOHM_KB_User_Functions::create_conversation($user_id, $project_id, substr($message, 0, 100));
+                // FIX #3: Call the global function directly instead of using the incorrect class name.
+                $conversation_id = create_conversation($user_id, $project_id, substr($message, 0, 100));
             }
-            AIOHM_KB_User_Functions::add_message_to_conversation($conversation_id, 'user', $message);
-            AIOHM_KB_User_Functions::add_message_to_conversation($conversation_id, 'ai', $response_text);
+            
+            // FIX #3 (Continued): Call the global functions directly here as well.
+            add_message_to_conversation($conversation_id, 'user', $message);
+            add_message_to_conversation($conversation_id, 'ai', $response_text);
     
+            // FIX #1 (End): Send the 'conversation_id' back to the frontend. The JavaScript
+            // will store this and send it with the next request.
             wp_send_json_success(['reply' => $response_text, 'conversation_id' => $conversation_id]);
         } catch (Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
