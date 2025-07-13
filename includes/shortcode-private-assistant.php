@@ -106,6 +106,9 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                         <button class="aiohm-pa-header-btn" id="toggle-notes-btn" title="Open Notes">
                             <span class="dashicons dashicons-edit"></span>
                         </button>
+                        <button class="aiohm-pa-header-btn" id="fullscreen-toggle-btn" title="Toggle Fullscreen">
+                            <span class="dashicons dashicons-fullscreen-alt"></span>
+                        </button>
                     </div>
 
                 </header>
@@ -122,6 +125,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                             <li><span class="dashicons dashicons-search"></span>: Research a live website for real-time information.</li>
                             <li><span class="dashicons dashicons-download"></span>: Download your current chat history as a PDF.</li>
                             <li><span class="dashicons dashicons-edit"></span>: Toggle the Notes sidebar to jot down ideas.</li>
+                            <li><span class="dashicons dashicons-fullscreen-alt"></span>: Toggle Fullscreen mode.</li>
                         </ul>
                         <p>Select a project from the sidebar to begin.</p>
                     </div>

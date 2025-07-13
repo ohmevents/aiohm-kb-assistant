@@ -18,7 +18,7 @@
 /* --- Base Layout --- */
 .aiohm-private-assistant-container {
     display: flex;
-    height: 80vh;
+    height: 80vh; /* Default height */
     min-height: 600px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--pa-bg-dark);
@@ -26,6 +26,31 @@
     border-radius: 8px;
     overflow: hidden;
     position: relative; /* Needed for absolute positioning of notification */
+    box-sizing: border-box; /* Include padding/border in element's total width/height */
+}
+
+/* Fullscreen Mode */
+.aiohm-private-assistant-container.fullscreen-mode {
+    position: fixed; /* Fixed position relative to viewport */
+    top: 0;
+    left: 0;
+    width: 100vw; /* 100% of viewport width */
+    height: 100vh; /* 100% of viewport height */
+    min-height: 100vh; /* Ensure it stays full height */
+    z-index: 99999; /* High z-index to cover everything */
+    border-radius: 0; /* No border-radius in fullscreen */
+}
+
+/* Hide WordPress Admin Bar when in fullscreen mode */
+.aiohm-private-assistant-container.fullscreen-mode ~ #wpadminbar {
+    display: none !important;
+}
+.aiohm-private-assistant-container.fullscreen-mode ~ html {
+    margin-top: 0 !important;
+}
+.aiohm-private-assistant-container.fullscreen-mode ~ body {
+    margin-top: 0 !important;
+    overflow: hidden; /* Prevent scrolling outside the chat */
 }
 
 /* --- Sidebar --- */
