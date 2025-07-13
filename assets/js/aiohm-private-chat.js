@@ -1,6 +1,6 @@
 /**
  * AIOHM Private Assistant Frontend Script
- * v1.4.2 - FINAL FIX: Replaces conversational UI with a dedicated view for project creation to guarantee success.
+ * v1.5.0 - Adds auto-saving notes and deletion of projects/conversations.
  */
 jQuery(document).ready(function($) {
     'use strict';
@@ -11,6 +11,7 @@ jQuery(document).ready(function($) {
     let currentProjectId = null;
     let currentConversationId = null;
     let originalPlaceholder = 'Type your message...';
+    let noteSaveTimer = null; // Timer for auto-saving notes
 
     const appContainer = $('#aiohm-app-container');
     const chatInput = $('#chat-input');
@@ -23,6 +24,10 @@ jQuery(document).ready(function($) {
     const notificationBar = $('#aiohm-pa-notification');
     const welcomeInstructions = $('#welcome-instructions');
     const assistantName = aiohm_private_chat_params.assistantName || 'Assistant';
+
+    // MODIFICATION: Get Notes DOM elements
+    const notesInput = $('#aiohm-pa-notes-textarea');
+    const saveNoteBtn = $('#aiohm-pa-save-note-btn');
 
     const newProjectBtn = $('#new-project-btn');
     const newChatBtn = $('#new-chat-btn');
@@ -63,8 +68,14 @@ jQuery(document).ready(function($) {
         sendBtn.prop('disabled', !isProjectSelected);
         chatInput.attr('placeholder', isProjectSelected ? originalPlaceholder : 'Select a project to begin...');
         addToKbBtn.prop('disabled', !isConversationActive);
+
+        // MODIFICATION: Enable/disable notes based on project selection
+        notesInput.prop('disabled', !isProjectSelected);
+        saveNoteBtn.prop('disabled', !isProjectSelected);
+
         if (!isProjectSelected) {
             projectTitle.text('Select a Project');
+            notesInput.val(''); // Clear notes if no project is selected
         }
     }
 
@@ -87,8 +98,10 @@ jQuery(document).ready(function($) {
     // 3. CORE & AJAX FUNCTIONALITY
     // ====================================================================
 
-    function performAjaxRequest(action, data) {
-        loadingIndicator.show();
+    function performAjaxRequest(action, data, showLoading = true) {
+        if (showLoading) {
+            loadingIndicator.show();
+        }
         return $.ajax({
             url: aiohm_private_chat_params.ajax_url,
             type: 'POST',
@@ -98,7 +111,9 @@ jQuery(document).ready(function($) {
                 ...data
             }
         }).always(function() {
-            loadingIndicator.hide();
+            if (showLoading) {
+                loadingIndicator.hide();
+            }
         });
     }
 
@@ -107,14 +122,30 @@ jQuery(document).ready(function($) {
             if (response.success) {
                 projectList.empty();
                 if (response.data.projects && response.data.projects.length > 0) {
-                    response.data.projects.forEach(proj => projectList.append(`<a href="#" class="aiohm-pa-list-item" data-id="${proj.id}">${proj.name}</a>`));
+                    // MODIFICATION: Add delete icon to each project
+                    response.data.projects.forEach(proj => {
+                        const projectHTML = `
+                            <div class="aiohm-pa-list-item-wrapper">
+                                <a href="#" class="aiohm-pa-list-item" data-id="${proj.id}">${proj.name}</a>
+                                <span class="delete-icon delete-project" data-id="${proj.id}" title="Delete Project">&times;</span>
+                            </div>`;
+                        projectList.append(projectHTML);
+                    });
                 } else {
                     projectList.append('<p class="aiohm-no-items">No projects yet.</p>');
                 }
 
                 conversationList.empty();
                 if (response.data.conversations && response.data.conversations.length > 0) {
-                    response.data.conversations.forEach(convo => conversationList.append(`<a href="#" class="aiohm-pa-list-item" data-id="${convo.id}">${convo.title}</a>`));
+                    // MODIFICATION: Add delete icon to each conversation
+                    response.data.conversations.forEach(convo => {
+                        const conversationHTML = `
+                            <div class="aiohm-pa-list-item-wrapper">
+                                <a href="#" class="aiohm-pa-list-item" data-id="${convo.id}">${convo.title}</a>
+                                <span class="delete-icon delete-conversation" data-id="${convo.id}" title="Delete Conversation">&times;</span>
+                            </div>`;
+                        conversationList.append(conversationHTML);
+                    });
                 } else {
                     conversationList.append('<p class="aiohm-no-items">No conversations yet.</p>');
                 }
@@ -141,23 +172,54 @@ jQuery(document).ready(function($) {
                 appendMessage(assistantName, response.data.reply);
                 if (response.data.conversation_id && !currentConversationId) {
                     currentConversationId = response.data.conversation_id;
-                    loadHistory();
+                    loadHistory(); // Refresh to show the new conversation
                 }
             } else {
                 appendMessage(assistantName, 'Error: ' + (response.data.message || 'Could not get a response.'));
             }
         }).always(updateChatUIState);
     }
-    
+
     // ====================================================================
-    // 4. EVENT LISTENERS & NEW PROJECT VIEW
+    // 4. NEW FEATURE FUNCTIONS (NOTES & DELETION)
     // ====================================================================
 
     /**
-     * Replaces the chat panel with the "Create Project" form.
+     * MODIFICATION: Saves the current content of the notes textarea for a specific project.
+     * @param {number} projectId The ID of the project to save notes for.
      */
+    function saveNotes(projectId) {
+        const noteContent = notesInput.val();
+        performAjaxRequest('aiohm_save_project_notes', {
+            project_id: projectId,
+            note_content: noteContent
+        }, false).done(function(response) {
+             if(response.success) {
+                console.log('Notes saved for project ' + projectId);
+             }
+        });
+    }
+
+    /**
+     * MODIFICATION: Loads and displays the notes for a specific project.
+     * @param {number} projectId The ID of the project to load notes for.
+     */
+    function loadNotes(projectId) {
+        performAjaxRequest('aiohm_load_project_notes', { project_id: projectId }).done(function(response) {
+            if (response.success) {
+                notesInput.val(response.data.note_content || '');
+            } else {
+                notesInput.val(''); // Clear notes on failure
+            }
+        });
+    }
+
+    
+    // ====================================================================
+    // 5. EVENT LISTENERS & NEW PROJECT VIEW
+    // ====================================================================
+
     function displayProjectCreationView() {
-        // Disable main chat input while this view is active
         chatInput.prop('disabled', true);
         sendBtn.prop('disabled', true);
 
@@ -174,12 +236,9 @@ jQuery(document).ready(function($) {
         $('#new-project-input').focus();
     }
 
-    /**
-     * Restores the normal chat view.
-     */
     function restoreChatView() {
-        conversationPanel.html(''); // Clear the form
-        conversationPanel.append(welcomeInstructions); // Put welcome message back
+        conversationPanel.html('');
+        conversationPanel.append(welcomeInstructions);
         welcomeInstructions.show();
         updateChatUIState();
     }
@@ -189,7 +248,6 @@ jQuery(document).ready(function($) {
     
     newProjectBtn.on('click', displayProjectCreationView);
     
-    // Use event delegation on the static parent for the dynamic button
     conversationPanel.on('click', '#create-project-submit', function() {
         const projectName = $('#new-project-input').val().trim();
 
@@ -198,14 +256,12 @@ jQuery(document).ready(function($) {
             return;
         }
 
-        // Show loading indicator inside the button
         $(this).text('Creating...').prop('disabled', true);
 
         performAjaxRequest('aiohm_create_project', { name: projectName }).done(response => {
             if (response.success && response.data.new_project_id) {
                 showNotification(`Project "${projectName}" created!`, 'success');
                 restoreChatView();
-                // After restoring view, load history and click the new project
                 loadHistory().done(function() {
                     const newProjectLink = projectList.find(`.aiohm-pa-list-item[data-id="${response.data.new_project_id}"]`);
                     if (newProjectLink.length) {
@@ -214,18 +270,23 @@ jQuery(document).ready(function($) {
                 });
             } else {
                 showNotification('Error: ' + (response.data.message || 'Could not create project.'), 'error');
-                $(this).text('Create Project').prop('disabled', false); // Re-enable button on failure
+                $(this).text('Create Project').prop('disabled', false);
             }
         }).fail(function() {
             showNotification('An unexpected network error occurred.', 'error');
-            $(this).text('Create Project').prop('disabled', false); // Re-enable button on failure
+            $(this).text('Create Project').prop('disabled', false);
         });
     });
 
-
     projectList.on('click', '.aiohm-pa-list-item', function(e) {
         e.preventDefault();
-        restoreChatView(); // Ensure we're in chat mode when a project is clicked
+
+        // MODIFICATION: Auto-save notes for the previous project before switching
+        if (currentProjectId) {
+            saveNotes(currentProjectId);
+        }
+
+        restoreChatView();
         $('.aiohm-pa-list-item').removeClass('active');
         $(this).addClass('active');
         currentProjectId = $(this).data('id');
@@ -233,6 +294,9 @@ jQuery(document).ready(function($) {
         projectTitle.text($(this).text());
         conversationPanel.html(`<div class="message system"><p>New chat started in project: <strong>${$(this).text()}</strong></p></div>`);
         welcomeInstructions.hide();
+
+        // MODIFICATION: Load notes for the newly selected project
+        loadNotes(currentProjectId);
         updateChatUIState();
     });
 
@@ -247,8 +311,15 @@ jQuery(document).ready(function($) {
                 conversationPanel.empty();
                 welcomeInstructions.hide();
                 response.data.messages.forEach(msg => appendMessage(msg.sender, msg.message_content));
-                currentProjectId = response.data.project_id;
+                currentProjectId = response.data.project_id; // Ensure project context is also loaded
                 projectTitle.text(response.data.project_name || 'Conversation');
+                
+                // Highlight the parent project
+                projectList.find('.aiohm-pa-list-item').removeClass('active');
+                projectList.find(`.aiohm-pa-list-item[data-id="${currentProjectId}"]`).addClass('active');
+                
+                // Load notes for the conversation's project
+                loadNotes(currentProjectId);
             }
         }).always(updateChatUIState);
     });
@@ -266,6 +337,57 @@ jQuery(document).ready(function($) {
         updateChatUIState();
     });
 
+    // MODIFICATION: Auto-save notes when the user stops typing
+    notesInput.on('keyup', function() {
+        clearTimeout(noteSaveTimer);
+        if (currentProjectId) {
+            noteSaveTimer = setTimeout(() => saveNotes(currentProjectId), 1500); // Auto-save after 1.5s of inactivity
+        }
+    });
+
+    // MODIFICATION: Handle project deletion
+    projectList.on('click', '.delete-project', function(e) {
+        e.stopPropagation(); // Prevent the project click event from firing
+        const projectId = $(this).data('id');
+        if (confirm('Are you sure you want to delete this project and all its conversations? This cannot be undone.')) {
+            performAjaxRequest('aiohm_delete_project', { project_id: projectId }).done(function(response) {
+                if (response.success) {
+                    showNotification('Project deleted.', 'success');
+                    if(currentProjectId === projectId) {
+                        currentProjectId = null;
+                        currentConversationId = null;
+                        restoreChatView();
+                        updateChatUIState();
+                    }
+                    loadHistory();
+                } else {
+                    showNotification('Error: ' + (response.data.message || 'Could not delete project.'), 'error');
+                }
+            });
+        }
+    });
+
+    // MODIFICATION: Handle conversation deletion
+    conversationList.on('click', '.delete-conversation', function(e) {
+        e.stopPropagation(); // Prevent the conversation click event from firing
+        const conversationId = $(this).data('id');
+        if (confirm('Are you sure you want to delete this conversation? This cannot be undone.')) {
+            performAjaxRequest('aiohm_delete_conversation', { conversation_id: conversationId }).done(function(response) {
+                if (response.success) {
+                    showNotification('Conversation deleted.', 'success');
+                     if(currentConversationId === conversationId) {
+                        currentConversationId = null;
+                        restoreChatView();
+                        updateChatUIState();
+                    }
+                    loadHistory();
+                } else {
+                    showNotification('Error: ' + (response.data.message || 'Could not delete conversation.'), 'error');
+                }
+            });
+        }
+    });
+
     sidebarToggleBtn.on('click', () => appContainer.toggleClass('sidebar-open'));
     notesToggleBtn.on('click', () => appContainer.toggleClass('notes-open'));
     closeNotesBtn.on('click', () => appContainer.removeClass('notes-open'));
@@ -274,7 +396,7 @@ jQuery(document).ready(function($) {
 
 
     // ====================================================================
-    // 5. INITIALIZATION
+    // 6. INITIALIZATION
     // ====================================================================
     function initialize() {
         appContainer.addClass('sidebar-open');

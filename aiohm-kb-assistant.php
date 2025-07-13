@@ -52,23 +52,30 @@ class AIOHM_KB_Assistant {
     }
     
     public function load_dependencies() {
+        // Corrected loading order to prevent fatal errors.
+        // Core components and libraries are loaded first.
         $files = [
-            'core-init.php', 
-            'settings-page.php', 
-            'rag-engine.php', 
-            'ai-gpt-client.php', 
+            'rag-engine.php',
+            'ai-gpt-client.php',
+            'user-functions.php',
             'crawler-site.php', 
-            'crawler-uploads.php', 
-            'aiohm-kb-manager.php', 
-            'api-client-app.php', 
+            'crawler-uploads.php',
+            'aiohm-kb-manager.php',
+            'api-client-app.php',
+            'chat-box.php',
+            'pmpro-integration.php',
+            
+            // Core Initializer (which depends on the files above)
+            'core-init.php',
+
+            // Admin Pages and Shortcodes (which depend on core-init and other classes)
+            'settings-page.php', 
             'shortcode-chat.php', 
             'shortcode-search.php', 
             'shortcode-private-assistant.php', 
-            'frontend-widget.php', 
-            'chat-box.php', 
-            'user-functions.php', 
-            'pmpro-integration.php'
+            'frontend-widget.php',
         ];
+        
         foreach ($files as $file) {
             if (file_exists(AIOHM_KB_INCLUDES_DIR . $file)) { 
                 require_once AIOHM_KB_INCLUDES_DIR . $file; 
@@ -90,7 +97,7 @@ class AIOHM_KB_Assistant {
         require_once AIOHM_KB_INCLUDES_DIR . 'rag-engine.php';
         $this->create_tables();
         $this->create_conversation_tables();
-        $this->create_project_tables(); // <-- Added this line
+        $this->create_project_tables();
         $this->set_default_options();
         flush_rewrite_rules();
         $settings = self::get_settings();
@@ -192,10 +199,6 @@ class AIOHM_KB_Assistant {
         dbDelta($sql_messages);
     }
     
-    /**
-     * ---- NEW FUNCTION ----
-     * Creates the projects table and updates the conversations table.
-     */
     private function create_project_tables() {
         global $wpdb;
         $charset_collate = $wpdb->get_charset_collate();

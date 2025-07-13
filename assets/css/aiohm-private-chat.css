@@ -65,10 +65,15 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     text-align: center;
     flex-shrink: 0;
     display: flex;
-    justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--pa-border-color);
 }
+
+/* MODIFICATION: Center the Create Project button */
+#aiohm-app-container .aiohm-pa-sidebar-header {
+    justify-content: center;
+}
+
 
 #aiohm-app-container .aiohm-pa-actions {
     padding: 15px;
@@ -101,6 +106,12 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     color: var(--pa-text-secondary); font-size: 14px; font-weight: bold;
     text-align: left; cursor: pointer; display: flex; justify-content: space-between;
 }
+
+/* MODIFICATION: Wrapper for list items to contain delete icon */
+#aiohm-app-container .aiohm-pa-menu-content .aiohm-pa-list-item-wrapper {
+    position: relative;
+}
+
 #aiohm-app-container .aiohm-pa-menu-content .aiohm-pa-list-item {
     display: block; padding: 10px 15px; color: var(--pa-text-secondary);
     text-decoration: none; border-radius: 5px; margin: 2px 0;
@@ -115,6 +126,25 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     background-color: var(--pa-highlight-color); color: var(--pa-highlight-text-color) !important;
     font-weight: bold;
 }
+
+/* MODIFICATION: Styles for the new delete icon */
+#aiohm-app-container .delete-icon {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    display: none;
+    color: #ff5555;
+    font-weight: bold;
+    font-size: 20px;
+    line-height: 1;
+}
+
+#aiohm-app-container .aiohm-pa-list-item-wrapper:hover .delete-icon {
+    display: block;
+}
+
 
 #aiohm-app-container .aiohm-pa-sidebar-footer {
     padding: 20px; border-top: 1px solid var(--pa-border-color); font-size: 12px;
