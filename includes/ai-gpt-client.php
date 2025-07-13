@@ -13,7 +13,6 @@ if (!defined('ABSPATH')) exit;
 // =================================================================================
 
 if (!function_exists('aiohm_handle_private_chat_ajax')) {
-    add_action('wp_ajax_aiohm_private_chat', 'aiohm_handle_private_chat_ajax');
     function aiohm_handle_private_chat_ajax() {
         check_ajax_referer('aiohm_private_chat_nonce', 'nonce'); // Use the correct nonce from your JS file
         $user_prompt = isset($_POST['prompt']) ? sanitize_textarea_field($_POST['prompt']) : '';
