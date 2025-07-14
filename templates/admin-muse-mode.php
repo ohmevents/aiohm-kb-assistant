@@ -12,7 +12,6 @@ if (!defined('ABSPATH')) exit;
 // Fetch all settings and then get the specific part for Muse Mode
 $all_settings = AIOHM_KB_Assistant::get_settings();
 $settings = $all_settings['muse_mode'] ?? [];
-$mirror_settings = $all_settings['mirror_mode'] ?? []; // For colors
 $global_settings = $all_settings; // for API keys
 
 // --- START: Archetype Prompts ---
@@ -100,26 +99,15 @@ $brand_archetypes = [
                         <input type="range" id="temperature" name="aiohm_kb_settings[muse_mode][temperature]" value="<?php echo esc_attr($settings['temperature'] ?? '0.7'); ?>" min="0" max="1" step="0.1">
                         <p class="description"><?php _e('Lower is more predictable; higher is more creative.', 'aiohm-kb-assistant'); ?></p>
                     </div>
-                </div>
-                <div class="aiohm-settings-section">
-                                    
-                     <div class="aiohm-setting-block">
-                        <label><?php _e('6. Chatbot Colors', 'aiohm-kb-assistant'); ?></label>
-                        <div class="aiohm-color-grid">
-                            <div class="aiohm-sub-setting-block">
-                                <label for="primary_color">Primary</label>
-                                <input type="color" id="primary_color" name="aiohm_kb_settings[mirror_mode][primary_color]" value="<?php echo esc_attr($mirror_settings['primary_color'] ?? '#1f5014'); ?>">
-                            </div>
-                            <div class="aiohm-sub-setting-block">
-                                <label for="background_color">Background</label>
-                                <input type="color" id="background_color" name="aiohm_kb_settings[mirror_mode][background_color]" value="<?php echo esc_attr($mirror_settings['background_color'] ?? '#f0f4f8'); ?>">
-                            </div>
-                            <div class="aiohm-sub-setting-block">
-                                <label for="text_color">Header Text</label>
-                                <input type="color" id="text_color" name="aiohm_kb_settings[mirror_mode][text_color]" value="<?php echo esc_attr($mirror_settings['text_color'] ?? '#ffffff'); ?>">
-                            </div>
-                        </div>
+                    
+                    <div class="aiohm-setting-block">
+                        <label for="start_fullscreen">
+                            <input type="checkbox" id="start_fullscreen" name="aiohm_kb_settings[muse_mode][start_fullscreen]" value="1" <?php checked($settings['start_fullscreen'] ?? false); ?>>
+                            <?php _e('Start in Fullscreen Mode', 'aiohm-kb-assistant'); ?>
+                        </label>
+                        <p class="description"><?php _e('Check this to make the private assistant always open in fullscreen.', 'aiohm-kb-assistant'); ?></p>
                     </div>
+
                 </div>
                 <div class="form-actions">
                     <button type="button" id="save-muse-mode-settings" class="button button-primary"><?php _e('Save Muse Settings', 'aiohm-kb-assistant'); ?></button>

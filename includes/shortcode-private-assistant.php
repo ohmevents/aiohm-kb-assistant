@@ -1,7 +1,7 @@
 <?php
 /**
  * Shortcode for displaying the private assistant interface.
- * v1.3.8 - Implements conversational UI for project creation.
+ * v1.1.11 - Implements new welcome screen layout and modals.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -16,10 +16,10 @@ class AIOHM_KB_Shortcode_Private_Assistant {
             return '<p class="aiohm-auth-notice">Please <a href="' . esc_url(wp_login_url(get_permalink())) . '">log in</a> to access your private assistant.</p>';
         }
 
+        // **FIX: Corrected the default welcome message text**
         $atts = shortcode_atts([
             'welcome_title'    => 'Welcome! Here’s a quick guide to the buttons:',
             'welcome_message'  => 'Select a project from the sidebar to begin.',
-            'start_fullscreen' => 'false',
         ], $atts, 'aiohm_private_assistant');
 
         $all_settings = AIOHM_KB_Assistant::get_settings();
@@ -34,8 +34,8 @@ class AIOHM_KB_Shortcode_Private_Assistant {
             'ajax_url'        => admin_url('admin-ajax.php'),
             'nonce'           => wp_create_nonce('aiohm_private_chat_nonce'),
             'user_name'       => wp_get_current_user()->display_name,
-            'startFullscreen' => ($atts['start_fullscreen'] === 'true'),
-            'assistantName'   => $assistant_name, // Pass assistant name to JS
+            'startFullscreen' => ($muse_settings['start_fullscreen'] ?? false),
+            'assistantName'   => $assistant_name,
         ]);
 
         ob_start();
@@ -112,15 +112,24 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                 </div>
 
                 <div class="conversation-panel" id="conversation-panel">
-                    <div class="message system" id="welcome-instructions">
-                        <h4><?php echo esc_html($atts['welcome_title']); ?></h4>
-                        <ul class="aiohm-instructions-list">
-                            <li><span class="dashicons dashicons-search"></span> <div><strong>Research Online</strong><p>Fetch real-time information from a website.</p></div></li>
-                            <li><span class="dashicons dashicons-download"></span> <div><strong>Download Chat</strong><p>Save your current conversation as a PDF.</p></div></li>
-                            <li><span class="dashicons dashicons-edit"></span> <div><strong>Toggle Notes</strong><p>Open a sidebar to jot down ideas.</p></div></li>
-                            <li><span class="dashicons dashicons-fullscreen-alt"></span> <div><strong>Go Fullscreen</strong><p>Expand the interface to fill the screen.</p></div></li>
-                        </ul>
-                        <p><?php echo esc_html($atts['welcome_message']); ?></p>
+                    <div class="aiohm-welcome-screen" id="welcome-instructions">
+                        <div class="aiohm-welcome-message-area">
+                             <div class="message assistant">
+                                <p><strong><?php echo $assistant_name; ?>:</strong> <?php echo esc_html($atts['welcome_message']); ?></p>
+                            </div>
+                        </div>
+                        <div class="aiohm-welcome-guide">
+                            <h4><?php echo esc_html($atts['welcome_title']); ?></h4>
+                            <ul class="aiohm-instructions-list">
+                                <li><span class="dashicons dashicons-plus"></span> <div><strong>New Project</strong><p>Start a new project to organize your chats.</p></div></li>
+                                <li><span class="dashicons dashicons-format-chat"></span> <div><strong>New Chat</strong><p>Begin a new conversation in the current project.</p></div></li>
+                                <li><span class="dashicons dashicons-search"></span> <div><strong>Research Online</strong><p>Fetch real-time information from a website.</p></div></li>
+                                <li><span class="dashicons dashicons-download"></span> <div><strong>Download Chat</strong><p>Save your current conversation as a PDF.</p></div></li>
+                                <li><span class="dashicons dashicons-database-add"></span> <div><strong>Add to KB</strong><p>Save chat content to your knowledge base.</p></div></li>
+                                <li><span class="dashicons dashicons-edit"></span> <div><strong>Toggle Notes</strong><p>Open a sidebar to jot down ideas.</p></div></li>
+                                <li><span class="dashicons dashicons-fullscreen-alt"></span> <div><strong>Go Fullscreen</strong><p>Expand the interface to fill the screen.</p></div></li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
                 
@@ -144,18 +153,31 @@ class AIOHM_KB_Shortcode_Private_Assistant {
             </main>
 
             <aside class="aiohm-pa-notes-sidebar">
-                <div class="aiohm-pa-notes-header">
+                <div class="aiohm-pa-sidebar-header">
                     <h3>Notes</h3>
                     <button class="aiohm-pa-header-btn" id="close-notes-btn" title="Close Notes">
                         <span class="dashicons dashicons-no-alt"></span>
                     </button>
                 </div>
-                <div class="aiohm-pa-notes-content">
-                    <p class="description">Jot down ideas or important points here. Add them to your Knowledge Base for future reference.</p>
-                    <textarea id="muse-notes-input" placeholder="Write your notes here..." rows="10"></textarea>
-                    <button type="button" id="add-note-to-kb-btn" class="button button-primary">Add Note to KB</button>
+                <div class="aiohm-pa-menu">
+                    <textarea id="aiohm-pa-notes-textarea" placeholder="Write your project notes here..."></textarea>
+                </div>
+                <div class="aiohm-pa-sidebar-footer">
+                    <span id="aiohm-notes-status"></span>
+                    <button type="button" id="add-note-to-kb-btn" class="button aiohm-ohm-green-btn">Add Note to KB</button>
                 </div>
             </aside>
+        </div>
+
+        <div id="research-url-modal" class="aiohm-modal">
+            <div class="aiohm-modal-content">
+                <span class="aiohm-modal-close" id="close-research-modal">&times;</span>
+                <h3>Research a Live URL</h3>
+                <p>Enter a website address to scan its content into your knowledge base.</p>
+                <input type="url" id="research-url-input" placeholder="https://example.com">
+                <button id="research-url-submit" class="button aiohm-ohm-green-btn">Scan Website</button>
+                <div id="research-url-status" style="margin-top: 10px;"></div>
+            </div>
         </div>
         <?php
         return ob_get_clean();

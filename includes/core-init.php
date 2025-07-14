@@ -1,7 +1,7 @@
 <?php
 /**
  * Core initialization and configuration.
- * v1.6.0 - Final version with all button functionalities including live URL scanning.
+ * v1.1.12 - Fixes cascading deletes for projects and conversations.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -32,8 +32,6 @@ class AIOHM_KB_Core_Init {
         // --- Muse Mode (Private Assistant) Actions ---
         add_action('wp_ajax_aiohm_save_muse_mode_settings', array(__CLASS__, 'handle_save_muse_mode_settings_ajax'));
         
-        // FIX #2: Consolidated AJAX handlers. The incorrect 'aiohm_private_assistant_chat' and redundant 'aiohm_send_message'
-        // actions have been removed. We are now using the single, correct hook that the frontend expects.
         add_action('wp_ajax_aiohm_private_chat', array(__CLASS__, 'handle_private_assistant_chat_ajax'));
 
         add_action('wp_ajax_aiohm_test_muse_mode_chat', array(__CLASS__, 'handle_test_muse_mode_chat_ajax'));
@@ -62,7 +60,8 @@ class AIOHM_KB_Core_Init {
     }
     
     public static function handle_progressive_scan_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_admin_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
     
@@ -99,7 +98,8 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_check_api_key_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_admin_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
         $provider = isset($_POST['provider']) ? sanitize_text_field($_POST['provider']) : '';
@@ -136,7 +136,8 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_export_kb_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_admin_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
 
@@ -156,7 +157,8 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_reset_kb_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_admin_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
 
@@ -168,7 +170,8 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_toggle_kb_scope_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_admin_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
         
@@ -198,7 +201,8 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_restore_kb_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_admin_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
 
@@ -225,7 +229,8 @@ class AIOHM_KB_Core_Init {
     }
     
     public static function handle_delete_kb_entry_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_admin_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
 
@@ -247,7 +252,8 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_save_brand_soul_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_brand_soul_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
 
@@ -266,7 +272,8 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_add_brand_soul_to_kb_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_brand_soul_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'No Brand Soul data to add.']);
         }
 
@@ -298,7 +305,8 @@ class AIOHM_KB_Core_Init {
     }
     
     public static function handle_save_mirror_mode_settings_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_mirror_mode_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
 
@@ -312,7 +320,8 @@ class AIOHM_KB_Core_Init {
     }
     
     public static function handle_generate_mirror_mode_qa_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_mirror_mode_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
         // Placeholder for QA generation
@@ -320,7 +329,8 @@ class AIOHM_KB_Core_Init {
     }
     
     public static function handle_test_mirror_mode_chat_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_mirror_mode_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
 
@@ -336,7 +346,8 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_save_muse_mode_settings_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_muse_mode_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
 
@@ -350,13 +361,9 @@ class AIOHM_KB_Core_Init {
         wp_send_json_success(['message' => 'Muse Mode settings saved.']);
     }
 
-    /**
-     * **FIXED CONVERSATION HANDLING**
-     * This function now correctly receives the conversation ID from the frontend,
-     * ensuring messages are threaded properly.
-     */
     public static function handle_private_assistant_chat_ajax() {
-        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied']);
         }
     
@@ -364,7 +371,6 @@ class AIOHM_KB_Core_Init {
         $message = isset($_POST['message']) ? sanitize_textarea_field(stripslashes($_POST['message'])) : '';
         $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
         
-        // **FIX: Receive the conversation ID from the frontend.**
         $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : null;
     
         if (empty($message) || empty($project_id)) {
@@ -375,30 +381,22 @@ class AIOHM_KB_Core_Init {
             $rag_engine = new AIOHM_KB_RAG_Engine();
             $response_text = $rag_engine->query($message, 'private', $user_id);
     
-            // **FIX: If it's a new chat, create a conversation record.**
             if (is_null($conversation_id)) {
-                // Assuming a global function `create_conversation` exists. If not, we'd need to define it.
-                // This function should insert a new row into the aiohm_conversations table and return the new ID.
                 $conversation_id = create_conversation($user_id, $project_id, substr($message, 0, 100));
             }
             
-            // **FIX: Save both user message and AI reply to the database.**
-            // Assuming a global function `add_message_to_conversation` exists.
             add_message_to_conversation($conversation_id, 'user', $message);
             add_message_to_conversation($conversation_id, 'ai', $response_text);
     
-            // **FIX: Send the conversation_id back to the frontend.**
             wp_send_json_success(['reply' => $response_text, 'conversation_id' => $conversation_id]);
         } catch (Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
     }
 
-    /**
-     * **NEW: Handles saving project notes.**
-     */
     public static function handle_save_project_notes_ajax() {
-        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
 
@@ -410,17 +408,23 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'Invalid Project ID.']);
         }
         
-        // Save the notes as user meta, keyed by project ID for simplicity
-        update_user_meta($user_id, 'aiohm_project_notes_' . $project_id, $note_content);
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'aiohm_projects';
+
+        $wpdb->update(
+            $table_name,
+            ['notes' => $note_content],
+            ['id' => $project_id, 'user_id' => $user_id],
+            ['%s'],
+            ['%d', '%d']
+        );
 
         wp_send_json_success(['message' => 'Notes saved.']);
     }
 
-    /**
-     * **NEW: Handles loading project notes.**
-     */
     public static function handle_load_project_notes_ajax() {
-        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
 
@@ -430,14 +434,123 @@ class AIOHM_KB_Core_Init {
         if (empty($project_id)) {
             wp_send_json_error(['message' => 'Invalid Project ID.']);
         }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'aiohm_projects';
 
-        $note_content = get_user_meta($user_id, 'aiohm_project_notes_' . $project_id, true);
+        $note_content = $wpdb->get_var($wpdb->prepare(
+            "SELECT notes FROM $table_name WHERE id = %d AND user_id = %d",
+            $project_id,
+            $user_id
+        ));
 
         wp_send_json_success(['note_content' => $note_content]);
     }
     
+    /**
+     * **FIXED: Implements a cascading delete for projects.**
+     * Deletes a project, its associated conversations, and all messages within those conversations.
+     */
+    public static function handle_delete_project_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission denied']);
+        }
+
+        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+        $user_id = get_current_user_id();
+
+        if (empty($project_id)) {
+            wp_send_json_error(['message' => 'Invalid project ID.']);
+        }
+
+        global $wpdb;
+        $projects_table = $wpdb->prefix . 'aiohm_projects';
+        $conversations_table = $wpdb->prefix . 'aiohm_conversations';
+        $messages_table = $wpdb->prefix . 'aiohm_messages';
+        
+        // Find all conversations in this project
+        $conversation_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT id FROM $conversations_table WHERE project_id = %d AND user_id = %d",
+            $project_id, $user_id
+        ));
+
+        // Start a transaction to ensure all or nothing is deleted
+        $wpdb->query('START TRANSACTION');
+
+        try {
+            if (!empty($conversation_ids)) {
+                // Delete messages for all found conversations
+                $wpdb->query($wpdb->prepare(
+                    "DELETE FROM $messages_table WHERE conversation_id IN (" . implode(',', array_fill(0, count($conversation_ids), '%d')) . ")",
+                    $conversation_ids
+                ));
+
+                // Delete all conversations in the project
+                $wpdb->delete($conversations_table, ['project_id' => $project_id], ['%d']);
+            }
+
+            // Delete the project itself
+            $deleted_project = $wpdb->delete($projects_table, ['id' => $project_id, 'user_id' => $user_id], ['%d', '%d']);
+
+            if ($deleted_project === false) {
+                throw new Exception("Failed to delete the project.");
+            }
+            
+            $wpdb->query('COMMIT');
+            wp_send_json_success(['message' => 'Project and all its data deleted successfully.']);
+
+        } catch (Exception $e) {
+            $wpdb->query('ROLLBACK');
+            wp_send_json_error(['message' => 'Failed to delete project: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * **FIXED: Implements a cascading delete for conversations.**
+     * Deletes a conversation and all its messages.
+     */
+    public static function handle_delete_conversation_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission denied']);
+        }
+
+        $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
+        $user_id = get_current_user_id();
+        
+        if (empty($conversation_id)) {
+            wp_send_json_error(['message' => 'Invalid conversation ID.']);
+        }
+
+        global $wpdb;
+        $conversations_table = $wpdb->prefix . 'aiohm_conversations';
+        $messages_table = $wpdb->prefix . 'aiohm_messages';
+
+        // Start transaction
+        $wpdb->query('START TRANSACTION');
+        try {
+            // Delete all messages in the conversation
+            $wpdb->delete($messages_table, ['conversation_id' => $conversation_id], ['%d']);
+
+            // Delete the conversation itself, ensuring it belongs to the current user
+            $deleted_conversation = $wpdb->delete($conversations_table, ['id' => $conversation_id, 'user_id' => $user_id], ['%d', '%d']);
+
+            if ($deleted_conversation === false) {
+                throw new Exception("Failed to delete the conversation.");
+            }
+
+            $wpdb->query('COMMIT');
+            wp_send_json_success(['message' => 'Conversation deleted successfully.']);
+        } catch (Exception $e) {
+            $wpdb->query('ROLLBACK');
+            wp_send_json_error(['message' => 'Failed to delete conversation: ' . $e->getMessage()]);
+        }
+    }
+    
     public static function handle_test_muse_mode_chat_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_muse_mode_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
         $message = sanitize_text_field($_POST['message']);
@@ -452,9 +565,7 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_frontend_chat_ajax() {
-        if (!check_ajax_referer('aiohm_chat_nonce', 'nonce', false)) {
-            wp_send_json_error(['message' => 'Permission denied.']);
-        }
+        check_ajax_referer('aiohm_chat_nonce', 'nonce');
         $message = sanitize_text_field($_POST['message']);
         try {
             $rag_engine = new AIOHM_KB_RAG_Engine();
@@ -466,9 +577,7 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_search_knowledge_ajax() {
-        if (!check_ajax_referer('aiohm_search_nonce', 'nonce', false)) {
-            wp_send_json_error(['message' => 'Permission denied.']);
-        }
+        check_ajax_referer('aiohm_search_nonce', 'nonce');
         $query = sanitize_text_field($_POST['query']);
         try {
             $rag_engine = new AIOHM_KB_RAG_Engine();
@@ -480,7 +589,8 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_admin_search_knowledge_ajax() {
-        if (!check_ajax_referer('aiohm_kb_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+        check_ajax_referer('aiohm_admin_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
         $query = sanitize_text_field($_POST['query']);
@@ -494,17 +604,19 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_get_projects_ajax() {
-        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied']);
         }
         global $wpdb;
         $user_id = get_current_user_id();
-        $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}aiohm_projects WHERE user_id = %d", $user_id));
+        $results = $wpdb->get_results($wpdb->prepare("SELECT id, project_name, notes FROM {$wpdb->prefix}aiohm_projects WHERE user_id = %d", $user_id));
         wp_send_json_success($results);
     }
 
     public static function handle_create_project_ajax() {
-        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
 
@@ -534,7 +646,8 @@ class AIOHM_KB_Core_Init {
     }
     
     public static function handle_get_conversation_history_ajax() {
-        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied']);
         }
         $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
@@ -552,7 +665,8 @@ class AIOHM_KB_Core_Init {
     }
     
     public static function handle_load_history_ajax() {
-        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied']);
         }
         global $wpdb;

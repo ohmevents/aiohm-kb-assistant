@@ -1,6 +1,6 @@
 /**
  * AIOHM Private Assistant Frontend Script
- * v1.1.11 - Adds auto-saving notes and deletion of projects/conversations.
+ * v1.1.11 - Implements new UI layouts and research modal.
  */
 jQuery(document).ready(function($) {
     'use strict';
@@ -26,14 +26,24 @@ jQuery(document).ready(function($) {
     const assistantName = aiohm_private_chat_params.assistantName || 'Assistant';
 
     const notesInput = $('#aiohm-pa-notes-textarea');
-    const saveNoteBtn = $('#aiohm-pa-save-note-btn');
+    const addToKbBtnNotes = $('#add-note-to-kb-btn'); // Renamed button
+    const notesStatus = $('#aiohm-notes-status');
+
     const newProjectBtn = $('#new-project-btn');
     const newChatBtn = $('#new-chat-btn');
-    const addToKbBtn = $('#add-to-kb-btn');
+    const addToKbBtnChat = $('#add-to-kb-btn');
     const sidebarToggleBtn = $('#sidebar-toggle');
     const notesToggleBtn = $('#toggle-notes-btn');
     const closeNotesBtn = $('#close-notes-btn');
     const fullscreenBtn = $('#fullscreen-toggle-btn');
+    
+    // **NEW: Selectors for the research modal**
+    const researchBtn = $('#research-online-prompt-btn');
+    const researchModal = $('#research-url-modal');
+    const researchUrlInput = $('#research-url-input');
+    const researchUrlSubmit = $('#research-url-submit');
+    const researchUrlStatus = $('#research-url-status');
+    const researchModalClose = $('#close-research-modal');
 
 
     // ====================================================================
@@ -51,9 +61,12 @@ jQuery(document).ready(function($) {
         const messageClass = sender.toLowerCase() === 'user' ? 'user' : 'assistant';
         const senderName = sender.toLowerCase() === 'user' ? 'You' : assistantName;
         
+        // Sanitize text before inserting to prevent XSS
+        const sanitizedText = $('<div/>').text(text).html();
+
         const messageHTML = `
             <div class="message ${messageClass}">
-                <p><strong>${senderName}:</strong> ${text}</p>
+                <p><strong>${senderName}:</strong> ${sanitizedText}</p>
             </div>`;
         conversationPanel.append(messageHTML);
         conversationPanel.scrollTop(conversationPanel[0].scrollHeight);
@@ -65,13 +78,14 @@ jQuery(document).ready(function($) {
         chatInput.prop('disabled', !isProjectSelected);
         sendBtn.prop('disabled', !isProjectSelected);
         chatInput.attr('placeholder', isProjectSelected ? originalPlaceholder : 'Select a project to begin...');
-        addToKbBtn.prop('disabled', !isConversationActive);
+        addToKbBtnChat.prop('disabled', !isConversationActive);
         notesInput.prop('disabled', !isProjectSelected);
-        saveNoteBtn.prop('disabled', !isProjectSelected);
+        addToKbBtnNotes.prop('disabled', !isProjectSelected);
 
         if (!isProjectSelected) {
             projectTitle.text('Select a Project');
             notesInput.val('');
+            notesStatus.text('');
         }
     }
 
@@ -93,12 +107,7 @@ jQuery(document).ready(function($) {
     // ====================================================================
     // 3. CORE & AJAX FUNCTIONALITY
     // ====================================================================
-
-    /**
-     * MY MISTAKE WAS HERE. This function is now fixed.
-     * It correctly uses the 'action' and 'nonce' parameters passed to it,
-     * so that all AJAX calls work, not just the chat.
-     */
+    
     function performAjaxRequest(action, data, showLoading = true) {
         if (showLoading) {
             loadingIndicator.show();
@@ -107,8 +116,8 @@ jQuery(document).ready(function($) {
             url: aiohm_private_chat_params.ajax_url,
             type: 'POST',
             data: {
-                action: action, // Use the action passed into the function
-                nonce: aiohm_private_chat_params.nonce, // The key must be 'nonce'
+                action: action,
+                nonce: aiohm_private_chat_params.nonce,
                 ...data
             }
         }).always(function() {
@@ -119,7 +128,6 @@ jQuery(document).ready(function($) {
     }
 
     function loadHistory() {
-        // This function will now work correctly because performAjaxRequest is fixed.
         return performAjaxRequest('aiohm_load_history', {}).done(function(response) {
             if (response.success) {
                 projectList.empty();
@@ -164,19 +172,15 @@ jQuery(document).ready(function($) {
         appendMessage('user', message);
         chatInput.val('');
 
-        // The action is 'aiohm_private_chat' to match our fix in core-init.php
         performAjaxRequest('aiohm_private_chat', {
             message: message,
             project_id: currentProjectId,
             conversation_id: currentConversationId
         }).done(function(response) {
             if (response.success) {
-                // The PHP backend sends 'reply', so we use that here.
                 appendMessage(assistantName, response.data.reply);
                 if (response.data.conversation_id) {
-                    // This correctly saves the conversation ID for the next message.
                     currentConversationId = response.data.conversation_id;
-                    // We also refresh the history to show the new chat entry
                     loadHistory();
                 }
             } else {
@@ -186,17 +190,22 @@ jQuery(document).ready(function($) {
     }
 
     // ====================================================================
-    // 4. NEW FEATURE FUNCTIONS (NOTES & DELETION)
+    // 4. NOTES, KB & RESEARCH FUNCTIONALITY
     // ====================================================================
-
-    function saveNotes(projectId) {
+    
+    function saveNotes() {
+        if (!currentProjectId) return;
         const noteContent = notesInput.val();
+        notesStatus.text('Saving...').show();
+
         performAjaxRequest('aiohm_save_project_notes', {
-            project_id: projectId,
+            project_id: currentProjectId,
             note_content: noteContent
         }, false).done(function(response) {
              if(response.success) {
-                console.log('Notes saved for project ' + projectId);
+                notesStatus.text('Saved');
+             } else {
+                notesStatus.text('Error');
              }
         });
     }
@@ -205,14 +214,37 @@ jQuery(document).ready(function($) {
         performAjaxRequest('aiohm_load_project_notes', { project_id: projectId }).done(function(response) {
             if (response.success) {
                 notesInput.val(response.data.note_content || '');
-            } else {
-                notesInput.val('');
+                notesStatus.text('');
             }
         });
     }
-    
+
+    function addNoteToKb() {
+        const noteContent = notesInput.val().trim();
+        if(!noteContent) {
+            showNotification('Note is empty.', 'error');
+            return;
+        }
+
+        // Using the handle_add_brand_soul_to_kb action as it adds content to the private KB
+        performAjaxRequest('aiohm_add_brand_soul_to_kb', {
+            // We format the note as a Q&A pair to fit the existing function
+            questions: [{ 
+                question: 'Note from Project: ' + projectTitle.text(), 
+                answer: noteContent 
+            }]
+        }).done(function(response) {
+            if(response.success) {
+                showNotification('Note added to your private knowledge base.', 'success');
+            } else {
+                showNotification('Error: ' + (response.data.message || 'Could not add note.'), 'error');
+            }
+        });
+    }
+
+
     // ====================================================================
-    // 5. EVENT LISTENERS & NEW PROJECT VIEW
+    // 5. EVENT LISTENERS & VIEWS
     // ====================================================================
 
     function displayProjectCreationView() {
@@ -220,12 +252,12 @@ jQuery(document).ready(function($) {
         sendBtn.prop('disabled', true);
 
         const formHTML = `
-            <div id="create-project-view" style="padding: 40px; text-align: center;">
+            <div id="create-project-view">
                 <h3>Create a New Project</h3>
-                <p style="color: var(--pa-text-secondary); margin-top: 5px;">Enter a name below to organize your chats.</p>
-                <input type="text" id="new-project-input" placeholder="My Awesome Project" style="width: 100%; max-width: 400px; padding: 10px; margin-top: 20px; margin-bottom: 15px; background-color: var(--pa-bg-darkest); border: 1px solid var(--pa-border-color); color: #fff; border-radius: 5px;">
+                <p>Enter a name below to organize your chats.</p>
+                <input type="text" id="new-project-input" placeholder="My Awesome Project">
                 <br>
-                <button id="create-project-submit" class="aiohm-pa-action-btn" style="padding: 12px 30px;">Create Project</button>
+                <button id="create-project-submit" class="aiohm-pa-action-btn aiohm-ohm-green-btn">Create Project</button>
             </div>
         `;
         conversationPanel.html(formHTML);
@@ -252,7 +284,6 @@ jQuery(document).ready(function($) {
         }
         $(this).text('Creating...').prop('disabled', true);
         
-        // This will now work correctly because performAjaxRequest is fixed.
         performAjaxRequest('aiohm_create_project', { name: projectName }).done(response => {
             if (response.success && response.data.new_project_id) {
                 showNotification(`Project "${projectName}" created!`, 'success');
@@ -276,16 +307,16 @@ jQuery(document).ready(function($) {
     projectList.on('click', '.aiohm-pa-list-item', function(e) {
         e.preventDefault();
         if (currentProjectId) {
-            saveNotes(currentProjectId);
+            saveNotes();
         }
         restoreChatView();
+        welcomeInstructions.hide();
         $('.aiohm-pa-list-item').removeClass('active');
         $(this).addClass('active');
         currentProjectId = $(this).data('id');
         currentConversationId = null; 
         projectTitle.text($(this).text());
-        conversationPanel.html(`<div class="message system"><p>New chat started in project: <strong>${$(this).text()}</strong></p></div>`);
-        welcomeInstructions.hide();
+        conversationPanel.html(`<div class="message assistant"><p>New chat started in project: <strong>${$(this).text()}</strong></p></div>`);
         loadNotes(currentProjectId);
         updateChatUIState();
     });
@@ -293,13 +324,13 @@ jQuery(document).ready(function($) {
     conversationList.on('click', '.aiohm-pa-list-item', function(e) {
         e.preventDefault();
         restoreChatView();
+        welcomeInstructions.hide();
         $('.aiohm-pa-list-item').removeClass('active');
         $(this).addClass('active');
         currentConversationId = $(this).data('id');
         performAjaxRequest('aiohm_load_conversation', { conversation_id: currentConversationId }).done(response => {
             if (response.success && response.data.messages) {
                 conversationPanel.empty();
-                welcomeInstructions.hide();
                 response.data.messages.forEach(msg => appendMessage(msg.sender, msg.message_content));
                 currentProjectId = response.data.project_id;
                 projectTitle.text(response.data.project_name || 'Conversation');
@@ -316,18 +347,23 @@ jQuery(document).ready(function($) {
             return;
         }
         restoreChatView();
+        welcomeInstructions.hide();
         currentConversationId = null;
         conversationList.find('.aiohm-pa-list-item').removeClass('active');
-        conversationPanel.html(`<div class="message system"><p>New chat started in current project.</p></div>`);
-        welcomeInstructions.hide();
+        conversationPanel.html(`<div class="message assistant"><p>New chat started in current project.</p></div>`);
         updateChatUIState();
     });
 
     notesInput.on('keyup', function() {
         clearTimeout(noteSaveTimer);
+        notesStatus.text('Typing...');
         if (currentProjectId) {
-            noteSaveTimer = setTimeout(() => saveNotes(currentProjectId), 1500);
+            noteSaveTimer = setTimeout(saveNotes, 1500); // 1.5 second delay
         }
+    });
+
+    addToKbBtnNotes.on('click', function() {
+        addNoteToKb();
     });
 
     projectList.on('click', '.delete-project', function(e) {
@@ -341,13 +377,12 @@ jQuery(document).ready(function($) {
                         currentProjectId = null;
                         currentConversationId = null;
                         restoreChatView();
-                        updateChatUIState();
                     }
                     loadHistory();
                 } else {
                     showNotification('Error: ' + (response.data.message || 'Could not delete project.'), 'error');
                 }
-            });
+            }).always(updateChatUIState);
         }
     });
 
@@ -361,13 +396,12 @@ jQuery(document).ready(function($) {
                      if(currentConversationId === conversationId) {
                         currentConversationId = null;
                         restoreChatView();
-                        updateChatUIState();
                     }
                     loadHistory();
                 } else {
                     showNotification('Error: ' + (response.data.message || 'Could not delete conversation.'), 'error');
                 }
-            });
+            }).always(updateChatUIState);
         }
     });
 
@@ -376,7 +410,49 @@ jQuery(document).ready(function($) {
     closeNotesBtn.on('click', () => appContainer.removeClass('notes-open'));
     fullscreenBtn.on('click', () => setFullscreen());
     notificationBar.on('click', '.close-btn', () => notificationBar.fadeOut());
+    
+    // **NEW: Event listeners for the Research Online modal**
+    researchBtn.on('click', function() {
+        researchModal.css('display', 'flex');
+        researchUrlInput.focus();
+    });
 
+    researchModalClose.on('click', function() {
+        researchModal.hide();
+    });
+    
+    researchUrlSubmit.on('click', function() {
+        const url = researchUrlInput.val().trim();
+        if (!url) {
+            researchUrlStatus.text('Please enter a valid URL.');
+            return;
+        }
+
+        $(this).text('Scanning...').prop('disabled', true);
+        researchUrlStatus.text('Scanning website. This may take a moment...');
+
+        performAjaxRequest('aiohm_scan_url_live', { url_to_scan: url }, false)
+            .done(function(response) {
+                if(response.success) {
+                    showNotification(response.data.message, 'success');
+                    researchModal.hide();
+                } else {
+                    researchUrlStatus.text('Error: ' + (response.data.message || 'Scan failed.'));
+                }
+            }).fail(function() {
+                researchUrlStatus.text('An unexpected network error occurred.');
+            }).always(function() {
+                 researchUrlSubmit.text('Scan Website').prop('disabled', false);
+                 researchUrlInput.val('');
+                 researchUrlStatus.text('');
+            });
+    });
+    
+    $(window).on('click', function(e) {
+        if ($(e.target).is(researchModal)) {
+            researchModal.hide();
+        }
+    });
 
     // ====================================================================
     // 6. INITIALIZATION

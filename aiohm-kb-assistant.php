@@ -146,11 +146,6 @@ class AIOHM_KB_Assistant {
         return $settings;
     }
 
-    /**
-     * **MODIFIED FOR PERFORMANCE**
-     * This function now adds a FULLTEXT index to the `content` column,
-     * which dramatically speeds up keyword searches in the database.
-     */
     private function create_tables() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'aiohm_vector_entries';
@@ -168,7 +163,7 @@ class AIOHM_KB_Assistant {
             PRIMARY KEY  (id),
             KEY user_id (user_id),
             KEY content_id (content_id),
-            FULLTEXT KEY content (content) -- **FIX: Added FULLTEXT index for faster searches**
+            FULLTEXT KEY content (content)
         ) $charset_collate;";
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
