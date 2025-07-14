@@ -1,131 +1,8 @@
 <?php
 /**
  * AI GPT Client for handling API requests.
- *
- * *** UPDATED: Fix for 'Cannot declare class' fatal error by adding a class_exists check.
- * Includes new standalone AJAX functions for Muse Mode chat and Live Research. ***
  */
 if (!defined('ABSPATH')) exit;
-
-// =================================================================================
-// AJAX ACTION HOOKS (Centralized Here)
-// These functions handle the real-time chat requests from the Muse Mode page.
-// =================================================================================
-
-if (!function_exists('aiohm_handle_private_chat_ajax')) {
-    function aiohm_handle_private_chat_ajax() {
-        check_ajax_referer('aiohm_private_chat_nonce', 'nonce'); // Use the correct nonce from your JS file
-        $user_prompt = isset($_POST['prompt']) ? sanitize_textarea_field($_POST['prompt']) : '';
-
-        if (empty($user_prompt)) {
-            wp_send_json_error(['message' => 'Prompt is empty.']);
-        }
-
-        $settings = AIOHM_KB_Assistant::get_settings();
-        $muse_settings = $settings['muse_mode'] ?? [];
-        $system_prompt = $muse_settings['system_prompt'] ?? 'You are Muse, a private brand assistant.';
-
-        $ai_response = aiohm_send_to_gpt($user_prompt, $system_prompt);
-
-        if ($ai_response) {
-            wp_send_json_success(['message' => $ai_response]);
-        } else {
-            wp_send_json_error(['message' => 'Failed to get a response from the AI.']);
-        }
-    }
-}
-
-if (!function_exists('aiohm_handle_live_research_ajax')) {
-    add_action('wp_ajax_aiohm_live_research', 'aiohm_handle_live_research_ajax');
-    function aiohm_handle_live_research_ajax() {
-        check_ajax_referer('aiohm_private_chat_nonce', 'nonce'); // Use the correct nonce from your JS file
-        $url_to_research = isset($_POST['research_url']) ? esc_url_raw($_POST['research_url']) : '';
-
-        if (empty($url_to_research)) {
-            wp_send_json_error(['message' => 'No URL provided for research.']);
-        }
-
-        $content = aiohm_fetch_url_content($url_to_research);
-
-        if ($content === false) {
-            wp_send_json_error(['message' => 'Failed to retrieve content from the URL.']);
-        }
-
-        $truncated_content = substr($content, 0, 12000);
-        $system_prompt = "You are a research analyst. Summarize the key information and latest updates from the following text scraped from a website.";
-
-        $ai_response = aiohm_send_to_gpt($truncated_content, $system_prompt);
-
-        if ($ai_response) {
-            wp_send_json_success(['message' => $ai_response]);
-        } else {
-            wp_send_json_error(['message' => 'The AI failed to process the website content.']);
-        }
-    }
-}
-
-
-if (!function_exists('aiohm_fetch_url_content')) {
-    function aiohm_fetch_url_content($url) {
-        $response = wp_remote_get($url, ['timeout' => 20]);
-        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
-            return false;
-        }
-        $body = wp_remote_retrieve_body($response);
-        $text = strip_tags($body);
-        $text = preg_replace('/\s+/', ' ', $text);
-        return trim($text);
-    }
-}
-
-
-if (!function_exists('aiohm_send_to_gpt')) {
-    function aiohm_send_to_gpt($user_prompt, $system_prompt) {
-        $settings = AIOHM_KB_Assistant::get_settings();
-        $muse_settings = $settings['muse_mode'] ?? [];
-        $api_key = $settings['openai_api_key'] ?? '';
-        $model = $muse_settings['ai_model'] ?? 'gpt-4o';
-        $temperature = floatval($muse_settings['temperature'] ?? 0.7);
-
-        if (empty($api_key)) {
-            return 'OpenAI API Key is not configured.';
-        }
-
-        $response = wp_remote_post('https://api.openai.com/v1/chat/completions', [
-            'headers' => ['Authorization' => 'Bearer ' . $api_key, 'Content-Type' => 'application/json'],
-            'body'    => json_encode([
-                'model'       => $model,
-                'messages'    => [
-                    ['role' => 'system', 'content' => $system_prompt],
-                    ['role' => 'user', 'content' => $user_prompt],
-                ],
-                'max_tokens'  => 2000,
-                'temperature' => $temperature,
-            ]),
-            'timeout' => 60,
-        ]);
-
-        if (is_wp_error($response)) {
-            return 'Failed to connect to AI service: ' . $response->get_error_message();
-        }
-
-        $response_body = json_decode(wp_remote_retrieve_body($response), true);
-
-        if (isset($response_body['choices'][0]['message']['content'])) {
-            return trim($response_body['choices'][0]['message']['content']);
-        } elseif (isset($response_body['error']['message'])) {
-            return 'AI API Error: ' . $response_body['error']['message'];
-        }
-
-        return false;
-    }
-}
-
-
-// =================================================================================
-// ORIGINAL AIOHM_KB_AI_GPT_Client Class (with safety check)
-// This class handles other AI tasks like embeddings and API testing.
-// =================================================================================
 
 if (!class_exists('AIOHM_KB_AI_GPT_Client')) :
     class AIOHM_KB_AI_GPT_Client {
@@ -133,7 +10,7 @@ if (!class_exists('AIOHM_KB_AI_GPT_Client')) :
         private $settings;
         private $openai_api_key;
         private $gemini_api_key;
-        private $claude_api_key; // Added for completeness
+        private $claude_api_key;
 
         public function __construct($settings = null) {
             if ($settings === null) {
@@ -143,7 +20,7 @@ if (!class_exists('AIOHM_KB_AI_GPT_Client')) :
             }
             $this->openai_api_key = $this->settings['openai_api_key'] ?? '';
             $this->gemini_api_key = $this->settings['gemini_api_key'] ?? '';
-            $this->claude_api_key = $this->settings['claude_api_key'] ?? ''; // Added
+            $this->claude_api_key = $this->settings['claude_api_key'] ?? '';
         }
 
         private function sanitize_text_for_json($text) {
@@ -196,7 +73,6 @@ if (!class_exists('AIOHM_KB_AI_GPT_Client')) :
             // Handle Claude Models
             if (strpos($model, 'claude') === 0) {
                 if (empty($this->claude_api_key)) throw new Exception('Anthropic API key is required for Claude.');
-                // Note: Claude API logic would go here. It's different from OpenAI/Gemini.
                 // This is a placeholder for future implementation.
                 throw new Exception('Claude API integration is not yet fully implemented in this class.');
             }

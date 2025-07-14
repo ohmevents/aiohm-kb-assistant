@@ -215,6 +215,7 @@ class AIOHM_KB_Assistant {
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) UNSIGNED NOT NULL,
             project_name varchar(255) NOT NULL,
+            notes LONGTEXT,
             creation_date datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
             PRIMARY KEY  (id),
             KEY user_id (user_id)

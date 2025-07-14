@@ -145,6 +145,50 @@ class AIOHM_KB_RAG_Engine {
         }
         return $chunks;
     }
+    
+    public function query($query_text, $scope = 'site', $user_id = 0) {
+    // 1. Find relevant context from the knowledge base
+    if ($scope === 'private') {
+        $context_entries = $this->find_context_for_user($query_text, $user_id);
+    } else {
+        $context_entries = $this->find_relevant_context($query_text);
+    }
+
+    $context = "";
+    foreach ($context_entries as $entry) {
+        $context .= "Title: " . $entry['entry']['title'] . "\n";
+        $context .= "Content: " . $entry['entry']['content'] . "\n\n";
+    }
+
+    // 2. Get AI settings
+    $settings = AIOHM_KB_Assistant::get_settings();
+    if ($scope === 'private') {
+        $ai_settings = $settings['muse_mode'];
+        $system_message = $ai_settings['system_prompt'];
+    } else {
+        $ai_settings = $settings['mirror_mode'];
+        $system_message = $ai_settings['qa_system_message'];
+    }
+
+    // 3. Prepare the final prompt for the AI
+    $final_prompt = str_replace('{context}', $context, $system_message);
+
+    // 4. Send to the AI and get the response
+    $ai_client = new AIOHM_KB_AI_GPT_Client();
+    try {
+        $response = $ai_client->get_chat_completion(
+            $final_prompt,
+            $query_text,
+            $ai_settings['temperature'],
+            $ai_settings['ai_model']
+        );
+        return $response;
+    } catch (Exception $e) {
+        // Log the error and return a user-friendly message
+        AIOHM_KB_Assistant::log('AI Query Error: ' . $e->getMessage(), 'error');
+        return 'I am currently unable to answer. Please try again later.';
+    }
+}
 
     public function export_knowledge_base() {
         global $wpdb;
