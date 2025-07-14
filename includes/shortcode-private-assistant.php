@@ -1,75 +1,163 @@
 <?php
 /**
- * Private Assistant shortcode implementation - [aiohm_private_assistant]
+ * Shortcode for displaying the private assistant interface.
+ * v1.3.8 - Implements conversational UI for project creation.
  */
-
-if (!defined('ABSPATH')) {
-    exit;
-}
+if (!defined('ABSPATH')) exit;
 
 class AIOHM_KB_Shortcode_Private_Assistant {
 
     public static function init() {
-        add_shortcode('aiohm_private_assistant', array(__CLASS__, 'render_shortcode'));
+        add_shortcode('aiohm_private_assistant', array(__CLASS__, 'render_private_assistant'));
     }
 
-    public static function render_shortcode($atts) {
-        // Access Control
-        if (!current_user_can('administrator') && !current_user_can('ohm_brand_collaborator')) {
-            return '<div class="aiohm-chat-disabled"><p>This space is reserved for private brand dialogue. Please log in with appropriate permissions.</p></div>';
+    public static function render_private_assistant($atts = []) {
+        if (!is_user_logged_in()) {
+            return '<p class="aiohm-auth-notice">Please <a href="' . esc_url(wp_login_url(get_permalink())) . '">log in</a> to access your private assistant.</p>';
         }
 
-        $settings = AIOHM_KB_Assistant::get_settings();
-        $muse_settings = $settings['muse_mode'] ?? [];
+        $atts = shortcode_atts([
+            'welcome_title'    => 'Welcome! Here’s a quick guide to the buttons:',
+            'welcome_message'  => 'Select a project from the sidebar to begin.',
+            'start_fullscreen' => 'false',
+        ], $atts, 'aiohm_private_assistant');
 
-        $chat_atts = shortcode_atts(array(
-            'title' => $muse_settings['assistant_name'] ?? 'Muse: Private Assistant',
-            'placeholder' => 'Ask Muse anything...',
-            'height' => '500',
-            'width' => '100%',
-            'welcome_message' => 'Hello! I am your private brand assistant. How can I help you create today?'
-        ), $atts, 'aiohm_private_assistant');
-        
-        static $chat_counter = 0;
-        $chat_counter++;
-        $chat_id = 'aiohm-muse-chat-' . $chat_counter;
-        
-        wp_enqueue_script('aiohm-chat');
-        wp_enqueue_style('aiohm-chat');
-        
-        $output = '<div class="aiohm-chat-wrapper">';
-        $output .= '<div class="aiohm-chat-container" id="' . esc_attr($chat_id) . '">';
-        
-        $output .= '<div class="aiohm-chat-header">';
-        $output .= '<div class="aiohm-chat-title">' . esc_html($chat_atts['title']) . '</div>';
-        $output .= '</div>';
-        
-        $output .= '<div class="aiohm-chat-messages" style="height: ' . esc_attr($chat_atts['height']) . 'px;">';
-        $output .= '<div class="aiohm-message aiohm-message-bot"><div class="aiohm-message-bubble"><div class="aiohm-message-content">' . esc_html($chat_atts['welcome_message']) . '</div></div></div>';
-        $output .= '</div>';
-        
-        $output .= '<div class="aiohm-chat-input-container">';
-        $output .= '<div class="aiohm-chat-input-wrapper">';
-        $output .= '<textarea class="aiohm-chat-input" placeholder="' . esc_attr($chat_atts['placeholder']) . '" rows="1"></textarea>';
-        $output .= '<button type="button" class="aiohm-chat-send-btn" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>';
-        $output .= '</div>';
-        $output .= '</div>';
-        
-        $output .= '</div>';
-        $output .= '</div>';
+        $all_settings = AIOHM_KB_Assistant::get_settings();
+        $muse_settings = $all_settings['muse_mode'] ?? [];
+        $assistant_name = !empty($muse_settings['assistant_name']) ? esc_html($muse_settings['assistant_name']) : 'Muse';
+        $settings_page_url = admin_url('admin.php?page=aiohm-muse-mode');
 
-        $chat_config = array(
-            'chat_id' => $chat_id,
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('aiohm_private_chat_nonce'),
-            'chat_action' => 'aiohm_private_assistant_chat', // Use a new action
-            'strings' => array(
-                'error' => 'Sorry, something went wrong.',
-            )
-        );
+        wp_enqueue_style('aiohm-private-chat-style', AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-private-chat.css', [], AIOHM_KB_VERSION);
+        wp_enqueue_script('aiohm-private-chat-js', AIOHM_KB_PLUGIN_URL . 'assets/js/aiohm-private-chat.js', ['jquery'], AIOHM_KB_VERSION, true);
         
-        wp_add_inline_script('aiohm-chat', 'if (typeof window.aiohm_chat_configs === "undefined") window.aiohm_chat_configs = {}; window.aiohm_chat_configs["' . $chat_id . '"] = ' . json_encode($chat_config) . ';', 'before');
+        wp_localize_script('aiohm-private-chat-js', 'aiohm_private_chat_params', [
+            'ajax_url'        => admin_url('admin-ajax.php'),
+            'nonce'           => wp_create_nonce('aiohm_private_chat_nonce'),
+            'user_name'       => wp_get_current_user()->display_name,
+            'startFullscreen' => ($atts['start_fullscreen'] === 'true'),
+            'assistantName'   => $assistant_name, // Pass assistant name to JS
+        ]);
 
-        return $output;
+        ob_start();
+        ?>
+        <div id="aiohm-app-container" class="aiohm-private-assistant-container modern">
+            
+            <aside class="aiohm-pa-sidebar">
+                <div class="aiohm-pa-sidebar-header">
+                    <h3><?php echo $assistant_name; ?></h3>
+                </div>
+
+                <nav class="aiohm-pa-menu">
+                    <div class="aiohm-pa-menu-item">
+                        <button class="aiohm-pa-menu-header active" data-target="projects-content">
+                            <span>Projects</span>
+                            <span class="dashicons dashicons-arrow-down-alt2"></span>
+                        </button>
+                        <div class="aiohm-pa-menu-content" id="projects-content" style="display: block;">
+                            <div class="aiohm-pa-project-list"></div>
+                        </div>
+                    </div>
+                    <div class="aiohm-pa-menu-item">
+                        <button class="aiohm-pa-menu-header" data-target="conversations-content">
+                            <span>Conversations</span>
+                            <span class="dashicons dashicons-arrow-down-alt2"></span>
+                        </button>
+                        <div class="aiohm-pa-menu-content" id="conversations-content">
+                            <div class="aiohm-pa-conversation-list"></div>
+                        </div>
+                    </div>
+                </nav>
+
+                <div class="aiohm-pa-sidebar-footer">
+                    <a href="<?php echo esc_url($settings_page_url); ?>" class="aiohm-footer-settings-link" title="Muse Mode Settings">Settings</a>
+                    <span class="aiohm-footer-version">AIOHM KB v<?php echo AIOHM_KB_VERSION; ?></span>
+                </div>
+            </aside>
+
+            <main class="aiohm-pa-content-wrapper">
+                <header class="aiohm-pa-header">
+                    <button class="aiohm-pa-header-btn" id="sidebar-toggle" title="Toggle Sidebar">
+                        <span class="dashicons dashicons-menu-alt"></span>
+                    </button>
+                    <h2 class="aiohm-pa-header-title" id="project-title">Select a Project</h2>
+                    
+                    <div class="aiohm-pa-window-controls">
+                        <button class="aiohm-pa-header-btn" id="new-project-btn" title="New Project">
+                            <span class="dashicons dashicons-plus"></span>
+                        </button>
+                        <button class="aiohm-pa-header-btn" id="new-chat-btn" title="New Chat">
+                            <span class="dashicons dashicons-format-chat"></span>
+                        </button>
+                        <button class="aiohm-pa-header-btn" id="research-online-prompt-btn" title="Research a live website">
+                            <span class="dashicons dashicons-search"></span>
+                        </button>
+                        <button class="aiohm-pa-header-btn" id="download-pdf-btn" title="Download chat as PDF">
+                            <span class="dashicons dashicons-download"></span>
+                        </button>
+                        <button class="aiohm-pa-header-btn" id="add-to-kb-btn" title="Add Chat to Knowledge Base" disabled>
+                            <span class="dashicons dashicons-database-add"></span>
+                        </button>
+                        <button class="aiohm-pa-header-btn" id="toggle-notes-btn" title="Toggle Notes">
+                            <span class="dashicons dashicons-edit"></span>
+                        </button>
+                        <button class="aiohm-pa-header-btn" id="fullscreen-toggle-btn" title="Toggle Fullscreen">
+                            <span class="dashicons dashicons-fullscreen-alt"></span>
+                        </button>
+                    </div>
+                </header>
+                
+                <div id="aiohm-pa-notification" class="aiohm-pa-notification-bar" style="display: none;">
+                    <p></p>
+                    <span class="close-btn dashicons dashicons-no-alt"></span>
+                </div>
+
+                <div class="conversation-panel" id="conversation-panel">
+                    <div class="message system" id="welcome-instructions">
+                        <h4><?php echo esc_html($atts['welcome_title']); ?></h4>
+                        <ul class="aiohm-instructions-list">
+                            <li><span class="dashicons dashicons-search"></span> <div><strong>Research Online</strong><p>Fetch real-time information from a website.</p></div></li>
+                            <li><span class="dashicons dashicons-download"></span> <div><strong>Download Chat</strong><p>Save your current conversation as a PDF.</p></div></li>
+                            <li><span class="dashicons dashicons-edit"></span> <div><strong>Toggle Notes</strong><p>Open a sidebar to jot down ideas.</p></div></li>
+                            <li><span class="dashicons dashicons-fullscreen-alt"></span> <div><strong>Go Fullscreen</strong><p>Expand the interface to fill the screen.</p></div></li>
+                        </ul>
+                        <p><?php echo esc_html($atts['welcome_message']); ?></p>
+                    </div>
+                </div>
+                
+                <div id="aiohm-chat-loading" style="display: none; text-align: center; padding: 10px;">
+                    Thinking...
+                </div>
+
+                <div class="aiohm-pa-input-area-wrapper">
+                    <form id="private-chat-form">
+                        <div class="aiohm-pa-input-area">
+                            <textarea id="chat-input" placeholder="Select a project to begin..." rows="1" disabled></textarea>
+                            <button id="send-btn" type="submit" disabled>
+                                <span class="dashicons dashicons-arrow-right-alt2"></span>
+                            </button>
+                            <button class="aiohm-pa-header-btn" id="activate-audio-btn" type="button" title="Activate voice-to-text">
+                                <span class="dashicons dashicons-microphone"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </main>
+
+            <aside class="aiohm-pa-notes-sidebar">
+                <div class="aiohm-pa-notes-header">
+                    <h3>Notes</h3>
+                    <button class="aiohm-pa-header-btn" id="close-notes-btn" title="Close Notes">
+                        <span class="dashicons dashicons-no-alt"></span>
+                    </button>
+                </div>
+                <div class="aiohm-pa-notes-content">
+                    <p class="description">Jot down ideas or important points here. Add them to your Knowledge Base for future reference.</p>
+                    <textarea id="muse-notes-input" placeholder="Write your notes here..." rows="10"></textarea>
+                    <button type="button" id="add-note-to-kb-btn" class="button button-primary">Add Note to KB</button>
+                </div>
+            </aside>
+        </div>
+        <?php
+        return ob_get_clean();
     }
 }
