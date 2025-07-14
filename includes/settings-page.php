@@ -1,7 +1,8 @@
 <?php
 /**
  * Settings Page controller for AIOHM Knowledge Assistant.
- * This version contains the corrected class definition and sanitization function.
+ * This version contains the corrected class definition, sanitization functions,
+ * and admin page hook registrations for enqueuing scripts and styles.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -13,6 +14,7 @@ class AIOHM_KB_Settings_Page {
             self::$instance = new self();
         }
         add_action('admin_menu', array(self::$instance, 'register_admin_pages'));
+        add_action('admin_init', array(self::$instance, 'register_settings'));
         add_action('admin_enqueue_scripts', array(self::$instance, 'enqueue_admin_scripts'));
     }
 
@@ -25,30 +27,99 @@ class AIOHM_KB_Settings_Page {
     }
 
     public function register_admin_pages() {
-        add_menu_page('AIOHM Assistant', 'AIOHM', 'manage_options', 'aiohm-dashboard', array($this, 'render_dashboard_page'), 'dashicons-admin-generic', 60);
-        add_submenu_page('aiohm-dashboard', 'Dashboard', 'Dashboard', 'manage_options', 'aiohm-dashboard', array($this, 'render_dashboard_page'));
-        add_submenu_page('aiohm-dashboard', 'AIOHM Settings', 'Settings', 'manage_options', 'aiohm-settings', array($this, 'render_form_settings_page'));
+        // Main Menu Page
+        add_menu_page('AIOHM Assistant', 'AIOHM', 'manage_options', 'aiohm-dashboard', array($this, 'render_dashboard_page'), AIOHM_KB_PLUGIN_URL . 'assets/images/ohm-icon.png', 60);
 
+        // Submenu Pages
+        add_submenu_page('aiohm-dashboard', 'Dashboard', 'Dashboard', 'manage_options', 'aiohm-dashboard', array($this, 'render_dashboard_page'));
+        add_submenu_page('aiohm-dashboard', 'AI Brand Core', 'AI Brand Core', 'read', 'aiohm-brand-soul', array($this, 'render_brand_soul_page'));
+        
+        // Knowledge Base Section
+        add_submenu_page('aiohm-dashboard', 'Scan Content', 'Scan Content', 'manage_options', 'aiohm-scan-content', array($this, 'render_scan_page'));
+        add_submenu_page('aiohm-dashboard', 'Manage Knowledge Base', 'Manage KB', 'manage_options', 'aiohm-manage-kb', array($this, 'render_manage_kb_page'));
+
+        // Settings Section
+        add_submenu_page('aiohm-dashboard', 'AIOHM Settings', 'Settings', 'manage_options', 'aiohm-settings', array($this, 'render_form_settings_page'));
+        
+        // Conditionally add Mirror and Muse modes if user has access
         if (class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access()) {
             add_submenu_page('aiohm-dashboard', 'Mirror Mode Settings', 'Mirror Mode', 'read', 'aiohm-mirror-mode', array($this, 'render_mirror_mode_page'));
             add_submenu_page('aiohm-dashboard', 'Muse: Brand Assistant', 'Muse Mode', 'read', 'aiohm-muse-mode', array($this, 'render_muse_mode_page'));
         }
-        
-        add_submenu_page('aiohm-dashboard', 'Scan Content', 'Scan Content', 'manage_options', 'aiohm-scan-content', array($this, 'render_scan_page'));
-        add_submenu_page('aiohm-dashboard', 'Manage Knowledge Base', 'Manage KB', 'manage_options', 'aiohm-manage-kb', array($this, 'render_manage_kb_page'));
-        add_submenu_page('aiohm-dashboard', __('AI Brand Core', 'aiohm-kb-assistant'), __('AI Brand Core', 'aiohm-kb-assistant'), 'read', 'aiohm-brand-soul', array($this, 'render_brand_soul_page'));
-        add_submenu_page('aiohm-dashboard', __('Get Help', 'aiohm-kb-assistant'), __('Get Help', 'aiohm-kb-assistant'), 'manage_options', 'aiohm-get-help', array($this, 'render_help_page'));
-        add_submenu_page('aiohm-dashboard', __('AIOHM License', 'aiohm-kb-assistant'), __('License', 'aiohm-kb-assistant'), 'manage_options', 'aiohm-license', array($this, 'render_license_page'));
-        add_action('admin_init', array($this, 'register_settings'));
+
+        add_submenu_page('aiohm-dashboard', 'License', 'License', 'manage_options', 'aiohm-license', array($this, 'render_license_page'));
+        add_submenu_page('aiohm-dashboard', 'Get Help', 'Get Help', 'manage_options', 'aiohm-get-help', array($this, 'render_help_page'));
     }
 
     public function enqueue_admin_scripts($hook) {
-        if (strpos($hook, 'aiohm-') !== false || strpos($hook, '_page_aiohm-') !== false) {
-            wp_enqueue_style( 'aiohm-admin-styles', AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-chat.css', array(), AIOHM_KB_VERSION );
+        // Load global admin styles on all AIOHM pages
+        if (strpos($hook, 'aiohm-') !== false) {
+            wp_enqueue_style('aiohm-admin-global-styles', AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-chat.css', array(), AIOHM_KB_VERSION);
+        }
+        
+        $mirror_mode_hook = 'aiohm_page_aiohm-mirror-mode';
+        $muse_mode_hook = 'aiohm_page_aiohm-muse-mode';
+
+        // Enqueue specific assets only on the Mirror or Muse mode pages
+        if ($hook === $mirror_mode_hook || $hook === $muse_mode_hook) {
             
-            if ($hook === 'aiohm_page_aiohm-mirror-mode') {
-                wp_enqueue_media();
+            wp_enqueue_style(
+                'aiohm-admin-modes-style',
+                AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-admin-modes.css',
+                [],
+                AIOHM_KB_VERSION
+            );
+
+            wp_enqueue_script(
+                'aiohm-admin-modes-script',
+                AIOHM_KB_PLUGIN_URL . 'assets/js/aiohm-admin-modes.js',
+                ['jquery'],
+                AIOHM_KB_VERSION,
+                true // Load in footer
+            );
+            
+            // Prepare and localize data to pass from PHP to our JavaScript file
+            $localized_data = [
+                'ajax_url' => admin_url('admin-ajax.php'),
+            ];
+
+            if ($hook === $mirror_mode_hook) {
+                wp_enqueue_media(); // Needed for the media uploader
+                $localized_data['mode'] = 'mirror';
+                $localized_data['formId'] = 'mirror-mode-settings-form';
+                $localized_data['saveButtonId'] = 'save-mirror-mode-settings';
+                $localized_data['saveAction'] = 'aiohm_save_mirror_mode_settings';
+                $localized_data['testChatAction'] = 'aiohm_test_mirror_mode_chat';
+                $localized_data['nonceFieldId'] = 'aiohm_mirror_mode_nonce_field';
+                $localized_data['defaultPrompt'] = "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\n---\n\n**Core Instructions:**\n\n1.  **Primary Directive:** Your primary goal is to answer the user's question by grounding your response in the **context provided below**. This context is your main source of truth.\n\n2.  **Tone & Personality:**\n    * Speak with emotional clarity, not robotic formality.\n    * Sound like a thoughtful assistant, not a sales rep.\n    * Be concise, but not curt — useful, but never cold.\n    * Your purpose is to express with presence, not persuasion.\n\n3.  **Formatting Rules:**\n    * Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n    * Never end your response with a question like “Do you need help with anything else?”\n\n4.  **Fallback Response (Crucial):**\n    * If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don’t want to guess here. This might need a human’s wisdom. You can connect with the person behind this site on the contact page. They’ll know exactly how to help.\"\n\n---\n\n**Primary Context for Answering the User's Question:**\n{context}";
             }
+
+            if ($hook === $muse_mode_hook) {
+                $localized_data['mode'] = 'muse';
+                $localized_data['formId'] = 'muse-mode-settings-form';
+                $localized_data['saveButtonId'] = 'save-muse-mode-settings';
+                $localized_data['saveAction'] = 'aiohm_save_muse_mode_settings';
+                $localized_data['testChatAction'] = 'aiohm_test_muse_mode_chat';
+                $localized_data['nonceFieldId'] = 'aiohm_muse_mode_nonce_field';
+                $localized_data['promptTextareaId'] = 'system_prompt';
+                $localized_data['defaultPrompt'] = "You are Muse, a private brand assistant. Your role is to help the user develop their brand by using the provided context, which includes public information and the user's private 'Brand Soul' answers. Synthesize this information to provide creative ideas, answer strategic questions, and help draft content. Always prioritize the private 'Brand Soul' context when available.";
+                $localized_data['archetypePrompts'] = [
+                    'the_creator' => "You are The Creator, an innovative and imaginative brand assistant. Your purpose is to help build things of enduring value. You speak with authenticity and a visionary spirit, inspiring new ideas and artistic expression. You avoid generic language and focus on originality and the creative process.",
+                    'the_sage' => "You are The Sage, a wise and knowledgeable brand assistant. Your goal is to seek the truth and share it with others. You communicate with clarity, accuracy, and thoughtful insight. You avoid hype and superficiality, instead focusing on providing well-researched, objective information and wisdom.",
+                    'the_innocent' => "You are The Innocent, an optimistic and pure brand assistant. Your purpose is to spread happiness and see the good in everything. You speak with simple, honest, and positive language. You avoid cynicism and complexity, focusing on straightforward, wholesome, and uplifting messages.",
+                    'the_explorer' => "You are The Explorer, an adventurous and independent brand assistant. Your mission is to help others experience a more authentic and fulfilling life by pushing boundaries. You speak with a rugged, open-minded, and daring tone. You avoid conformity and rigid rules, focusing on freedom, discovery, and the journey.",
+                    'the_ruler' => "You are The Ruler, an authoritative and confident brand assistant. Your purpose is to create order and build a prosperous community. You speak with a commanding, polished, and articulate voice. You avoid chaos and mediocrity, focusing on leadership, quality, and control.",
+                    'the_hero' => "You are The Hero, a courageous and determined brand assistant. Your mission is to inspire others to triumph over adversity. You speak with a bold, confident, and motivational tone. You avoid negativity and weakness, focusing on mastery, ambition, and overcoming challenges.",
+                    'the_lover' => "You are The Lover, an intimate and empathetic brand assistant. Your goal is to help people feel appreciated and connected. You speak with a warm, sensual, and passionate voice. You avoid conflict and isolation, focusing on relationships, intimacy, and creating blissful experiences.",
+                    'the_jester' => "You are The Jester, a playful and fun-loving brand assistant. Your purpose is to bring joy to the world and live in the moment. You speak with a witty, humorous, and lighthearted tone. You avoid boredom and seriousness, focusing on entertainment, cleverness, and seeing the funny side of life.",
+                    'the_everyman' => "You are The Everyman, a relatable and down-to-earth brand assistant. Your goal is to belong and connect with others on a human level. You speak with a friendly, humble, and authentic voice. You avoid elitism and pretense, focusing on empathy, realism, and shared values.",
+                    'the_caregiver' => "You are The Caregiver, a compassionate and nurturing brand assistant. Your purpose is to protect and care for others. You speak with a warm, reassuring, and supportive tone. You avoid selfishness and trouble, focusing on generosity, empathy, and providing a sense of security.",
+                    'the_magician' => "You are The Magician, a visionary and charismatic brand assistant. Your purpose is to make dreams come true and create something special. You speak with a mystical, inspiring, and transformative voice. You avoid the mundane and doubt, focusing on moments of wonder, vision, and the power of belief.",
+                    'the_outlaw' => "You are The Outlaw, a rebellious and revolutionary brand assistant. Your mission is to challenge the status quo and break the rules. You speak with a raw, disruptive, and unapologetic voice. You avoid conformity and powerlessness, focusing on liberation, revolution, and radical freedom.",
+                ];
+            }
+
+            wp_localize_script('aiohm-admin-modes-script', 'aiohm_admin_modes_data', $localized_data);
         }
     }
 
@@ -69,8 +140,6 @@ class AIOHM_KB_Settings_Page {
         $uploads_crawler = new AIOHM_KB_Uploads_Crawler();
         $site_stats = $site_crawler->get_scan_stats();
         $uploads_stats = $uploads_crawler->get_stats();
-        $all_upload_items = $uploads_crawler->find_all_supported_attachments(); 
-        $pending_website_items = $site_crawler->find_all_content();
         $this->include_header();
         include AIOHM_KB_PLUGIN_DIR . 'templates/scan-website.php';
         $this->include_footer();
@@ -84,7 +153,7 @@ class AIOHM_KB_Settings_Page {
     }
 
     public function render_brand_soul_page() {
-        if (!current_user_can('manage_options') && !in_array('minim_tribe', (array) wp_get_current_user()->roles)) {
+        if (!current_user_can('read')) {
             wp_die(__('You do not have sufficient permissions to access this page.'));
         }
         $this->include_header();
@@ -102,8 +171,8 @@ class AIOHM_KB_Settings_Page {
     }
     
     public function render_muse_mode_page() {
-        if (!current_user_can('administrator') && !current_user_can('ohm_brand_collaborator')) {
-            wp_die(__('You do not have sufficient permissions to access this page.', 'aiohm-kb-assistant'));
+        if (!current_user_can('read')) {
+             wp_die(__('You do not have sufficient permissions to access this page.', 'aiohm-kb-assistant'));
         }
         $this->include_header();
         include AIOHM_KB_PLUGIN_DIR . 'templates/admin-muse-mode.php';
@@ -128,17 +197,17 @@ class AIOHM_KB_Settings_Page {
 
     public function sanitize_settings($input) {
         $old_settings = get_option('aiohm_kb_settings', []);
-        $sanitized = $old_settings; // Start with old settings
+        $sanitized = $old_settings;
 
-        // Text fields
+        // Sanitize API keys and other text fields
         $text_fields = ['aiohm_app_email', 'openai_api_key', 'gemini_api_key', 'claude_api_key'];
-        foreach ($text_fields as $field) {
+        foreach($text_fields as $field) {
             if (isset($input[$field])) {
                 $sanitized[$field] = sanitize_text_field(trim($input[$field]));
             }
         }
         
-        // Select fields
+        // Sanitize select fields
         if (isset($input['default_ai_provider'])) {
             $sanitized['default_ai_provider'] = sanitize_text_field($input['default_ai_provider']);
         }
@@ -147,10 +216,10 @@ class AIOHM_KB_Settings_Page {
             $sanitized['scan_schedule'] = in_array($input['scan_schedule'], $allowed_schedules) ? sanitize_key($input['scan_schedule']) : 'none';
         }
 
-        // Checkboxes
+        // Sanitize checkboxes
         $checkboxes = ['chat_enabled', 'show_floating_chat', 'enable_private_assistant', 'enable_search_shortcode'];
         foreach ($checkboxes as $checkbox) {
-            $sanitized[$checkbox] = isset($input[$checkbox]) ? (bool)$input[$checkbox] : false;
+            $sanitized[$checkbox] = isset($input[$checkbox]) ? true : false;
         }
         
         return $sanitized;

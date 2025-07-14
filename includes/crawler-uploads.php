@@ -8,10 +8,10 @@ if (!defined('ABSPATH')) exit;
 use Smalot\PdfParser\Parser;
 
 class AIOHM_KB_Uploads_Crawler {
-    
+
     private $rag_engine;
     private $readable_extensions = ['json', 'txt', 'csv', 'pdf'];
-    
+
     public function __construct() {
         $this->rag_engine = new AIOHM_KB_RAG_Engine();
     }
@@ -29,7 +29,7 @@ class AIOHM_KB_Uploads_Crawler {
             if (!isset($stats['by_type'][$ext])) {
                 $stats['by_type'][$ext] = ['count' => 0, 'indexed' => 0, 'pending' => 0, 'size' => 0];
             }
-            
+
             $stats['by_type'][$ext]['count']++;
             $stats['by_type'][$ext]['size'] += filesize($file_info['path']);
 
@@ -62,7 +62,7 @@ class AIOHM_KB_Uploads_Crawler {
         foreach ($attachments as $attachment) {
             // IMPORTANT: Clear the object cache for the specific post/attachment before getting its meta.
             // This is a strong measure against persistent caching issues.
-            clean_post_cache($attachment->ID); 
+            clean_post_cache($attachment->ID);
 
             $file_path = get_attached_file($attachment->ID);
             if ($file_path && file_exists($file_path)) {
@@ -106,7 +106,6 @@ class AIOHM_KB_Uploads_Crawler {
         if (empty($attachment_ids)) return [];
         $processed = [];
         foreach ($attachment_ids as $attachment_id) {
-            // FIX: Use $attachment_id directly instead of undefined $attachment variable
             $file_path = get_attached_file($attachment_id);
             $file_title = get_the_title($attachment_id) ?: basename($file_path);
             try {
@@ -132,7 +131,7 @@ class AIOHM_KB_Uploads_Crawler {
         AIOHM_KB_Assistant::log('Finished add_attachments_to_kb.');
         return $processed;
     }
-    
+
     private function get_supported_attachments($get_all_for_stats = false) {
         // This method's logic is largely superseded by find_all_supported_attachments()
         // It should ideally be refactored or removed if no longer directly used.
