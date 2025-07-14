@@ -1370,17 +1370,16 @@ class AIOHM_KB_Core_Init {
                 $content = file_get_contents($file_path);
                 $content_type = 'text';
             } elseif ($file_ext === 'pdf') {
-                // For PDF files, we'll store metadata and let the RAG engine handle extraction
-                $content = "PDF Document: {$original_name}";
+                $content = self::extract_pdf_content($file_path, $original_name);
                 $content_type = 'pdf';
             } elseif (in_array($file_ext, ['jpg', 'jpeg', 'png', 'gif'])) {
-                $content = "Image: {$original_name}";
+                $content = "Image file uploaded: {$original_name}. This image has been added to the project and can be referenced in conversations. The user can ask questions about this image or request analysis of its contents.";
                 $content_type = 'image';
             } elseif (in_array($file_ext, ['mp3', 'wav', 'm4a', 'ogg'])) {
-                $content = "Audio: {$original_name}";
+                $content = "Audio file uploaded: {$original_name}. This audio file has been added to the project and can be referenced in conversations. The user may ask for transcription or analysis of the audio content.";
                 $content_type = 'audio';
             } elseif (in_array($file_ext, ['doc', 'docx'])) {
-                $content = "Document: {$original_name}";
+                $content = self::extract_document_content($file_path, $original_name, $file_ext);
                 $content_type = 'document';
             }
 
@@ -1413,6 +1412,112 @@ class AIOHM_KB_Core_Init {
 
         } catch (Exception $e) {
             error_log('Error adding file to knowledge base: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Extract text content from PDF files
+     */
+    private static function extract_pdf_content($file_path, $original_name) {
+        try {
+            // Method 1: Try using pdftotext command line tool (if available)
+            if (function_exists('exec')) {
+                $output = [];
+                $return_code = 0;
+                exec("pdftotext '$file_path' - 2>/dev/null", $output, $return_code);
+                
+                if ($return_code === 0 && !empty($output)) {
+                    $content = implode("\n", $output);
+                    if (strlen(trim($content)) > 50) { // Ensure we got meaningful content
+                        return "PDF Document: {$original_name}\n\nContent:\n" . trim($content);
+                    }
+                }
+            }
+
+            // Method 2: Try using PHP PDF parsing libraries if available
+            if (class_exists('Smalot\PdfParser\Parser')) {
+                $parser = new \Smalot\PdfParser\Parser();
+                $pdf = $parser->parseFile($file_path);
+                $text = $pdf->getText();
+                
+                if (strlen(trim($text)) > 50) {
+                    return "PDF Document: {$original_name}\n\nContent:\n" . trim($text);
+                }
+            }
+
+            // Method 3: Fallback - create a descriptive entry that tells the AI about the PDF
+            return "PDF Document uploaded: {$original_name}. This is a PDF file that has been uploaded to the project. The user has indicated they want to analyze or discuss the contents of this PDF. While I cannot directly read PDF files in this conversation, I can help the user by asking them to paste relevant text excerpts from the PDF that they'd like to discuss, or I can provide guidance on how to extract and work with PDF content.";
+
+        } catch (Exception $e) {
+            error_log('Error extracting PDF content: ' . $e->getMessage());
+            return "PDF Document: {$original_name} - Content extraction failed, but file is available for reference.";
+        }
+    }
+
+    /**
+     * Extract text content from Word documents
+     */
+    private static function extract_document_content($file_path, $original_name, $file_ext) {
+        try {
+            // Method 1: Try using antiword for .doc files
+            if ($file_ext === 'doc' && function_exists('exec')) {
+                $output = [];
+                $return_code = 0;
+                exec("antiword '$file_path' 2>/dev/null", $output, $return_code);
+                
+                if ($return_code === 0 && !empty($output)) {
+                    $content = implode("\n", $output);
+                    if (strlen(trim($content)) > 50) {
+                        return "Word Document: {$original_name}\n\nContent:\n" . trim($content);
+                    }
+                }
+            }
+
+            // Method 2: Try using docx2txt for .docx files
+            if ($file_ext === 'docx' && function_exists('exec')) {
+                $output = [];
+                $return_code = 0;
+                exec("docx2txt '$file_path' - 2>/dev/null", $output, $return_code);
+                
+                if ($return_code === 0 && !empty($output)) {
+                    $content = implode("\n", $output);
+                    if (strlen(trim($content)) > 50) {
+                        return "Word Document: {$original_name}\n\nContent:\n" . trim($content);
+                    }
+                }
+            }
+
+            // Method 3: Try ZIP extraction for .docx (it's essentially a ZIP file)
+            if ($file_ext === 'docx' && class_exists('ZipArchive')) {
+                $zip = new ZipArchive();
+                if ($zip->open($file_path) === TRUE) {
+                    $xml_content = $zip->getFromName('word/document.xml');
+                    $zip->close();
+                    
+                    if ($xml_content) {
+                        // Parse XML and extract text
+                        $dom = new DOMDocument();
+                        if (@$dom->loadXML($xml_content)) {
+                            $text_nodes = $dom->getElementsByTagName('t');
+                            $content = '';
+                            foreach ($text_nodes as $node) {
+                                $content .= $node->nodeValue . ' ';
+                            }
+                            
+                            if (strlen(trim($content)) > 50) {
+                                return "Word Document: {$original_name}\n\nContent:\n" . trim($content);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback - create a descriptive entry
+            return "Document uploaded: {$original_name}. This is a Word document that has been uploaded to the project. The user has indicated they want to analyze or discuss the contents of this document. While I cannot directly read Word documents in this conversation, I can help the user by asking them to paste relevant text excerpts from the document that they'd like to discuss, or I can provide guidance on how to extract and work with document content.";
+
+        } catch (Exception $e) {
+            error_log('Error extracting document content: ' . $e->getMessage());
+            return "Document: {$original_name} - Content extraction failed, but file is available for reference.";
         }
     }
 }
