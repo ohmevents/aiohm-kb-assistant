@@ -46,6 +46,7 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_test_mirror_mode_chat', array(__CLASS__, 'handle_test_mirror_mode_chat_ajax'));
         add_action('wp_ajax_aiohm_save_muse_mode_settings', array(__CLASS__, 'handle_save_muse_mode_settings_ajax'));
         add_action('wp_ajax_aiohm_private_assistant_chat', array(__CLASS__, 'handle_private_assistant_chat_ajax'));
+        add_action('wp_ajax_aiohm_private_chat', array(__CLASS__, 'handle_private_assistant_chat_ajax'));
         add_action('wp_ajax_aiohm_test_muse_mode_chat', array(__CLASS__, 'handle_test_muse_mode_chat_ajax'));
         add_action('wp_ajax_nopriv_aiohm_frontend_chat', array(__CLASS__, 'handle_frontend_chat_ajax'));
         add_action('wp_ajax_aiohm_frontend_chat', array(__CLASS__, 'handle_frontend_chat_ajax'));
@@ -64,6 +65,8 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_load_project_notes', array(__CLASS__, 'handle_load_project_notes_ajax'));
         add_action('wp_ajax_aiohm_delete_project', array(__CLASS__, 'handle_delete_project_ajax'));
         add_action('wp_ajax_aiohm_delete_conversation', array(__CLASS__, 'handle_delete_conversation_ajax'));
+        add_action('wp_ajax_aiohm_create_conversation', array(__CLASS__, 'handle_create_conversation_ajax'));
+        add_action('wp_ajax_aiohm_upload_project_files', array(__CLASS__, 'handle_upload_project_files_ajax'));
     }
     
     /**
@@ -305,6 +308,50 @@ class AIOHM_KB_Core_Init {
         wp_die();
     }
 
+    /**
+     * Handles AJAX request to create a new conversation.
+     */
+    public static function handle_create_conversation_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission Denied']);
+            wp_die();
+        }
+    
+        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+        $title = isset($_POST['title']) ? sanitize_text_field(stripslashes($_POST['title'])) : 'New Chat';
+    
+        if (empty($project_id)) {
+            wp_send_json_error(['message' => 'Invalid Project ID.']);
+            wp_die();
+        }
+    
+        global $wpdb;
+        $user_id = get_current_user_id();
+        $projects_table = $wpdb->prefix . 'aiohm_projects';
+    
+        // Verify project belongs to the current user
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(id) FROM {$projects_table} WHERE id = %d AND user_id = %d",
+            $project_id,
+            $user_id
+        ));
+    
+        if (!$exists) {
+            wp_send_json_error(['message' => 'Project not found or not owned by user.']);
+            wp_die();
+        }
+    
+        $conversation_id = self::create_conversation_internal($user_id, $project_id, $title);
+    
+        if ($conversation_id) {
+            wp_send_json_success(['conversation_id' => $conversation_id, 'title' => $title]);
+        } else {
+            wp_send_json_error(['message' => 'Failed to create conversation.']);
+        }
+        wp_die();
+    }
+
 
     // ================== START: NEW FUNCTION TO FIX PROJECTS ==================
     /**
@@ -455,7 +502,17 @@ class AIOHM_KB_Core_Init {
             }
 
             $system_message = $mirror_settings['qa_system_message'] ?? 'You are a helpful assistant.';
-            $temperature = floatval($mirror_settings['qa_temperature'] ?? 0.7);
+            
+
+            $temperature = floatval($mirror_settings['temperature'] ?? 0.7);
+            // Change the default model from 'gpt-4' to 'gpt-3.5-turbo' for Mirror Mode consistency
+            $model = $mirror_settings['ai_model'] ?? 'gpt-3.5-turbo';
+            
+            $final_system_message = $system_message . "\n\n--- CONTEXT ---\n" . $context_string;
+    
+            $answer = $ai_client->get_chat_completion($final_system_message, $user_message, $temperature, $model);
+
+
             
             $replacements = [
                 '{context}'        => $context_string,
@@ -587,7 +644,7 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_test_mirror_mode_chat_ajax() {
-        if (!check_ajax_referer('aiohm_mirror_mode_nonce', 'nonce', false) || !current_user_can('read')) {
+        if (!check_ajax_referer('aiohm_mirror_mode_nonce', 'aiohm_mirror_mode_nonce_field', false) || !current_user_can('read')) {
             wp_send_json_error(['message' => 'Security check failed.']);
         }
 
@@ -630,7 +687,7 @@ class AIOHM_KB_Core_Init {
     }
     
     public static function handle_test_muse_mode_chat_ajax() {
-        if (!check_ajax_referer('aiohm_muse_mode_nonce', 'nonce', false) || !current_user_can('read')) {
+        if (!check_ajax_referer('aiohm_muse_mode_nonce', 'aiohm_muse_mode_nonce_field', false) || !current_user_can('read')) {
             wp_send_json_error(['message' => 'Security check failed.']);
         }
     
@@ -928,51 +985,204 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_save_mirror_mode_settings_ajax() {
-        if (!check_ajax_referer('aiohm_mirror_mode_nonce', 'nonce', false) || !current_user_can('read')) {
-            wp_send_json_error(['message' => 'Security check failed.']);
+        error_log('=== MIRROR MODE SAVE HANDLER CALLED ===');
+        error_log('POST data: ' . print_r($_POST, true));
+        error_log('Current user ID: ' . get_current_user_id());
+        error_log('User capabilities: ' . print_r(wp_get_current_user()->allcaps, true));
+        
+        if (!check_ajax_referer('aiohm_mirror_mode_nonce', 'aiohm_mirror_mode_nonce_field', false)) {
+            error_log('NONCE CHECK FAILED');
+            wp_send_json_error(['message' => 'Nonce verification failed.']);
         }
+        
+        if (!current_user_can('read')) {
+            error_log('USER CAPABILITY CHECK FAILED');
+            wp_send_json_error(['message' => 'Insufficient permissions.']);
+        }
+        
+        error_log('Security checks passed');
+        
         parse_str($_POST['form_data'], $form_data);
+        error_log('Parsed form data: ' . print_r($form_data, true));
+        
         $settings_input = $form_data['aiohm_kb_settings']['mirror_mode'] ?? [];
+        error_log('Settings input: ' . print_r($settings_input, true));
+        
         if (empty($settings_input)) {
+            error_log('SETTINGS INPUT IS EMPTY');
             wp_send_json_error(['message' => 'No settings data received.']);
         }
         
         $settings = AIOHM_KB_Assistant::get_settings();
         
-        $settings['mirror_mode']['business_name'] = sanitize_text_field($settings_input['business_name']);
-        $settings['mirror_mode']['qa_system_message'] = sanitize_textarea_field($settings_input['qa_system_message']);
-        $settings['mirror_mode']['qa_temperature'] = floatval($settings_input['qa_temperature']);
-        $settings['mirror_mode']['primary_color'] = sanitize_hex_color($settings_input['primary_color']);
-        $settings['mirror_mode']['background_color'] = sanitize_hex_color($settings_input['background_color']);
-        $settings['mirror_mode']['text_color'] = sanitize_hex_color($settings_input['text_color']);
-        $settings['mirror_mode']['ai_avatar'] = esc_url_raw($settings_input['ai_avatar']);
-        $settings['mirror_mode']['meeting_button_url'] = esc_url_raw($settings_input['meeting_button_url']);
-        $settings['mirror_mode']['ai_model'] = sanitize_text_field($settings_input['ai_model']);
+        // Ensure mirror_mode structure exists
+        if (!isset($settings['mirror_mode'])) {
+            $settings['mirror_mode'] = [];
+        }
+        
+        $settings['mirror_mode']['business_name'] = sanitize_text_field($settings_input['business_name'] ?? '');
+        $settings['mirror_mode']['qa_system_message'] = sanitize_textarea_field($settings_input['qa_system_message'] ?? '');
+        $settings['mirror_mode']['qa_temperature'] = floatval($settings_input['qa_temperature'] ?? 0.7);
+        $settings['mirror_mode']['primary_color'] = sanitize_hex_color($settings_input['primary_color'] ?? '#1f5014');
+        $settings['mirror_mode']['background_color'] = sanitize_hex_color($settings_input['background_color'] ?? '#f0f4f8');
+        $settings['mirror_mode']['text_color'] = sanitize_hex_color($settings_input['text_color'] ?? '#ffffff');
+        $settings['mirror_mode']['ai_avatar'] = esc_url_raw($settings_input['ai_avatar'] ?? '');
+        $settings['mirror_mode']['meeting_button_url'] = esc_url_raw($settings_input['meeting_button_url'] ?? '');
+        $settings['mirror_mode']['ai_model'] = sanitize_text_field($settings_input['ai_model'] ?? 'gpt-3.5-turbo');
 
-        update_option('aiohm_kb_settings', $settings);
+        error_log('About to save settings: ' . print_r($settings['mirror_mode'], true));
+        
+        // Get current settings to compare
+        $current_settings = get_option('aiohm_kb_settings', []);
+        error_log('Current settings before save: ' . print_r($current_settings['mirror_mode'] ?? 'NOT FOUND', true));
+        
+        // Debug the current state before saving
+        error_log('==== BEFORE SAVE ====');
+        error_log('Current DB settings: ' . print_r(get_option('aiohm_kb_settings', []), true));
+        error_log('Settings to save: ' . print_r($settings, true));
+        
+        // Force the save by using multiple methods
+        error_log('ATTEMPTING MULTIPLE SAVE METHODS');
+        
+        // Method 1: Standard update_option
+        $result1 = update_option('aiohm_kb_settings', $settings);
+        error_log('Method 1 (update_option) result: ' . ($result1 ? 'TRUE' : 'FALSE'));
+        
+        // Method 2: Delete then add
+        delete_option('aiohm_kb_settings');
+        $result2 = add_option('aiohm_kb_settings', $settings);
+        error_log('Method 2 (delete + add) result: ' . ($result2 ? 'TRUE' : 'FALSE'));
+        
+        // Method 3: Direct database update if all else fails
+        if (!$result1 && !$result2) {
+            global $wpdb;
+            $option_name = 'aiohm_kb_settings';
+            $option_value = serialize($settings);
+            $autoload = 'yes';
+            
+            $result3 = $wpdb->replace(
+                $wpdb->options,
+                array(
+                    'option_name' => $option_name,
+                    'option_value' => $option_value,
+                    'autoload' => $autoload
+                ),
+                array('%s', '%s', '%s')
+            );
+            error_log('Method 3 (direct DB) result: ' . ($result3 ? 'TRUE' : 'FALSE'));
+        }
+        
+        // Check what actually got saved using the plugin's method
+        error_log('==== AFTER SAVE ====');
+        $saved_settings = AIOHM_KB_Assistant::get_settings();
+        error_log('Saved DB settings: ' . print_r($saved_settings['mirror_mode'], true));
+        
+        // Verify the specific field we changed
+        if (isset($saved_settings['mirror_mode']['business_name'])) {
+            error_log('SUCCESS: Business name saved as: ' . $saved_settings['mirror_mode']['business_name']);
+        } else {
+            error_log('ERROR: mirror_mode[business_name] not found in saved settings');
+        }
+        
         wp_send_json_success(['message' => 'Mirror Mode settings saved successfully.']);
     }
 
     public static function handle_save_muse_mode_settings_ajax() {
-        if (!check_ajax_referer('aiohm_muse_mode_nonce', 'nonce', false) || !current_user_can('manage_options')) {
-            wp_send_json_error(['message' => 'Security check failed.']);
+        error_log('=== MUSE MODE SAVE HANDLER CALLED ===');
+        error_log('POST data: ' . print_r($_POST, true));
+        error_log('Current user ID: ' . get_current_user_id());
+        error_log('User capabilities: ' . print_r(wp_get_current_user()->allcaps, true));
+        
+        if (!check_ajax_referer('aiohm_muse_mode_nonce', 'aiohm_muse_mode_nonce_field', false)) {
+            error_log('MUSE NONCE CHECK FAILED');
+            wp_send_json_error(['message' => 'Nonce verification failed.']);
         }
+        
+        if (!current_user_can('manage_options')) {
+            error_log('MUSE USER CAPABILITY CHECK FAILED');
+            wp_send_json_error(['message' => 'Insufficient permissions.']);
+        }
+        
+        error_log('Muse security checks passed');
 
         parse_str($_POST['form_data'], $form_data);
+        error_log('Muse parsed form data: ' . print_r($form_data, true));
+        
         $muse_input = $form_data['aiohm_kb_settings']['muse_mode'] ?? [];
+        error_log('Muse settings input: ' . print_r($muse_input, true));
 
         if (empty($muse_input)) {
+            error_log('MUSE SETTINGS INPUT IS EMPTY');
             wp_send_json_error(['message' => 'No settings data received.']);
         }
 
         $settings = AIOHM_KB_Assistant::get_settings();
         
-        $settings['muse_mode']['assistant_name'] = sanitize_text_field($muse_input['assistant_name']);
-        $settings['muse_mode']['system_prompt'] = sanitize_textarea_field($muse_input['system_prompt']);
-        $settings['muse_mode']['ai_model'] = sanitize_text_field($muse_input['ai_model']);
-        $settings['muse_mode']['temperature'] = floatval($muse_input['temperature']);
+        // Ensure muse_mode structure exists
+        if (!isset($settings['muse_mode'])) {
+            $settings['muse_mode'] = [];
+        }
+        
+        $settings['muse_mode']['assistant_name'] = sanitize_text_field($muse_input['assistant_name'] ?? 'Muse');
+        $settings['muse_mode']['system_prompt'] = sanitize_textarea_field($muse_input['system_prompt'] ?? '');
+        $settings['muse_mode']['ai_model'] = sanitize_text_field($muse_input['ai_model'] ?? 'gpt-4');
+        $settings['muse_mode']['temperature'] = floatval($muse_input['temperature'] ?? 0.7);
+        $settings['muse_mode']['start_fullscreen'] = isset($muse_input['start_fullscreen']) ? 1 : 0;
 
-        update_option('aiohm_kb_settings', $settings);
+        error_log('About to save Muse settings: ' . print_r($settings['muse_mode'], true));
+        
+        // Get current settings to compare
+        $current_settings = get_option('aiohm_kb_settings', []);
+        error_log('Current Muse settings before save: ' . print_r($current_settings['muse_mode'] ?? 'NOT FOUND', true));
+        
+        // Debug the current state before saving
+        error_log('==== MUSE BEFORE SAVE ====');
+        error_log('Current DB settings: ' . print_r(get_option('aiohm_kb_settings', []), true));
+        error_log('Settings to save: ' . print_r($settings, true));
+        
+        // Force the save by using multiple methods
+        error_log('MUSE ATTEMPTING MULTIPLE SAVE METHODS');
+        
+        // Method 1: Standard update_option
+        $result1 = update_option('aiohm_kb_settings', $settings);
+        error_log('Muse Method 1 (update_option) result: ' . ($result1 ? 'TRUE' : 'FALSE'));
+        
+        // Method 2: Delete then add
+        delete_option('aiohm_kb_settings');
+        $result2 = add_option('aiohm_kb_settings', $settings);
+        error_log('Muse Method 2 (delete + add) result: ' . ($result2 ? 'TRUE' : 'FALSE'));
+        
+        // Method 3: Direct database update if all else fails
+        if (!$result1 && !$result2) {
+            global $wpdb;
+            $option_name = 'aiohm_kb_settings';
+            $option_value = serialize($settings);
+            $autoload = 'yes';
+            
+            $result3 = $wpdb->replace(
+                $wpdb->options,
+                array(
+                    'option_name' => $option_name,
+                    'option_value' => $option_value,
+                    'autoload' => $autoload
+                ),
+                array('%s', '%s', '%s')
+            );
+            error_log('Muse Method 3 (direct DB) result: ' . ($result3 ? 'TRUE' : 'FALSE'));
+        }
+        
+        // Check what actually got saved using the plugin's method
+        error_log('==== MUSE AFTER SAVE ====');
+        $saved_settings = AIOHM_KB_Assistant::get_settings();
+        error_log('Muse saved DB settings: ' . print_r($saved_settings['muse_mode'], true));
+        
+        // Verify the specific field we changed
+        if (isset($saved_settings['muse_mode']['assistant_name'])) {
+            error_log('SUCCESS: Assistant name saved as: ' . $saved_settings['muse_mode']['assistant_name']);
+        } else {
+            error_log('ERROR: muse_mode[assistant_name] not found in saved settings');
+        }
+        
         wp_send_json_success(['message' => 'Muse Mode settings saved successfully.']);
     }
 
@@ -994,6 +1204,215 @@ class AIOHM_KB_Core_Init {
             wp_send_json_success(['qa_pair' => ['question' => trim(str_replace('"', '', $question)), 'answer' => trim($answer)]]);
         } catch (Exception $e) {
             wp_send_json_error(['message' => 'Failed to generate Q&A pair: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Handle file uploads for projects
+     */
+    public static function handle_upload_project_files_ajax() {
+        // Security checks
+        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Insufficient permissions.']);
+        }
+
+        // Check if files were uploaded
+        if (empty($_FILES['files'])) {
+            wp_send_json_error(['message' => 'No files uploaded.']);
+        }
+
+        // Get project ID
+        $project_id = intval($_POST['project_id'] ?? 0);
+        if (!$project_id) {
+            wp_send_json_error(['message' => 'Invalid project ID.']);
+        }
+
+        // Verify user owns the project
+        global $wpdb;
+        $user_id = get_current_user_id();
+        $project_table = $wpdb->prefix . 'aiohm_projects';
+        $project = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$project_table} WHERE id = %d AND user_id = %d",
+            $project_id, $user_id
+        ));
+
+        if (!$project) {
+            wp_send_json_error(['message' => 'Project not found or access denied.']);
+        }
+
+        // Define upload directory
+        $upload_base_dir = wp_upload_dir();
+        $project_upload_dir = $upload_base_dir['basedir'] . '/aiohm_project_files/project_' . $project_id;
+        $project_upload_url = $upload_base_dir['baseurl'] . '/aiohm_project_files/project_' . $project_id;
+
+        // Create directory if it doesn't exist
+        if (!file_exists($project_upload_dir)) {
+            wp_mkdir_p($project_upload_dir);
+        }
+
+        // Define allowed file types
+        $allowed_types = [
+            'txt' => 'text/plain',
+            'pdf' => 'application/pdf',
+            'doc' => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'mp3' => 'audio/mpeg',
+            'wav' => 'audio/wav',
+            'm4a' => 'audio/mp4',
+            'ogg' => 'audio/ogg'
+        ];
+
+        $uploaded_files = [];
+        $errors = [];
+
+        // Handle multiple files
+        $files = $_FILES['files'];
+        $file_count = count($files['name']);
+
+        for ($i = 0; $i < $file_count; $i++) {
+            $file = [
+                'name' => $files['name'][$i],
+                'type' => $files['type'][$i],
+                'tmp_name' => $files['tmp_name'][$i],
+                'error' => $files['error'][$i],
+                'size' => $files['size'][$i]
+            ];
+
+            // Check for upload errors
+            if ($file['error'] !== UPLOAD_ERR_OK) {
+                $errors[] = "Error uploading {$file['name']}: Upload error code {$file['error']}";
+                continue;
+            }
+
+            // Check file size (limit to 50MB)
+            $max_size = 50 * 1024 * 1024;
+            if ($file['size'] > $max_size) {
+                $errors[] = "File {$file['name']} is too large (max 50MB)";
+                continue;
+            }
+
+            // Check file type
+            $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            if (!array_key_exists($file_ext, $allowed_types)) {
+                $errors[] = "File type not allowed for {$file['name']}";
+                continue;
+            }
+
+            // Verify MIME type
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime_type = finfo_file($finfo, $file['tmp_name']);
+            finfo_close($finfo);
+
+            if (!in_array($mime_type, $allowed_types)) {
+                $errors[] = "Invalid file type for {$file['name']}";
+                continue;
+            }
+
+            // Generate safe filename
+            $safe_filename = sanitize_file_name($file['name']);
+            $unique_filename = wp_unique_filename($project_upload_dir, $safe_filename);
+            $file_path = $project_upload_dir . '/' . $unique_filename;
+
+            // Move uploaded file
+            if (move_uploaded_file($file['tmp_name'], $file_path)) {
+                $uploaded_files[] = [
+                    'name' => $unique_filename,
+                    'original_name' => $file['name'],
+                    'path' => $file_path,
+                    'url' => $project_upload_url . '/' . $unique_filename,
+                    'type' => $file_ext,
+                    'size' => $file['size'],
+                    'mime_type' => $mime_type
+                ];
+
+                // Add to knowledge base
+                self::add_file_to_knowledge_base($file_path, $file['name'], $project_id, $user_id, $file_ext, $mime_type);
+            } else {
+                $errors[] = "Failed to save {$file['name']}";
+            }
+        }
+
+        // Return response
+        if (!empty($uploaded_files)) {
+            wp_send_json_success([
+                'message' => count($uploaded_files) . ' file(s) uploaded successfully',
+                'files' => $uploaded_files,
+                'errors' => $errors
+            ]);
+        } else {
+            wp_send_json_error([
+                'message' => 'No files were uploaded successfully',
+                'errors' => $errors
+            ]);
+        }
+    }
+
+    /**
+     * Add uploaded file to knowledge base
+     */
+    private static function add_file_to_knowledge_base($file_path, $original_name, $project_id, $user_id, $file_ext, $mime_type) {
+        global $wpdb;
+        
+        try {
+            $content = '';
+            $content_type = 'file';
+            
+            // Extract content based on file type
+            if ($file_ext === 'txt') {
+                $content = file_get_contents($file_path);
+                $content_type = 'text';
+            } elseif ($file_ext === 'pdf') {
+                // For PDF files, we'll store metadata and let the RAG engine handle extraction
+                $content = "PDF Document: {$original_name}";
+                $content_type = 'pdf';
+            } elseif (in_array($file_ext, ['jpg', 'jpeg', 'png', 'gif'])) {
+                $content = "Image: {$original_name}";
+                $content_type = 'image';
+            } elseif (in_array($file_ext, ['mp3', 'wav', 'm4a', 'ogg'])) {
+                $content = "Audio: {$original_name}";
+                $content_type = 'audio';
+            } elseif (in_array($file_ext, ['doc', 'docx'])) {
+                $content = "Document: {$original_name}";
+                $content_type = 'document';
+            }
+
+            // Insert into knowledge base
+            $table_name = $wpdb->prefix . 'aiohm_vector_entries';
+            $result = $wpdb->insert(
+                $table_name,
+                [
+                    'user_id' => $user_id,
+                    'content_id' => 'project_file_' . $project_id . '_' . time(),
+                    'content_type' => $content_type,
+                    'title' => $original_name,
+                    'content' => $content,
+                    'metadata' => json_encode([
+                        'project_id' => $project_id,
+                        'file_path' => $file_path,
+                        'file_type' => $file_ext,
+                        'mime_type' => $mime_type,
+                        'upload_date' => current_time('mysql')
+                    ])
+                ],
+                [
+                    '%d', '%s', '%s', '%s', '%s', '%s'
+                ]
+            );
+
+            if ($result === false) {
+                error_log('Failed to add file to knowledge base: ' . $wpdb->last_error);
+            }
+
+        } catch (Exception $e) {
+            error_log('Error adding file to knowledge base: ' . $e->getMessage());
         }
     }
 }

@@ -242,6 +242,14 @@ jQuery(document).ready(function($) {
     // --- Event Listeners ---
     $('#private-chat-form').on('submit', e => { e.preventDefault(); sendMessage(); });
     
+    // Handle Enter key to send message (Shift+Enter for new line)
+    chatInput.on('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
     newProjectBtn.on('click', displayProjectCreationView);
     
     conversationPanel.on('click', '#create-project-submit', function() {
@@ -252,15 +260,13 @@ jQuery(document).ready(function($) {
         }
         $(this).text('Creating...').prop('disabled', true);
         
-        // FIX: Changed 'name' to 'project_name' to match PHP's $_POST expectation.
-        performAjaxRequest('aiohm_create_project', { project_name: projectName }).done(response => {
-            // FIX: Changed 'response.data.new_project_id' to 'response.data.id'.
-            if (response.success && response.data.id) {
+        // This will now work correctly because performAjaxRequest is fixed.
+        performAjaxRequest('aiohm_create_project', { name: projectName }).done(response => {
+            if (response.success && response.data.new_project_id) {
                 showNotification(`Project "${projectName}" created!`, 'success');
                 restoreChatView();
                 loadHistory().done(function() {
-                    // FIX: Changed 'response.data.new_project_id' to 'response.data.id'.
-                    const newProjectLink = projectList.find(`.aiohm-pa-list-item[data-id="${response.data.id}"]`);
+                    const newProjectLink = projectList.find(`.aiohm-pa-list-item[data-id="${response.data.new_project_id}"]`);
                     if (newProjectLink.length) {
                         newProjectLink.trigger('click');
                     }
@@ -317,12 +323,27 @@ jQuery(document).ready(function($) {
             showNotification('Please select a project first.', 'error');
             return;
         }
-        restoreChatView();
-        currentConversationId = null;
-        conversationList.find('.aiohm-pa-list-item').removeClass('active');
-        conversationPanel.html(`<div class="message system"><p>New chat started in current project.</p></div>`);
-        welcomeInstructions.hide();
-        updateChatUIState();
+        
+        // Create a new conversation in the database
+        performAjaxRequest('aiohm_create_conversation', {
+            project_id: currentProjectId,
+            title: 'New Chat'
+        }).done(function(response) {
+            if (response.success) {
+                restoreChatView();
+                currentConversationId = response.data.conversation_id;
+                conversationList.find('.aiohm-pa-list-item').removeClass('active');
+                conversationPanel.html(`<div class="message system"><p>New chat started in current project.</p></div>`);
+                welcomeInstructions.hide();
+                updateChatUIState();
+                // Refresh the conversation list to show the new conversation
+                loadHistory();
+            } else {
+                showNotification('Error creating new chat: ' + (response.data.message || 'Unknown error'), 'error');
+            }
+        }).fail(function() {
+            showNotification('Failed to create new chat. Please try again.', 'error');
+        });
     });
 
     notesInput.on('keyup', function() {
@@ -378,6 +399,175 @@ jQuery(document).ready(function($) {
     closeNotesBtn.on('click', () => appContainer.removeClass('notes-open'));
     fullscreenBtn.on('click', () => setFullscreen());
     notificationBar.on('click', '.close-btn', () => notificationBar.fadeOut());
+
+    // File upload button handler
+    $('#upload-file-btn').on('click', function() {
+        if (!currentProjectId) {
+            showNotification('Please select a project first.', 'error');
+            return;
+        }
+        $('#file-upload-input').click();
+    });
+
+    // File input change handler
+    $('#file-upload-input').on('change', function() {
+        const files = this.files;
+        if (files.length > 0) {
+            uploadFiles(files);
+        }
+    });
+
+    // Research online button handler
+    $('#research-online-prompt-btn').on('click', function() {
+        if (!currentProjectId) {
+            showNotification('Please select a project first.', 'error');
+            return;
+        }
+        insertResearchPrompt();
+    });
+
+    // ====================================================================
+    // 5. FILE UPLOAD & RESEARCH FUNCTIONS
+    // ====================================================================
+    
+    function insertResearchPrompt() {
+        const researchPrompt = `Please act as a research analyst. I want you to meticulously analyze the content from the URL I provide below and then generate a structured report that answers the following questions:
+
+**1. Who:** Who are the key people, companies, or groups mentioned?
+
+**2. What:** What is the main topic, event, or product being discussed?
+
+**3. When:** When did these events happen, or when is the content relevant?
+
+**4. Where:** Where is this happening or where is the focus of the content?
+
+**5. Why:** Why is this information important? What is the main argument or purpose?
+
+**6. How:** How did this happen or how does this work, based on the text?
+
+**7. Summary:** Finally, provide a concise, three-sentence summary of the entire article.
+
+Here is the URL: [PASTE URL HERE]`;
+
+        // Insert the prompt into the chat input
+        chatInput.val(researchPrompt);
+        
+        // Focus on the chat input and scroll to the URL placeholder
+        chatInput.focus();
+        
+        // Select the [PASTE URL HERE] text for easy replacement
+        const textArea = chatInput[0];
+        const urlPlaceholder = '[PASTE URL HERE]';
+        const promptText = textArea.value;
+        const startIndex = promptText.indexOf(urlPlaceholder);
+        
+        if (startIndex !== -1) {
+            textArea.setSelectionRange(startIndex, startIndex + urlPlaceholder.length);
+        }
+        
+        // Enable send button
+        updateChatUIState();
+        
+        showNotification('Research prompt inserted! Replace [PASTE URL HERE] with the website URL you want to analyze.', 'success');
+    }
+    
+    function uploadFiles(files) {
+        if (!currentProjectId) {
+            showNotification('Please select a project first.', 'error');
+            return;
+        }
+
+        // Create FormData object
+        const formData = new FormData();
+        
+        // Add files to FormData
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files[]', files[i]);
+        }
+        
+        // Add other required data
+        formData.append('action', 'aiohm_upload_project_files');
+        formData.append('project_id', currentProjectId);
+        formData.append('nonce', aiohm_private_chat_params.nonce);
+
+        // Show upload progress
+        showNotification(`Uploading ${files.length} file(s)...`, 'success');
+
+        // Perform AJAX upload
+        $.ajax({
+            url: aiohm_private_chat_params.ajax_url,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    let message = response.data.message;
+                    if (response.data.errors && response.data.errors.length > 0) {
+                        message += '. Some files had errors: ' + response.data.errors.join(', ');
+                    }
+                    showNotification(message, 'success');
+                    
+                    // Display uploaded files in chat
+                    if (response.data.files && response.data.files.length > 0) {
+                        displayUploadedFiles(response.data.files);
+                    }
+                } else {
+                    let errorMessage = response.data.message || 'Upload failed';
+                    if (response.data.errors && response.data.errors.length > 0) {
+                        errorMessage += ': ' + response.data.errors.join(', ');
+                    }
+                    showNotification(errorMessage, 'error');
+                }
+                
+                // Clear the file input
+                $('#file-upload-input').val('');
+            },
+            error: function(xhr, status, error) {
+                showNotification('Upload failed: ' + error, 'error');
+                $('#file-upload-input').val('');
+            }
+        });
+    }
+
+    function displayUploadedFiles(files) {
+        // Create a message showing the uploaded files
+        let fileList = files.map(file => {
+            const fileSize = (file.size / 1024).toFixed(1) + ' KB';
+            const fileIcon = getFileIcon(file.type);
+            return `${fileIcon} ${file.original_name} (${fileSize})`;
+        }).join('<br>');
+
+        const fileMessage = `
+            <div class="message system">
+                <div class="message-content">
+                    <strong>📁 Files uploaded to project:</strong><br>
+                    ${fileList}
+                </div>
+            </div>
+        `;
+
+        conversationPanel.append(fileMessage);
+        conversationPanel.scrollTop(conversationPanel[0].scrollHeight);
+    }
+
+    function getFileIcon(fileType) {
+        const iconMap = {
+            'txt': '📄',
+            'pdf': '📋',
+            'doc': '📝',
+            'docx': '📝',
+            'jpg': '🖼️',
+            'jpeg': '🖼️',
+            'png': '🖼️',
+            'gif': '🖼️',
+            'mp3': '🎵',
+            'wav': '🎵',
+            'm4a': '🎵',
+            'ogg': '🎵'
+        };
+        return iconMap[fileType] || '📎';
+    }
 
 
     // ====================================================================

@@ -79,20 +79,20 @@ $brand_archetypes = [
                     </div>
 
                     <div class="aiohm-setting-block">
-                        <label for="ai_model_selector"><?php _e('4. AI Model', 'aiohm-kb-assistant'); ?></label>
-                        <select id="ai_model_selector" name="aiohm_kb_settings[muse_mode][ai_model]">
-                            <?php if (!empty($global_settings['openai_api_key'])): ?>
-                                <option value="gpt-4" <?php selected($settings['ai_model'] ?? 'gpt-4', 'gpt-4'); ?>>OpenAI: GPT-4</option>
-                                <option value="gpt-3.5-turbo" <?php selected($settings['ai_model'] ?? '', 'gpt-3.5-turbo'); ?>>OpenAI: GPT-3.5 Turbo</option>
-                            <?php endif; ?>
-                            <?php if (!empty($global_settings['gemini_api_key'])): ?>
-                                <option value="gemini-pro" <?php selected($settings['ai_model'] ?? '', 'gemini-pro'); ?>>Google: Gemini Pro</option>
-                            <?php endif; ?>
-                            <?php if (!empty($global_settings['claude_api_key'])): ?>
-                                <option value="claude-3-sonnet" <?php selected($settings['ai_model'] ?? '', 'claude-3-sonnet'); ?>>Anthropic: Claude 3 Sonnet</option>
-                            <?php endif; ?>
-                        </select>
-                    </div>
+    <label for="ai_model_selector"><?php _e('4. AI Model', 'aiohm-kb-assistant'); ?></label>
+    <select id="ai_model_selector" name="aiohm_kb_settings[muse_mode][ai_model]">
+        <?php if (!empty($global_settings['openai_api_key'])): ?>
+            <option value="gpt-3.5-turbo" <?php selected($settings['ai_model'] ?? 'gpt-3.5-turbo', 'gpt-3.5-turbo'); ?>>OpenAI: GPT-3.5 Turbo</option>
+            <option value="gpt-4" <?php selected($settings['ai_model'] ?? '', 'gpt-4'); ?>>OpenAI: GPT-4</option>
+        <?php endif; ?>
+        <?php if (!empty($global_settings['gemini_api_key'])): ?>
+            <option value="gemini-pro" <?php selected($settings['ai_model'] ?? '', 'gemini-pro'); ?>>Google: Gemini Pro</option>
+        <?php endif; ?>
+        <?php if (!empty($global_settings['claude_api_key'])): ?>
+            <option value="claude-3-sonnet" <?php selected($settings['ai_model'] ?? '', 'claude-3-sonnet'); ?>>Anthropic: Claude 3 Sonnet</option>
+        <?php endif; ?>
+    </select>
+</div>
 
                     <div class="aiohm-setting-block">
                         <label for="temperature"><?php _e('5. Temperature:', 'aiohm-kb-assistant'); ?> <span class="temp-value"><?php echo esc_attr($settings['temperature'] ?? '0.7'); ?></span></label>
@@ -116,36 +116,25 @@ $brand_archetypes = [
         </div>
         
         <div class="aiohm-test-column">
+            <h3><?php _e('Test Your Muse Assistant', 'aiohm-kb-assistant'); ?></h3>
+            <p class="description"><?php _e('Test your assistant here. For the full experience, use the shortcode: <code>[aiohm_private_assistant]</code> on a new page', 'aiohm-kb-assistant'); ?></p>
             <div id="aiohm-test-chat" class="aiohm-chat-container">
                 <div class="aiohm-chat-header">
                     <div class="aiohm-chat-title-preview"><?php echo esc_html($settings['assistant_name'] ?? 'Muse'); ?></div>
-                    <div class="aiohm-chat-top-bar">
-                        <button id="download-pdf-btn" class="aiohm-top-bar-btn" title="Download chat as PDF">
-                            <span class="dashicons dashicons-download"></span>
-                        </button>
-                        <button id="research-online-prompt-btn" class="aiohm-top-bar-btn" title="Research a live website">
-                            <span class="dashicons dashicons-search"></span>
-                        </button>
-                        <button id="activate-audio-btn" class="aiohm-top-bar-btn" title="Activate voice-to-text">
-                            <span class="dashicons dashicons-microphone"></span>
-                        </button>
-                    </div>
                 </div>
-                <div id="private-chat-history" class="aiohm-chat-messages">
-                    <div class="chat-message message-from-assistant">
-                        <strong>Assistant:</strong><p>I'm your private brand assistant. Ask me to help you create content or brainstorm ideas.</p>
+                <div class="aiohm-chat-messages">
+                    <div class="aiohm-message aiohm-message-bot">
+                        <div class="aiohm-message-avatar">
+                            <img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="AI Avatar" class="aiohm-avatar-preview">
+                        </div>
+                        <div class="aiohm-message-bubble"><div class="aiohm-message-content">I'm your private brand assistant. Ask me to help you create content or brainstorm ideas.</div></div>
                     </div>
-                </div>
-                <div id="aiohm-chat-loading" style="display: none; text-align: center; padding: 10px;">
-                    <span class="spinner is-active"></span> Thinking...
                 </div>
                 <div class="aiohm-chat-input-container">
-                    <form id="private-chat-form">
-                        <div class="aiohm-chat-input-wrapper">
-                            <textarea id="private-chat-input" placeholder="Ask your question here..." rows="1"></textarea>
-                            <button type="submit" class="aiohm-chat-send-btn"><span class="dashicons dashicons-arrow-right-alt2"></span></button>
-                        </div>
-                    </form>
+                    <div class="aiohm-chat-input-wrapper">
+                        <textarea class="aiohm-chat-input" placeholder="Ask your question here..." rows="1"></textarea>
+                        <button type="button" class="aiohm-chat-send-btn" disabled><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+                    </div>
                 </div>
             </div>
             <div class="aiohm-search-container-wrapper">

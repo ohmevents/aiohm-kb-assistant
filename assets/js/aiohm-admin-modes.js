@@ -56,18 +56,20 @@ jQuery(document).ready(function($) {
         // Update colors and text for the test chat preview
         const primaryColor = $('#primary_color').val() || '#1f5014';
         const textColor = $('#text_color').val() || '#ffffff';
-        const assistantName = $('#assistant_name').val() || 'Muse';
+        // Use business_name for Mirror Mode, assistant_name for Muse Mode
+        const assistantName = config.mode === 'mirror' ? 
+            ($('#business_name').val() || 'Live Preview') : 
+            ($('#assistant_name').val() || 'Muse');
         const botAvatarUrl = $('#ai_avatar').val();
+        const defaultAvatarUrl = config.pluginUrl + 'assets/images/OHM-logo.png';
 
         $('#aiohm-test-chat .aiohm-chat-header').css({ 'background-color': primaryColor, 'color': textColor });
         $('#aiohm-test-chat .aiohm-message-user .aiohm-message-bubble').css('background-color', primaryColor);
         $('#aiohm-test-chat .aiohm-chat-title-preview').text(assistantName);
 
-        if (botAvatarUrl) {
-            $('.aiohm-avatar-preview').attr('src', botAvatarUrl).show();
-        } else {
-             $('.aiohm-avatar-preview').hide();
-        }
+        // Use default avatar if no custom avatar is set
+        const avatarToUse = botAvatarUrl || defaultAvatarUrl;
+        $('.aiohm-avatar-preview').attr('src', avatarToUse).show();
         
         // Update footer preview for Mirror Mode
         if (config.mode === 'mirror') {
@@ -114,13 +116,13 @@ jQuery(document).ready(function($) {
             const settingsPayload = {
                 system_prompt: $('#' + (config.promptTextareaId || 'qa_system_message')).val(),
                 temperature: $('#temperature, #qa_temperature').val(),
-                assistant_name: $('#assistant_name').val(),
+                assistant_name: config.mode === 'mirror' ? $('#business_name').val() : $('#assistant_name').val(),
                 ai_model: $('#ai_model_selector').val(),
             };
             
             this.currentRequest = $.post(config.ajax_url, {
                 action: config.testChatAction,
-                nonce: $('#' + config.nonceFieldId).val(),
+                [config.nonceFieldId]: $('#' + config.nonceFieldId).val(),
                 message: message,
                 settings: settingsPayload
             }).done(response => {
@@ -227,13 +229,25 @@ jQuery(document).ready(function($) {
         const originalText = $btn.text();
         $btn.prop('disabled', true).text('Saving...');
         
+        const formData = $('#' + config.formId).serialize();
+        const nonceValue = $('#' + config.nonceFieldId).val();
+        
+        console.log('Save button clicked for:', config.mode);
+        console.log('Form data:', formData);
+        console.log('Nonce value:', nonceValue);
+        console.log('Action:', config.saveAction);
+        
         $.post(config.ajax_url, {
             action: config.saveAction,
-            nonce: $('#' + config.nonceFieldId).val(),
-            form_data: $('#' + config.formId).serialize()
-        }).done(response => showAdminNotice(response.success ? response.data.message : 'Error: ' + (response.data.message || 'Could not save.'), response.success ? 'success' : 'error'))
-          .fail(() => showAdminNotice('A server error occurred.', 'error'))
-          .always(() => $btn.prop('disabled', false).text(originalText));
+            [config.nonceFieldId]: nonceValue,
+            form_data: formData
+        }).done(response => {
+            console.log('Response:', response);
+            showAdminNotice(response.success ? response.data.message : 'Error: ' + (response.data.message || 'Could not save.'), response.success ? 'success' : 'error');
+        }).fail((xhr, status, error) => {
+            console.log('AJAX failed:', xhr.responseText, status, error);
+            showAdminNotice('A server error occurred.', 'error');
+        }).always(() => $btn.prop('disabled', false).text(originalText));
     });
 
     // KB Search Handler

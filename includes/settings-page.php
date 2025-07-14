@@ -81,6 +81,7 @@ class AIOHM_KB_Settings_Page {
             // Prepare and localize data to pass from PHP to our JavaScript file
             $localized_data = [
                 'ajax_url' => admin_url('admin-ajax.php'),
+                'pluginUrl' => AIOHM_KB_PLUGIN_URL,
             ];
 
             if ($hook === $mirror_mode_hook) {

@@ -88,6 +88,9 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                         <button class="aiohm-pa-header-btn" id="new-chat-btn" title="New Chat">
                             <span class="dashicons dashicons-format-chat"></span>
                         </button>
+                        <button class="aiohm-pa-header-btn" id="upload-file-btn" title="Upload files to project">
+                            <span class="dashicons dashicons-upload"></span>
+                        </button>
                         <button class="aiohm-pa-header-btn" id="research-online-prompt-btn" title="Research a live website">
                             <span class="dashicons dashicons-search"></span>
                         </button>
@@ -123,6 +126,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                             <ul class="aiohm-instructions-list">
                                 <li><span class="dashicons dashicons-plus"></span> <div><strong>New Project</strong><p>Start a new project to organize your chats.</p></div></li>
                                 <li><span class="dashicons dashicons-format-chat"></span> <div><strong>New Chat</strong><p>Begin a new conversation in the current project.</p></div></li>
+                                <li><span class="dashicons dashicons-upload"></span> <div><strong>Upload Files</strong><p>Add documents, images, or audio to your project.</p></div></li>
                                 <li><span class="dashicons dashicons-search"></span> <div><strong>Research Online</strong><p>Fetch real-time information from a website.</p></div></li>
                                 <li><span class="dashicons dashicons-download"></span> <div><strong>Download Chat</strong><p>Save your current conversation as a PDF.</p></div></li>
                                 <li><span class="dashicons dashicons-database-add"></span> <div><strong>Add to KB</strong><p>Save chat content to your knowledge base.</p></div></li>
@@ -148,6 +152,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                                 <span class="dashicons dashicons-microphone"></span>
                             </button>
                         </div>
+                        <input type="file" id="file-upload-input" multiple accept=".txt,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.mp3,.wav,.m4a,.ogg" style="display: none;">
                     </form>
                 </div>
             </main>
@@ -169,16 +174,6 @@ class AIOHM_KB_Shortcode_Private_Assistant {
             </aside>
         </div>
 
-        <div id="research-url-modal" class="aiohm-modal">
-            <div class="aiohm-modal-content">
-                <span class="aiohm-modal-close" id="close-research-modal">&times;</span>
-                <h3>Research a Live URL</h3>
-                <p>Enter a website address to scan its content into your knowledge base.</p>
-                <input type="url" id="research-url-input" placeholder="https://example.com">
-                <button id="research-url-submit" class="button aiohm-ohm-green-btn">Scan Website</button>
-                <div id="research-url-status" style="margin-top: 10px;"></div>
-            </div>
-        </div>
         <?php
         return ob_get_clean();
     }

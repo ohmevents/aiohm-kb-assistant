@@ -133,7 +133,18 @@ class AIOHM_KB_RAG_Engine {
             return new WP_Error('invalid_url', 'The provided URL is not valid.');
         }
 
-        $response = wp_remote_get($url, ['timeout' => 25]);
+        // Enhanced request with proper headers
+        $response = wp_remote_get($url, [
+            'timeout' => 30,
+            'headers' => [
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language' => 'en-US,en;q=0.5',
+                'Accept-Encoding' => 'gzip, deflate',
+                'Connection' => 'keep-alive',
+                'Upgrade-Insecure-Requests' => '1',
+            ]
+        ]);
 
         if (is_wp_error($response)) {
             return new WP_Error('fetch_failed', 'Could not retrieve content: ' . $response->get_error_message());
@@ -145,20 +156,128 @@ class AIOHM_KB_RAG_Engine {
         }
 
         $html_content = wp_remote_retrieve_body($response);
-        $title = 'Web Research: ' . $url;
-        if (preg_match('/<title>(.*?)<\/title>/i', $html_content, $matches)) {
-            $title = trim($matches[1]);
-        }
-
-        $plain_text = wp_strip_all_tags($html_content);
-        $plain_text = preg_replace('/\s+/', ' ', $plain_text);
-
-        if (empty(trim($plain_text))) {
+        
+        // Enhanced content extraction
+        $extracted_data = $this->extract_enhanced_content($html_content, $url);
+        
+        if (empty(trim($extracted_data['content']))) {
             return new WP_Error('no_content', 'Could not extract any readable text from the URL.');
         }
 
-        $metadata = ['source_url' => $url];
-        return $this->add_entry($plain_text, 'external_url', $title, $metadata, $user_id);
+        $metadata = [
+            'source_url' => $url,
+            'title' => $extracted_data['title'],
+            'description' => $extracted_data['description'],
+            'author' => $extracted_data['author'],
+            'published_date' => $extracted_data['published_date'],
+            'keywords' => $extracted_data['keywords'],
+            'extraction_date' => current_time('mysql')
+        ];
+        
+        return $this->add_entry($extracted_data['content'], 'external_url', $extracted_data['title'], $metadata, $user_id);
+    }
+    
+    private function extract_enhanced_content($html_content, $url) {
+        $title = 'Web Research: ' . $url;
+        $description = '';
+        $author = '';
+        $published_date = '';
+        $keywords = '';
+        
+        // Create DOMDocument for better parsing
+        $dom = new DOMDocument();
+        @$dom->loadHTML('<?xml encoding="UTF-8">' . $html_content);
+        $xpath = new DOMXPath($dom);
+        
+        // Extract title - try multiple methods
+        if (preg_match('/<title>(.*?)<\/title>/i', $html_content, $matches)) {
+            $title = trim(html_entity_decode($matches[1], ENT_QUOTES, 'UTF-8'));
+        }
+        
+        // Extract meta description
+        if (preg_match('/<meta\s+name=["\']description["\']\s+content=["\'](.*?)["\']/i', $html_content, $matches)) {
+            $description = trim(html_entity_decode($matches[1], ENT_QUOTES, 'UTF-8'));
+        }
+        
+        // Extract Open Graph data
+        if (preg_match('/<meta\s+property=["\']og:title["\']\s+content=["\'](.*?)["\']/i', $html_content, $matches)) {
+            $og_title = trim(html_entity_decode($matches[1], ENT_QUOTES, 'UTF-8'));
+            if (!empty($og_title) && strlen($og_title) > strlen($title)) {
+                $title = $og_title;
+            }
+        }
+        
+        if (preg_match('/<meta\s+property=["\']og:description["\']\s+content=["\'](.*?)["\']/i', $html_content, $matches)) {
+            $og_description = trim(html_entity_decode($matches[1], ENT_QUOTES, 'UTF-8'));
+            if (!empty($og_description) && empty($description)) {
+                $description = $og_description;
+            }
+        }
+        
+        // Extract author information
+        if (preg_match('/<meta\s+name=["\']author["\']\s+content=["\'](.*?)["\']/i', $html_content, $matches)) {
+            $author = trim(html_entity_decode($matches[1], ENT_QUOTES, 'UTF-8'));
+        }
+        
+        // Extract keywords
+        if (preg_match('/<meta\s+name=["\']keywords["\']\s+content=["\'](.*?)["\']/i', $html_content, $matches)) {
+            $keywords = trim(html_entity_decode($matches[1], ENT_QUOTES, 'UTF-8'));
+        }
+        
+        // Extract published date
+        if (preg_match('/<meta\s+property=["\']article:published_time["\']\s+content=["\'](.*?)["\']/i', $html_content, $matches)) {
+            $published_date = trim($matches[1]);
+        }
+        
+        // Enhanced content extraction - prioritize main content areas
+        $content_selectors = [
+            'article',
+            'main',
+            '[role="main"]',
+            '.content',
+            '.post-content',
+            '.entry-content',
+            '.article-content',
+            '#content',
+            '.main-content'
+        ];
+        
+        $main_content = '';
+        foreach ($content_selectors as $selector) {
+            $elements = $xpath->query("//*[contains(@class, '" . str_replace(['[', ']', '.', '#'], '', $selector) . "')]");
+            if ($elements->length > 0) {
+                foreach ($elements as $element) {
+                    $main_content .= $element->textContent . ' ';
+                }
+                break;
+            }
+        }
+        
+        // If no main content found, extract from body but exclude common noise
+        if (empty(trim($main_content))) {
+            $plain_text = wp_strip_all_tags($html_content);
+            // Remove common noise patterns
+            $plain_text = preg_replace('/\b(cookie|privacy|policy|terms|conditions|javascript|advertisement|ads)\b/i', '', $plain_text);
+        } else {
+            $plain_text = $main_content;
+        }
+        
+        // Clean up whitespace
+        $plain_text = preg_replace('/\s+/', ' ', trim($plain_text));
+        
+        // Limit content length to prevent massive entries
+        if (strlen($plain_text) > 15000) {
+            $plain_text = substr($plain_text, 0, 15000) . '... [Content truncated]';
+        }
+        
+        return [
+            'title' => $title,
+            'content' => $plain_text,
+            'description' => $description,
+            'author' => $author,
+            'published_date' => $published_date,
+            'keywords' => $keywords
+        ];
     }
     
     private function summarize_new_context($url, $user_id) {

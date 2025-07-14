@@ -96,7 +96,7 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
                     </div>
                 </div>
 
-                <div class="aiohm-setting-block">
+                <div class="aiohm-setting-block" style="margin-top: 20px;">
                     <label for="ai_avatar">AI Avatar</label>
                     <div class="aiohm-avatar-uploader">
                         <input type="text" id="ai_avatar" name="aiohm_kb_settings[mirror_mode][ai_avatar]" value="<?php echo esc_attr($settings['ai_avatar'] ?? ''); ?>" placeholder="Enter image URL">
@@ -118,6 +118,8 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
         </div>
         
         <div class="aiohm-test-column">
+            <h3><?php _e('Test Your Q&A Assistant', 'aiohm-kb-assistant'); ?></h3>
+            <p class="description"><?php _e('Test your assistant here. To display this on your website, use the shortcode: <code>[aiohm_chat]</code>', 'aiohm-kb-assistant'); ?></p>
             <div id="aiohm-test-chat" class="aiohm-chat-container">
                 <div class="aiohm-chat-header">
                     <div class="aiohm-chat-title-preview"><?php echo esc_html($settings['business_name'] ?? 'Live Preview'); ?></div>
@@ -129,7 +131,7 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
                 <div class="aiohm-chat-messages">
                     <div class="aiohm-message aiohm-message-bot">
                         <div class="aiohm-message-avatar">
-                            <img src="<?php echo esc_url($settings['ai_avatar'] ?? ''); ?>" alt="AI Avatar" class="aiohm-avatar-preview">
+                            <img src="<?php echo esc_url($settings['ai_avatar'] ?? AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="AI Avatar" class="aiohm-avatar-preview">
                         </div>
                         <div class="aiohm-message-bubble"><div class="aiohm-message-content">Ask a question to test the settings from the left. Your changes are applied instantly here without saving.</div></div>
                     </div>
