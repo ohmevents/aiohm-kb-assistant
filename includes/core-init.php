@@ -53,11 +53,259 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_search_knowledge', array(__CLASS__, 'handle_search_knowledge_ajax'));
         add_action('wp_ajax_aiohm_admin_search_knowledge', array(__CLASS__, 'handle_admin_search_knowledge_ajax'));
 
-        // --- FIX: Add the missing action handler for loading project conversations ---
+        // --- Existing FIX for project and conversations ---
         add_action('wp_ajax_aiohm_get_project_conversations', array(__CLASS__, 'handle_get_project_conversations_ajax'));
         add_action('wp_ajax_aiohm_create_project', array(__CLASS__, 'handle_create_project_ajax'));
+        
+        // --- NEW FIX: Add the missing action handler for loading all projects and conversations ---
+        add_action('wp_ajax_aiohm_load_history', array(__CLASS__, 'handle_load_history_ajax'));
+        add_action('wp_ajax_aiohm_load_conversation', array(__CLASS__, 'handle_load_conversation_ajax'));
+        add_action('wp_ajax_aiohm_save_project_notes', array(__CLASS__, 'handle_save_project_notes_ajax'));
+        add_action('wp_ajax_aiohm_load_project_notes', array(__CLASS__, 'handle_load_project_notes_ajax'));
+        add_action('wp_ajax_aiohm_delete_project', array(__CLASS__, 'handle_delete_project_ajax'));
+        add_action('wp_ajax_aiohm_delete_conversation', array(__CLASS__, 'handle_delete_conversation_ajax'));
     }
     
+    /**
+     * Handles the AJAX request to load all projects and recent conversations for the current user.
+     * This directly supports the `loadHistory()` function in JavaScript.
+     */
+    public static function handle_load_history_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission Denied']);
+            wp_die();
+        }
+
+        global $wpdb;
+        $user_id = get_current_user_id();
+
+        // Fetch projects
+        $projects_table = $wpdb->prefix . 'aiohm_projects';
+        $projects = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, project_name as name FROM {$projects_table} WHERE user_id = %d ORDER BY creation_date DESC",
+            $user_id
+        ), ARRAY_A);
+
+        // Fetch recent conversations (e.g., last 10, or all if not too many)
+        // Adjust LIMIT as needed for performance if users have many conversations
+        $conversations_table = $wpdb->prefix . 'aiohm_conversations';
+        $conversations = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, title, project_id FROM {$conversations_table} WHERE user_id = %d ORDER BY updated_at DESC LIMIT 50",
+            $user_id
+        ), ARRAY_A);
+
+        wp_send_json_success(['projects' => $projects, 'conversations' => $conversations]);
+        wp_die();
+    }
+
+    /**
+     * Handles the AJAX request to load a specific conversation's messages.
+     */
+    public static function handle_load_conversation_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission Denied']);
+            wp_die();
+        }
+    
+        $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
+        if (empty($conversation_id)) {
+            wp_send_json_error(['message' => 'Invalid Conversation ID.']);
+            wp_die();
+        }
+    
+        global $wpdb;
+        $user_id = get_current_user_id();
+        $messages_table = $wpdb->prefix . 'aiohm_messages';
+        $conversations_table = $wpdb->prefix . 'aiohm_conversations';
+        $projects_table = $wpdb->prefix . 'aiohm_projects';
+    
+        // Verify conversation belongs to the user and get its project ID
+        $conversation_info = $wpdb->get_row($wpdb->prepare(
+            "SELECT c.id, c.title, c.project_id, p.project_name FROM {$conversations_table} c JOIN {$projects_table} p ON c.project_id = p.id WHERE c.id = %d AND c.user_id = %d",
+            $conversation_id,
+            $user_id
+        ), ARRAY_A);
+    
+        if (!$conversation_info) {
+            wp_send_json_error(['message' => 'Conversation not found or not accessible.']);
+            wp_die();
+        }
+    
+        // Fetch messages for the conversation
+        $messages = $wpdb->get_results($wpdb->prepare(
+            "SELECT sender, content as message_content FROM {$messages_table} WHERE conversation_id = %d ORDER BY created_at ASC",
+            $conversation_id
+        ), ARRAY_A);
+    
+        wp_send_json_success([
+            'messages' => $messages,
+            'project_id' => $conversation_info['project_id'],
+            'project_name' => $conversation_info['project_name'],
+            'conversation_title' => $conversation_info['title']
+        ]);
+        wp_die();
+    }
+
+    /**
+     * Handles AJAX request to save project notes.
+     */
+    public static function handle_save_project_notes_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission Denied']);
+            wp_die();
+        }
+    
+        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+        $note_content = isset($_POST['note_content']) ? sanitize_textarea_field(stripslashes($_POST['note_content'])) : '';
+    
+        if (empty($project_id)) {
+            wp_send_json_error(['message' => 'Invalid Project ID.']);
+            wp_die();
+        }
+    
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'aiohm_projects';
+        $user_id = get_current_user_id();
+    
+        // Ensure the project belongs to the current user
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(id) FROM {$table_name} WHERE id = %d AND user_id = %d",
+            $project_id,
+            $user_id
+        ));
+    
+        if (!$exists) {
+            wp_send_json_error(['message' => 'Project not found or not owned by user.']);
+            wp_die();
+        }
+    
+        $updated = $wpdb->update(
+            $table_name,
+            ['notes' => $note_content],
+            ['id' => $project_id],
+            ['%s'],
+            ['%d']
+        );
+    
+        if ($updated !== false) {
+            wp_send_json_success(['message' => 'Notes saved.']);
+        } else {
+            wp_send_json_error(['message' => 'Failed to save notes.']);
+        }
+        wp_die();
+    }
+
+    /**
+     * Handles AJAX request to load project notes.
+     */
+    public static function handle_load_project_notes_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission Denied']);
+            wp_die();
+        }
+    
+        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+    
+        if (empty($project_id)) {
+            wp_send_json_error(['message' => 'Invalid Project ID.']);
+            wp_die();
+        }
+    
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'aiohm_projects';
+        $user_id = get_current_user_id();
+    
+        $note_content = $wpdb->get_var($wpdb->prepare(
+            "SELECT notes FROM {$table_name} WHERE id = %d AND user_id = %d",
+            $project_id,
+            $user_id
+        ));
+    
+        if ($note_content !== null) {
+            wp_send_json_success(['note_content' => $note_content]);
+        } else {
+            wp_send_json_error(['message' => 'Project notes not found or not accessible.']);
+        }
+        wp_die();
+    }
+
+    /**
+     * Handles AJAX request to delete a project.
+     */
+    public static function handle_delete_project_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission Denied']);
+            wp_die();
+        }
+    
+        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+    
+        if (empty($project_id)) {
+            wp_send_json_error(['message' => 'Invalid Project ID.']);
+            wp_die();
+        }
+    
+        global $wpdb;
+        $user_id = get_current_user_id();
+    
+        // Delete associated conversations first
+        $conversations_table = $wpdb->prefix . 'aiohm_conversations';
+        $wpdb->delete($conversations_table, ['project_id' => $project_id, 'user_id' => $user_id], ['%d', '%d']);
+    
+        // Delete the project
+        $projects_table = $wpdb->prefix . 'aiohm_projects';
+        $deleted = $wpdb->delete($projects_table, ['id' => $project_id, 'user_id' => $user_id], ['%d', '%d']);
+    
+        if ($deleted) {
+            wp_send_json_success(['message' => 'Project and its conversations deleted.']);
+        } else {
+            wp_send_json_error(['message' => 'Failed to delete project or project not found.']);
+        }
+        wp_die();
+    }
+    
+    /**
+     * Handles AJAX request to delete a conversation.
+     */
+    public static function handle_delete_conversation_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission Denied']);
+            wp_die();
+        }
+    
+        $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
+    
+        if (empty($conversation_id)) {
+            wp_send_json_error(['message' => 'Invalid Conversation ID.']);
+            wp_die();
+        }
+    
+        global $wpdb;
+        $user_id = get_current_user_id();
+    
+        // Delete associated messages first
+        $messages_table = $wpdb->prefix . 'aiohm_messages';
+        $wpdb->delete($messages_table, ['conversation_id' => $conversation_id], ['%d']);
+    
+        // Delete the conversation
+        $conversations_table = $wpdb->prefix . 'aiohm_conversations';
+        $deleted = $wpdb->delete($conversations_table, ['id' => $conversation_id, 'user_id' => $user_id], ['%d', '%d']);
+    
+        if ($deleted) {
+            wp_send_json_success(['message' => 'Conversation and its messages deleted.']);
+        } else {
+            wp_send_json_error(['message' => 'Failed to delete conversation or conversation not found.']);
+        }
+        wp_die();
+    }
+
+
     // ================== START: NEW FUNCTION TO FIX PROJECTS ==================
     /**
      * Handles the AJAX request to get all conversations for a specific project.

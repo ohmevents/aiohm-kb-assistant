@@ -252,13 +252,15 @@ jQuery(document).ready(function($) {
         }
         $(this).text('Creating...').prop('disabled', true);
         
-        // This will now work correctly because performAjaxRequest is fixed.
-        performAjaxRequest('aiohm_create_project', { name: projectName }).done(response => {
-            if (response.success && response.data.new_project_id) {
+        // FIX: Changed 'name' to 'project_name' to match PHP's $_POST expectation.
+        performAjaxRequest('aiohm_create_project', { project_name: projectName }).done(response => {
+            // FIX: Changed 'response.data.new_project_id' to 'response.data.id'.
+            if (response.success && response.data.id) {
                 showNotification(`Project "${projectName}" created!`, 'success');
                 restoreChatView();
                 loadHistory().done(function() {
-                    const newProjectLink = projectList.find(`.aiohm-pa-list-item[data-id="${response.data.new_project_id}"]`);
+                    // FIX: Changed 'response.data.new_project_id' to 'response.data.id'.
+                    const newProjectLink = projectList.find(`.aiohm-pa-list-item[data-id="${response.data.id}"]`);
                     if (newProjectLink.length) {
                         newProjectLink.trigger('click');
                     }
