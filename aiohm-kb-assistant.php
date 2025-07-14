@@ -3,7 +3,7 @@
  * Plugin Name: AIOHM Knowledge Assistant
  * Plugin URI:  https://aiohm.app
  * Description: Bring your wisdom to life. The AIOHM Knowledge Assistant listens, learns, and speaks in your brand's voice, offering real-time answers, soulful brand support, and intuitive guidance for your visitors.
- * Version:     1.1.10
+ * Version:     1.1.11
  * Author:      OHM Events Agency
  * Author URI:  https://aiohm.app
  * Text Domain: aiohm-kb-assistant
@@ -17,7 +17,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('AIOHM_KB_VERSION', '1.1.10');
+define('AIOHM_KB_VERSION', '1.1.11');
 define('AIOHM_KB_PLUGIN_FILE', __FILE__);
 define('AIOHM_KB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AIOHM_KB_INCLUDES_DIR', AIOHM_KB_PLUGIN_DIR . 'includes/');
@@ -133,6 +133,7 @@ class AIOHM_KB_Assistant {
                 'system_prompt' => "You are Muse, a private brand assistant. Your role is to help the user develop their brand by using the provided context, which includes public information and the user's private 'Brand Soul' answers. Synthesize this information to provide creative ideas, answer strategic questions, and help draft content. Always prioritize the private 'Brand Soul' context when available.",
                 'temperature' => '0.7',
                 'assistant_name' => 'Muse',
+                'start_fullscreen' => true,
                 'ai_model' => 'gpt-4',
             ]
         ];
@@ -145,6 +146,11 @@ class AIOHM_KB_Assistant {
         return $settings;
     }
 
+    /**
+     * **MODIFIED FOR PERFORMANCE**
+     * This function now adds a FULLTEXT index to the `content` column,
+     * which dramatically speeds up keyword searches in the database.
+     */
     private function create_tables() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'aiohm_vector_entries';
@@ -161,7 +167,8 @@ class AIOHM_KB_Assistant {
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY user_id (user_id),
-            KEY content_id (content_id)
+            KEY content_id (content_id),
+            FULLTEXT KEY content (content) -- **FIX: Added FULLTEXT index for faster searches**
         ) $charset_collate;";
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);

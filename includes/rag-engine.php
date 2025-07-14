@@ -40,26 +40,24 @@ class AIOHM_KB_RAG_Engine {
         return true;
     }
     
+    /**
+     * **MODIFIED FOR PERFORMANCE**
+     * This function now uses a `MATCH() AGAINST()` query on the `FULLTEXT` index,
+     * which is significantly faster for keyword searches than the previous `LIKE` query.
+     */
     public function find_relevant_context($query_text, $limit = 5) {
         global $wpdb;
         $ai_client = new AIOHM_KB_AI_GPT_Client();
         $query_embedding = $ai_client->generate_embeddings($query_text);
 
-        // Optimization: Pre-filter entries using a basic keyword search to reduce the search space.
-        $keywords = explode(' ', preg_replace('/[^a-z0-9\s]/i', '', strtolower($query_text)));
-        $keywords = array_filter($keywords, function($word) {
-            return strlen($word) > 2; // Ignore very short words.
-        });
-
+        // Optimization: Pre-filter entries using a FULLTEXT search to reduce the search space.
+        $keywords = preg_replace('/[^a-z0-9\s]/i', '', strtolower($query_text));
+        
         $where_clauses = ["user_id = 0"];
         $query_args = [];
-        if (!empty($keywords)) {
-            $like_clause = [];
-            foreach ($keywords as $keyword) {
-                $like_clause[] = "LOWER(content) LIKE %s";
-                $query_args[] = '%' . $wpdb->esc_like($keyword) . '%';
-            }
-            $where_clauses[] = '(' . implode(' OR ', $like_clause) . ')';
+        if (!empty(trim($keywords))) {
+            $where_clauses[] = "MATCH(content) AGAINST(%s IN BOOLEAN MODE)";
+            $query_args[] = '+' . str_replace(' ', ' +', trim($keywords)); // Add '+' to require all words
         }
 
         $where_sql = implode(' AND ', $where_clauses);
@@ -90,8 +88,6 @@ class AIOHM_KB_RAG_Engine {
         return array_slice($similarities, 0, $limit);
     }
     
-    // ... (rest of the functions from your original file are below) ...
-
     public function get_all_entries_paginated($per_page = 20, $page_number = 1) {
         global $wpdb;
         $offset = ($page_number - 1) * $per_page;

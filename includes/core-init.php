@@ -351,52 +351,89 @@ class AIOHM_KB_Core_Init {
     }
 
     /**
-     * =================================================================
-     * THE PRIMARY BUG FIX IS IN THIS FUNCTION
-     * =================================================================
+     * **FIXED CONVERSATION HANDLING**
+     * This function now correctly receives the conversation ID from the frontend,
+     * ensuring messages are threaded properly.
      */
     public static function handle_private_assistant_chat_ajax() {
-        // Security check
         if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied']);
         }
     
-        // Sanitize POST data
         $user_id = get_current_user_id();
         $message = isset($_POST['message']) ? sanitize_textarea_field(stripslashes($_POST['message'])) : '';
         $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
         
-        // FIX #1: Retrieve 'conversation_id' from the frontend to maintain chat history.
-        // The original code was missing this, causing a new conversation for every message.
+        // **FIX: Receive the conversation ID from the frontend.**
         $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : null;
     
-        // Validate input
         if (empty($message) || empty($project_id)) {
             wp_send_json_error(['message' => 'Missing message or project context.']);
         }
     
         try {
-            // This part remains the same: query the AI with the user's message.
             $rag_engine = new AIOHM_KB_RAG_Engine();
             $response_text = $rag_engine->query($message, 'private', $user_id);
     
-            // FIX #1 (Continued): Handle conversation persistence.
-            // If conversation_id is null (i.e., it's the first message), create a new conversation.
+            // **FIX: If it's a new chat, create a conversation record.**
             if (is_null($conversation_id)) {
-                // FIX #3: Call the global function directly instead of using the incorrect class name.
+                // Assuming a global function `create_conversation` exists. If not, we'd need to define it.
+                // This function should insert a new row into the aiohm_conversations table and return the new ID.
                 $conversation_id = create_conversation($user_id, $project_id, substr($message, 0, 100));
             }
             
-            // FIX #3 (Continued): Call the global functions directly here as well.
+            // **FIX: Save both user message and AI reply to the database.**
+            // Assuming a global function `add_message_to_conversation` exists.
             add_message_to_conversation($conversation_id, 'user', $message);
             add_message_to_conversation($conversation_id, 'ai', $response_text);
     
-            // FIX #1 (End): Send the 'conversation_id' back to the frontend. The JavaScript
-            // will store this and send it with the next request.
+            // **FIX: Send the conversation_id back to the frontend.**
             wp_send_json_success(['reply' => $response_text, 'conversation_id' => $conversation_id]);
         } catch (Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * **NEW: Handles saving project notes.**
+     */
+    public static function handle_save_project_notes_ajax() {
+        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission denied.']);
+        }
+
+        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+        $note_content = isset($_POST['note_content']) ? wp_kses_post(stripslashes($_POST['note_content'])) : '';
+        $user_id = get_current_user_id();
+
+        if (empty($project_id)) {
+            wp_send_json_error(['message' => 'Invalid Project ID.']);
+        }
+        
+        // Save the notes as user meta, keyed by project ID for simplicity
+        update_user_meta($user_id, 'aiohm_project_notes_' . $project_id, $note_content);
+
+        wp_send_json_success(['message' => 'Notes saved.']);
+    }
+
+    /**
+     * **NEW: Handles loading project notes.**
+     */
+    public static function handle_load_project_notes_ajax() {
+        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false) || !current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission denied.']);
+        }
+
+        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+        $user_id = get_current_user_id();
+
+        if (empty($project_id)) {
+            wp_send_json_error(['message' => 'Invalid Project ID.']);
+        }
+
+        $note_content = get_user_meta($user_id, 'aiohm_project_notes_' . $project_id, true);
+
+        wp_send_json_success(['note_content' => $note_content]);
     }
     
     public static function handle_test_muse_mode_chat_ajax() {

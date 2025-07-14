@@ -1,6 +1,6 @@
 /**
  * AIOHM Private Assistant Frontend Script
- * v1.5.0 - Adds auto-saving notes and deletion of projects/conversations.
+ * v1.1.11 - Adds auto-saving notes and deletion of projects/conversations.
  */
 jQuery(document).ready(function($) {
     'use strict';
