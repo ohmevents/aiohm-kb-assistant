@@ -96,8 +96,8 @@ class AIOHM_KB_Assistant {
     public function activate() {
         require_once AIOHM_KB_INCLUDES_DIR . 'rag-engine.php';
         $this->create_tables();
+        $this->create_project_tables(); // Moved this before conversations
         $this->create_conversation_tables();
-        $this->create_project_tables();
         $this->set_default_options();
         flush_rewrite_rules();
         $settings = self::get_settings();
@@ -176,14 +176,17 @@ class AIOHM_KB_Assistant {
 
         // Table for conversations
         $table_conversations = $wpdb->prefix . 'aiohm_conversations';
+        // **FIX: Added project_id directly to the table creation statement.**
         $sql_conversations = "CREATE TABLE $table_conversations (
             id BIGINT(20) NOT NULL AUTO_INCREMENT,
+            project_id mediumint(9) NOT NULL,
             user_id BIGINT(20) NOT NULL,
             title VARCHAR(255) NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
             PRIMARY KEY  (id),
-            KEY user_id (user_id)
+            KEY user_id (user_id),
+            KEY project_id (project_id)
         ) $charset_collate;";
         dbDelta($sql_conversations);
 
@@ -218,7 +221,7 @@ class AIOHM_KB_Assistant {
         ) $charset_collate;";
         dbDelta($sql_projects);
     
-        // Add project_id to the conversations table
+        // This secondary check is no longer strictly necessary but is kept as a safeguard.
         $table_name_conversations = $wpdb->prefix . 'aiohm_conversations';
         if($wpdb->get_var("SHOW TABLES LIKE '$table_name_conversations'") == $table_name_conversations) {
             if ($wpdb->get_var("SHOW COLUMNS FROM `{$table_name_conversations}` LIKE 'project_id'") != 'project_id') {

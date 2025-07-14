@@ -1,6 +1,6 @@
 /*
  * AIOHM Private Assistant Stylesheet
- * v1.1.11 - Implements new welcome screen and color scheme.
+ * v1.4.3 - Final design tweaks for welcome screen alignment.
 */
 
 /* --- 1. :root Variables --- */
@@ -12,13 +12,13 @@
     --pa-text-primary: #ffffff;
     --pa-text-secondary: #b9bbbe;
     --pa-border-color: #4f545c;
-    /* **FIX: Replaced blue brand color with OHM Green** */
     --pa-brand-color: #1f5014;
-    --pa-brand-color-hover: #183e10; /* A slightly darker green for hover */
+    --pa-brand-color-hover: #183e10;
     --pa-highlight-color: #ffb923;
     --pa-highlight-text-color: #1e1e1e;
     --pa-success-color: #28a745;
     --pa-error-color: #dc3545;
+    --header-height: 60px;
 }
 
 /* --- 2. Base Layout & Fullscreen Mode --- */
@@ -61,13 +61,15 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
 
 #aiohm-app-container .aiohm-pa-sidebar-header,
 #aiohm-app-container .aiohm-pa-notes-header {
-    padding: 20px;
+    height: var(--header-height);
+    padding: 0 20px;
     text-align: center;
     flex-shrink: 0;
     display: flex;
-    justify-content: space-between; /* Changed for notes header */
+    justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--pa-border-color);
+    box-sizing: border-box;
 }
 
 #aiohm-app-container .aiohm-pa-sidebar-header h3,
@@ -154,10 +156,11 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     border-left: 1px solid var(--pa-border-color);
 }
 
-/* **FIX: Center the notes textarea** */
 #aiohm-app-container .aiohm-pa-notes-sidebar .aiohm-pa-menu {
     display: flex;
     padding: 15px;
+    flex-grow: 1;
+    overflow: hidden;
 }
 
 #aiohm-app-container #aiohm-pa-notes-textarea {
@@ -167,7 +170,6 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     box-sizing: border-box;
 }
 
-/* **NEW: Button with OHM Green color** */
 #aiohm-app-container .aiohm-ohm-green-btn {
     background-color: var(--pa-brand-color) !important;
     border-color: var(--pa-brand-color) !important;
@@ -195,9 +197,11 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
 
 /* --- 6. Header & Window Controls --- */
 #aiohm-app-container .aiohm-pa-header {
-    display: flex; align-items: center; padding: 10px 20px;
+    height: var(--header-height);
+    display: flex; align-items: center; padding: 0 20px;
     background-color: var(--pa-bg-light);
     border-bottom: 1px solid var(--pa-border-color); flex-shrink: 0;
+    box-sizing: border-box;
 }
 #aiohm-app-container .aiohm-pa-header-title {
     margin: 0; font-size: 18px; margin-left: 15px; white-space: nowrap;
@@ -244,32 +248,36 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     border-bottom-left-radius: 5px;
 }
 
-/* **FIX: Styles for the new welcome screen layout** */
+/* **FIX: Final styles for welcome screen alignment** */
 #aiohm-app-container .aiohm-welcome-screen {
     display: flex;
     height: 100%;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
     gap: 40px;
-    padding: 20px;
+    padding: 20px 40px;
 }
 #aiohm-app-container .aiohm-welcome-message-area {
-    flex-basis: 45%;
+    flex-basis: 40%;
 }
 #aiohm-app-container .aiohm-welcome-guide {
-    flex-basis: 55%;
-    max-width: 600px;
-}
-#aiohm-app-container .aiohm-welcome-guide h4 {
-    margin-top: 0; font-size: 20px; margin-bottom: 25px; text-align: left;
+    flex-basis: 50%;
+    max-width: 500px;
+    align-self: flex-start;
+    padding-top: 20px;
+    /* This pushes the content within this div to the right */
+    display: flex;
+    justify-content: flex-end;
 }
 #aiohm-app-container .aiohm-instructions-list {
     list-style: none !important; padding: 0 !important; margin: 0 !important;
+    /* Aligns the text inside the list to the left */
+    text-align: left;
 }
 #aiohm-app-container .aiohm-instructions-list li {
     display: flex !important; align-items: flex-start !important; gap: 15px;
-    padding: 12px !important; background: none !important;
-    border-radius: 8px; margin-bottom: 12px !important;
+    padding: 12px 0 !important; background: none !important;
+    margin-bottom: 12px !important;
     border-bottom: 1px solid var(--pa-border-color);
 }
 #aiohm-app-container .aiohm-instructions-list .dashicons {
@@ -312,7 +320,8 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
 
 /* --- 9. Notification Bar --- */
 #aiohm-app-container .aiohm-pa-notification-bar {
-    position: absolute; top: 70px; left: 50%;
+    position: absolute; top: var(--header-height);
+    left: 50%;
     transform: translateX(-50%); color: white; padding: 12px 25px;
     border-radius: 5px; box-shadow: 0 3px 8px rgba(0,0,0,0.3);
     display: flex; justify-content: space-between; align-items: center;
@@ -332,14 +341,13 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
 }
 
 /* --- 10. Modals --- */
-/* **FIX: Centered create project button** */
 #aiohm-app-container #create-project-view {
     padding: 40px; text-align: center;
     display: flex; flex-direction: column; justify-content: center;
     height: 100%;
 }
 .aiohm-modal {
-    display: none; /* Changed from none to flex for show/hide */
+    display: none;
     position: fixed; z-index: 100000; left: 0; top: 0;
     width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7);
     justify-content: center; align-items: center;
@@ -360,7 +368,7 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     border: 1px solid var(--pa-border-color);
     color: var(--pa-text-primary);
     border-radius: 5px;
-    box-sizing: border-box; /* Added for consistency */
+    box-sizing: border-box;
 }
 .aiohm-modal-close {
     position: absolute; top: 15px; right: 20px; color: #aaa;

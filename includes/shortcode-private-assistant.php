@@ -119,7 +119,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                             </div>
                         </div>
                         <div class="aiohm-welcome-guide">
-                            <h4><?php echo esc_html($atts['welcome_title']); ?></h4>
+                            
                             <ul class="aiohm-instructions-list">
                                 <li><span class="dashicons dashicons-plus"></span> <div><strong>New Project</strong><p>Start a new project to organize your chats.</p></div></li>
                                 <li><span class="dashicons dashicons-format-chat"></span> <div><strong>New Chat</strong><p>Begin a new conversation in the current project.</p></div></li>

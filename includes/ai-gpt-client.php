@@ -272,4 +272,4 @@ if (!class_exists('AIOHM_KB_AI_GPT_Client')) :
             }
         }
     }
-endif; // End the class_exists check
+endif;

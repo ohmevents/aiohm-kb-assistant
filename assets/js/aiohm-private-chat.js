@@ -1,6 +1,6 @@
 /**
  * AIOHM Private Assistant Frontend Script
- * v1.1.11 - Implements new UI layouts and research modal.
+ * v1.4.4 - Adds Enter-to-send functionality.
  */
 jQuery(document).ready(function($) {
     'use strict';
@@ -26,7 +26,7 @@ jQuery(document).ready(function($) {
     const assistantName = aiohm_private_chat_params.assistantName || 'Assistant';
 
     const notesInput = $('#aiohm-pa-notes-textarea');
-    const addToKbBtnNotes = $('#add-note-to-kb-btn'); // Renamed button
+    const addToKbBtnNotes = $('#add-note-to-kb-btn');
     const notesStatus = $('#aiohm-notes-status');
 
     const newProjectBtn = $('#new-project-btn');
@@ -37,7 +37,6 @@ jQuery(document).ready(function($) {
     const closeNotesBtn = $('#close-notes-btn');
     const fullscreenBtn = $('#fullscreen-toggle-btn');
     
-    // **NEW: Selectors for the research modal**
     const researchBtn = $('#research-online-prompt-btn');
     const researchModal = $('#research-url-modal');
     const researchUrlInput = $('#research-url-input');
@@ -61,8 +60,7 @@ jQuery(document).ready(function($) {
         const messageClass = sender.toLowerCase() === 'user' ? 'user' : 'assistant';
         const senderName = sender.toLowerCase() === 'user' ? 'You' : assistantName;
         
-        // Sanitize text before inserting to prevent XSS
-        const sanitizedText = $('<div/>').text(text).html();
+        const sanitizedText = $('<div/>').text(text).html().replace(/\n/g, '<br>');
 
         const messageHTML = `
             <div class="message ${messageClass}">
@@ -226,9 +224,7 @@ jQuery(document).ready(function($) {
             return;
         }
 
-        // Using the handle_add_brand_soul_to_kb action as it adds content to the private KB
         performAjaxRequest('aiohm_add_brand_soul_to_kb', {
-            // We format the note as a Q&A pair to fit the existing function
             questions: [{ 
                 question: 'Note from Project: ' + projectTitle.text(), 
                 answer: noteContent 
@@ -274,6 +270,14 @@ jQuery(document).ready(function($) {
     // --- Event Listeners ---
     $('#private-chat-form').on('submit', e => { e.preventDefault(); sendMessage(); });
     
+    // **FIX: Added keydown listener for Enter key**
+    chatInput.on('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault(); // Prevents adding a new line
+            sendMessage();
+        }
+    });
+
     newProjectBtn.on('click', displayProjectCreationView);
     
     conversationPanel.on('click', '#create-project-submit', function() {
@@ -358,7 +362,7 @@ jQuery(document).ready(function($) {
         clearTimeout(noteSaveTimer);
         notesStatus.text('Typing...');
         if (currentProjectId) {
-            noteSaveTimer = setTimeout(saveNotes, 1500); // 1.5 second delay
+            noteSaveTimer = setTimeout(saveNotes, 1500);
         }
     });
 
@@ -411,7 +415,6 @@ jQuery(document).ready(function($) {
     fullscreenBtn.on('click', () => setFullscreen());
     notificationBar.on('click', '.close-btn', () => notificationBar.fadeOut());
     
-    // **NEW: Event listeners for the Research Online modal**
     researchBtn.on('click', function() {
         researchModal.css('display', 'flex');
         researchUrlInput.focus();
