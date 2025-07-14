@@ -1,238 +1,394 @@
-// Document ready function to ensure the DOM is loaded before executing jQuery code.
+/**
+ * AIOHM Private Assistant Frontend Script
+ * v1.5.0 - Adds auto-saving notes and deletion of projects/conversations.
+ */
 jQuery(document).ready(function($) {
+    'use strict';
 
-    // Initialize a timer for the typing indicator. This is part of the original code.
-    var typingTimer;
-    var doneTypingInterval = 1000;
+    // ====================================================================
+    // 1. STATE & DOM
+    // ====================================================================
+    let currentProjectId = null;
+    let currentConversationId = null;
+    let originalPlaceholder = 'Type your message...';
+    let noteSaveTimer = null;
 
-    // --- INITIALIZATION ---
-    // The first action when the page loads is to fetch the user's projects.
-    loadProjects();
+    const appContainer = $('#aiohm-app-container');
+    const chatInput = $('#chat-input');
+    const sendBtn = $('#send-btn');
+    const conversationPanel = $('#conversation-panel');
+    const projectList = $('.aiohm-pa-project-list');
+    const conversationList = $('.aiohm-pa-conversation-list');
+    const projectTitle = $('#project-title');
+    const loadingIndicator = $('#aiohm-chat-loading');
+    const notificationBar = $('#aiohm-pa-notification');
+    const welcomeInstructions = $('#welcome-instructions');
+    const assistantName = aiohm_private_chat_params.assistantName || 'Assistant';
 
-    // --- EVENT HANDLERS ---
+    const notesInput = $('#aiohm-pa-notes-textarea');
+    const saveNoteBtn = $('#aiohm-pa-save-note-btn');
+    const newProjectBtn = $('#new-project-btn');
+    const newChatBtn = $('#new-chat-btn');
+    const addToKbBtn = $('#add-to-kb-btn');
+    const sidebarToggleBtn = $('#sidebar-toggle');
+    const notesToggleBtn = $('#toggle-notes-btn');
+    const closeNotesBtn = $('#close-notes-btn');
+    const fullscreenBtn = $('#fullscreen-toggle-btn');
 
-    // Event handler for the "New Project" button.
-    $('#new-project-btn').on('click', function() {
-        // Prompt the user for a new project name.
-        const projectName = prompt('Enter the name for your new project:');
-        // If a name is provided (and it's not just whitespace), call the createProject function.
-        if (projectName && projectName.trim() !== '') {
-            createProject(projectName.trim());
+
+    // ====================================================================
+    // 2. HELPER & UI FUNCTIONS
+    // ====================================================================
+
+    function showNotification(message, type = 'success') {
+        const notificationMessage = notificationBar.find('p');
+        notificationMessage.text(message);
+        notificationBar.removeClass('success error').addClass(type);
+        notificationBar.fadeIn().delay(4000).fadeOut();
+    }
+
+    function appendMessage(sender, text) {
+        const messageClass = sender.toLowerCase() === 'user' ? 'user' : 'assistant';
+        const senderName = sender.toLowerCase() === 'user' ? 'You' : assistantName;
+        
+        const messageHTML = `
+            <div class="message ${messageClass}">
+                <p><strong>${senderName}:</strong> ${text}</p>
+            </div>`;
+        conversationPanel.append(messageHTML);
+        conversationPanel.scrollTop(conversationPanel[0].scrollHeight);
+    }
+
+    function updateChatUIState() {
+        const isProjectSelected = !!currentProjectId;
+        const isConversationActive = !!currentConversationId;
+        chatInput.prop('disabled', !isProjectSelected);
+        sendBtn.prop('disabled', !isProjectSelected);
+        chatInput.attr('placeholder', isProjectSelected ? originalPlaceholder : 'Select a project to begin...');
+        addToKbBtn.prop('disabled', !isConversationActive);
+        notesInput.prop('disabled', !isProjectSelected);
+        saveNoteBtn.prop('disabled', !isProjectSelected);
+
+        if (!isProjectSelected) {
+            projectTitle.text('Select a Project');
+            notesInput.val('');
         }
-    });
+    }
 
-    // Event handler for the project selector dropdown.
-    $('#project-selector').on('change', function() {
-        const projectId = $(this).val();
-        // If a valid project is selected, load its conversations.
-        if (projectId) {
-            loadConversations(projectId);
+    function setFullscreen(force = null) {
+        const shouldBeFullscreen = force !== null ? force : !appContainer.hasClass('fullscreen-mode');
+        appContainer.toggleClass('fullscreen-mode', shouldBeFullscreen);
+        $('body').toggleClass('aiohm-fullscreen-body-no-scroll', shouldBeFullscreen);
+        const icon = fullscreenBtn.find('.dashicons');
+        if (shouldBeFullscreen) {
+            fullscreenBtn.attr('title', 'Exit Fullscreen');
+            icon.removeClass('dashicons-fullscreen-alt').addClass('dashicons-fullscreen-exit-alt');
         } else {
-            // If the "Select a Project" option is chosen, clear the history.
-            $('#chat-history').html('<div>Please select a project to see the conversation.</div>');
+            fullscreenBtn.attr('title', 'Toggle Fullscreen');
+            icon.removeClass('dashicons-fullscreen-exit-alt').addClass('dashicons-fullscreen-alt');
         }
-    });
-
-    // Event handler for the main chat form submission.
-    $('#private-assistant-form').on('submit', function(e) {
-        // Prevent the default browser form submission.
-        e.preventDefault();
-
-        var userInput = $('#user-input').val();
-        var projectId = $('#project-selector').val();
-
-        // Validate that a project has been selected.
-        if (!projectId) {
-            alert('Please select a project first.');
-            return;
-        }
-
-        // Validate that the user has typed something.
-        if (userInput.trim() === '') {
-            return;
-        }
-
-        // Immediately display the user's message for a better user experience.
-        $('#chat-history').append('<div class="user-message"><strong>You:</strong> ' + escapeHTML(userInput) + '</div>');
-        var messageToSend = userInput; // Store the message before clearing the input.
-        $('#user-input').val(''); // Clear the input field.
-
-        // Call the function to send the chat message to the server.
-        sendChatMessage(messageToSend, projectId);
-    });
-
-    // The following keyup/keydown handlers are from your original file,
-    // likely for a "user is typing" feature. They are preserved.
-    $('#user-input').on('keyup', function() {
-        clearTimeout(typingTimer);
-        typingTimer = setTimeout(doneTyping, doneTypingInterval);
-    });
-
-    $('#user-input').on('keydown', function() {
-        clearTimeout(typingTimer);
-    });
-
-    // This function is called after the user stops typing. Preserved from original.
-    function doneTyping() {
-        // This can be used to hide a "typing..." indicator in the future.
     }
 
 
-    // --- AJAX FUNCTIONS (Corrected) ---
+    // ====================================================================
+    // 3. CORE & AJAX FUNCTIONALITY
+    // ====================================================================
 
     /**
-     * FIX: This function fetches the list of projects from the server.
-     * The original file was missing this core functionality.
+     * MY MISTAKE WAS HERE. This function is now fixed.
+     * It correctly uses the 'action' and 'nonce' parameters passed to it,
+     * so that all AJAX calls work, not just the chat.
      */
-    function loadProjects() {
-        $.ajax({
-            url: aiohm_ajax.ajax_url,
+    function performAjaxRequest(action, data, showLoading = true) {
+        if (showLoading) {
+            loadingIndicator.show();
+        }
+        return $.ajax({
+            url: aiohm_private_chat_params.ajax_url,
             type: 'POST',
             data: {
-                action: 'aiohm_get_projects', // This action must exist in core-init.php
-                nonce: aiohm_ajax.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    const projectSelector = $('#project-selector');
-                    // Start with a clean slate and add the default prompt.
-                    projectSelector.html('<option value="">Select a Project</option>');
-                    // Populate the dropdown with projects from the server.
-                    response.data.forEach(function(project) {
-                        projectSelector.append('<option value="' + project.id + '">' + escapeHTML(project.project_name) + '</option>');
+                action: action, // Use the action passed into the function
+                nonce: aiohm_private_chat_params.nonce, // The key must be 'nonce'
+                ...data
+            }
+        }).always(function() {
+            if (showLoading) {
+                loadingIndicator.hide();
+            }
+        });
+    }
+
+    function loadHistory() {
+        // This function will now work correctly because performAjaxRequest is fixed.
+        return performAjaxRequest('aiohm_load_history', {}).done(function(response) {
+            if (response.success) {
+                projectList.empty();
+                if (response.data.projects && response.data.projects.length > 0) {
+                    response.data.projects.forEach(proj => {
+                        const projectHTML = `
+                            <div class="aiohm-pa-list-item-wrapper">
+                                <a href="#" class="aiohm-pa-list-item" data-id="${proj.id}">${proj.name}</a>
+                                <span class="delete-icon delete-project" data-id="${proj.id}" title="Delete Project">&times;</span>
+                            </div>`;
+                        projectList.append(projectHTML);
                     });
                 } else {
-                    console.error('Could not load projects:', response.data);
-                    $('#chat-history').html('<div style="color: red;">Error: Could not load projects. Check the browser console for details.</div>');
+                    projectList.append('<p class="aiohm-no-items">No projects yet.</p>');
                 }
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                console.error("AJAX Error loading projects:", textStatus, errorThrown);
-                alert('A network error occurred while loading projects.');
-            }
-        });
-    }
 
-    /**
-     * FIX: This function handles the creation of a new project.
-     * It sends the project name to the server and updates the UI on success.
-     */
-    function createProject(projectName) {
-        $.ajax({
-            url: aiohm_ajax.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'aiohm_create_project', // This action must exist in core-init.php
-                project_name: projectName,
-                nonce: aiohm_ajax.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Add the newly created project to the dropdown and select it.
-                    $('#project-selector').append('<option value="' + response.data.project_id + '" selected>' + escapeHTML(response.data.project_name) + '</option>');
-                    // Clear the chat history to show a clean slate for the new project.
-                    $('#chat-history').html('<div>Project created successfully! You can now start your conversation.</div>');
+                conversationList.empty();
+                if (response.data.conversations && response.data.conversations.length > 0) {
+                    response.data.conversations.forEach(convo => {
+                        const conversationHTML = `
+                            <div class="aiohm-pa-list-item-wrapper">
+                                <a href="#" class="aiohm-pa-list-item" data-id="${convo.id}">${convo.title}</a>
+                                <span class="delete-icon delete-conversation" data-id="${convo.id}" title="Delete Conversation">&times;</span>
+                            </div>`;
+                        conversationList.append(conversationHTML);
+                    });
                 } else {
-                    alert('Error creating project: ' + response.data);
+                    conversationList.append('<p class="aiohm-no-items">No conversations yet.</p>');
                 }
-            },
-            error: function() {
-                alert('A server error occurred while creating the project.');
             }
         });
     }
 
-    /**
-     * FIX: This function fetches the conversation history for a selected project.
-     */
-    function loadConversations(projectId) {
-        $.ajax({
-            url: aiohm_ajax.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'aiohm_get_project_conversations', // This action must exist in core-init.php
-                project_id: projectId,
-                nonce: aiohm_ajax.nonce
-            },
-            success: function(response) {
-                const chatHistory = $('#chat-history');
-                chatHistory.html(''); // Clear any previous conversation.
-
-                if (response.success) {
-                    if (response.data && response.data.length > 0) {
-                        // Loop through each message pair and display it.
-                        response.data.forEach(function(item) {
-                            try {
-                                const conversation = JSON.parse(item.conversation);
-                                if (conversation.user) {
-                                    chatHistory.append('<div class="user-message"><strong>You:</strong> ' + escapeHTML(conversation.user) + '</div>');
-                                }
-                                if (conversation.assistant) {
-                                    chatHistory.append('<div class="assistant-message"><strong>Assistant:</strong> ' + escapeHTML(conversation.assistant) + '</div>');
-                                }
-                            } catch (e) {
-                                // Fallback for older, non-JSON messages if any exist.
-                                console.error("Could not parse conversation:", item.conversation, e);
-                                chatHistory.append('<div class="assistant-message">' + escapeHTML(item.conversation) + '</div>');
-                            }
-                        });
-                    } else {
-                        // If there are no messages in the project yet.
-                        chatHistory.append('<div>No conversations in this project yet. Start by typing a message below.</div>');
-                    }
-                } else {
-                    alert('Error loading conversations: ' + response.data);
-                }
-            },
-            error: function() {
-                alert('A server error occurred while fetching conversations.');
-            }
-        });
-    }
-
-    /**
-     * FIX: This function sends the user's message to the chat handler.
-     * The original file's submit handler logic is moved here.
-     */
-    function sendChatMessage(message, projectId) {
-        $.ajax({
-            url: aiohm_ajax.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'aiohm_private_assistant_chat', // The main chat handler action
-                message: message,
-                project_id: projectId,
-                nonce: aiohm_ajax.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Display the assistant's reply.
-                    $('#chat-history').append('<div class="assistant-message"><strong>Assistant:</strong> ' + response.data.message + '</div>');
-                } else {
-                    // Display any errors returned from the AI or server.
-                    $('#chat-history').append('<div class="assistant-message" style="color: red;"><strong>Error:</strong> ' + response.data.message + '</div>');
-                }
-            },
-            error: function() {
-                alert('A critical error occurred while sending your message.');
-            }
-        });
-    }
-
-    // --- UTILITY FUNCTIONS ---
-
-    /**
-     * This is a utility function from your original file.
-     * It's a crucial security measure to prevent Cross-Site Scripting (XSS) attacks
-     * by converting special characters into their HTML entities.
-     * @param {string} str The input string to escape.
-     * @returns {string} The sanitized string.
-     */
-    function escapeHTML(str) {
-        // Ensure the input is a string before trying to replace characters.
-        if (typeof str !== 'string') {
-            return '';
+    function sendMessage() {
+        const message = chatInput.val().trim();
+        if (!message) return;
+        if (!currentProjectId) {
+            showNotification('Please select a project first!', 'error');
+            return;
         }
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        welcomeInstructions.hide();
+        appendMessage('user', message);
+        chatInput.val('');
+
+        // The action is 'aiohm_private_chat' to match our fix in core-init.php
+        performAjaxRequest('aiohm_private_chat', {
+            message: message,
+            project_id: currentProjectId,
+            conversation_id: currentConversationId
+        }).done(function(response) {
+            if (response.success) {
+                // The PHP backend sends 'reply', so we use that here.
+                appendMessage(assistantName, response.data.reply);
+                if (response.data.conversation_id) {
+                    // This correctly saves the conversation ID for the next message.
+                    currentConversationId = response.data.conversation_id;
+                    // We also refresh the history to show the new chat entry
+                    loadHistory();
+                }
+            } else {
+                appendMessage(assistantName, 'Error: ' + (response.data.message || 'Could not get a response.'));
+            }
+        }).always(updateChatUIState);
     }
+
+    // ====================================================================
+    // 4. NEW FEATURE FUNCTIONS (NOTES & DELETION)
+    // ====================================================================
+
+    function saveNotes(projectId) {
+        const noteContent = notesInput.val();
+        performAjaxRequest('aiohm_save_project_notes', {
+            project_id: projectId,
+            note_content: noteContent
+        }, false).done(function(response) {
+             if(response.success) {
+                console.log('Notes saved for project ' + projectId);
+             }
+        });
+    }
+
+    function loadNotes(projectId) {
+        performAjaxRequest('aiohm_load_project_notes', { project_id: projectId }).done(function(response) {
+            if (response.success) {
+                notesInput.val(response.data.note_content || '');
+            } else {
+                notesInput.val('');
+            }
+        });
+    }
+    
+    // ====================================================================
+    // 5. EVENT LISTENERS & NEW PROJECT VIEW
+    // ====================================================================
+
+    function displayProjectCreationView() {
+        chatInput.prop('disabled', true);
+        sendBtn.prop('disabled', true);
+
+        const formHTML = `
+            <div id="create-project-view" style="padding: 40px; text-align: center;">
+                <h3>Create a New Project</h3>
+                <p style="color: var(--pa-text-secondary); margin-top: 5px;">Enter a name below to organize your chats.</p>
+                <input type="text" id="new-project-input" placeholder="My Awesome Project" style="width: 100%; max-width: 400px; padding: 10px; margin-top: 20px; margin-bottom: 15px; background-color: var(--pa-bg-darkest); border: 1px solid var(--pa-border-color); color: #fff; border-radius: 5px;">
+                <br>
+                <button id="create-project-submit" class="aiohm-pa-action-btn" style="padding: 12px 30px;">Create Project</button>
+            </div>
+        `;
+        conversationPanel.html(formHTML);
+        $('#new-project-input').focus();
+    }
+
+    function restoreChatView() {
+        conversationPanel.html('');
+        conversationPanel.append(welcomeInstructions);
+        welcomeInstructions.show();
+        updateChatUIState();
+    }
+    
+    // --- Event Listeners ---
+    $('#private-chat-form').on('submit', e => { e.preventDefault(); sendMessage(); });
+    
+    newProjectBtn.on('click', displayProjectCreationView);
+    
+    conversationPanel.on('click', '#create-project-submit', function() {
+        const projectName = $('#new-project-input').val().trim();
+        if (!projectName) {
+            showNotification('Project name cannot be empty.', 'error');
+            return;
+        }
+        $(this).text('Creating...').prop('disabled', true);
+        
+        // This will now work correctly because performAjaxRequest is fixed.
+        performAjaxRequest('aiohm_create_project', { name: projectName }).done(response => {
+            if (response.success && response.data.new_project_id) {
+                showNotification(`Project "${projectName}" created!`, 'success');
+                restoreChatView();
+                loadHistory().done(function() {
+                    const newProjectLink = projectList.find(`.aiohm-pa-list-item[data-id="${response.data.new_project_id}"]`);
+                    if (newProjectLink.length) {
+                        newProjectLink.trigger('click');
+                    }
+                });
+            } else {
+                showNotification('Error: ' + (response.data.message || 'Could not create project.'), 'error');
+                $(this).text('Create Project').prop('disabled', false);
+            }
+        }).fail(function() {
+            showNotification('An unexpected network error occurred.', 'error');
+            $(this).text('Create Project').prop('disabled', false);
+        });
+    });
+
+    projectList.on('click', '.aiohm-pa-list-item', function(e) {
+        e.preventDefault();
+        if (currentProjectId) {
+            saveNotes(currentProjectId);
+        }
+        restoreChatView();
+        $('.aiohm-pa-list-item').removeClass('active');
+        $(this).addClass('active');
+        currentProjectId = $(this).data('id');
+        currentConversationId = null; 
+        projectTitle.text($(this).text());
+        conversationPanel.html(`<div class="message system"><p>New chat started in project: <strong>${$(this).text()}</strong></p></div>`);
+        welcomeInstructions.hide();
+        loadNotes(currentProjectId);
+        updateChatUIState();
+    });
+
+    conversationList.on('click', '.aiohm-pa-list-item', function(e) {
+        e.preventDefault();
+        restoreChatView();
+        $('.aiohm-pa-list-item').removeClass('active');
+        $(this).addClass('active');
+        currentConversationId = $(this).data('id');
+        performAjaxRequest('aiohm_load_conversation', { conversation_id: currentConversationId }).done(response => {
+            if (response.success && response.data.messages) {
+                conversationPanel.empty();
+                welcomeInstructions.hide();
+                response.data.messages.forEach(msg => appendMessage(msg.sender, msg.message_content));
+                currentProjectId = response.data.project_id;
+                projectTitle.text(response.data.project_name || 'Conversation');
+                projectList.find('.aiohm-pa-list-item').removeClass('active');
+                projectList.find(`.aiohm-pa-list-item[data-id="${currentProjectId}"]`).addClass('active');
+                loadNotes(currentProjectId);
+            }
+        }).always(updateChatUIState);
+    });
+
+    newChatBtn.on('click', function() {
+        if (!currentProjectId) {
+            showNotification('Please select a project first.', 'error');
+            return;
+        }
+        restoreChatView();
+        currentConversationId = null;
+        conversationList.find('.aiohm-pa-list-item').removeClass('active');
+        conversationPanel.html(`<div class="message system"><p>New chat started in current project.</p></div>`);
+        welcomeInstructions.hide();
+        updateChatUIState();
+    });
+
+    notesInput.on('keyup', function() {
+        clearTimeout(noteSaveTimer);
+        if (currentProjectId) {
+            noteSaveTimer = setTimeout(() => saveNotes(currentProjectId), 1500);
+        }
+    });
+
+    projectList.on('click', '.delete-project', function(e) {
+        e.stopPropagation();
+        const projectId = $(this).data('id');
+        if (confirm('Are you sure you want to delete this project and all its conversations? This cannot be undone.')) {
+            performAjaxRequest('aiohm_delete_project', { project_id: projectId }).done(function(response) {
+                if (response.success) {
+                    showNotification('Project deleted.', 'success');
+                    if(currentProjectId === projectId) {
+                        currentProjectId = null;
+                        currentConversationId = null;
+                        restoreChatView();
+                        updateChatUIState();
+                    }
+                    loadHistory();
+                } else {
+                    showNotification('Error: ' + (response.data.message || 'Could not delete project.'), 'error');
+                }
+            });
+        }
+    });
+
+    conversationList.on('click', '.delete-conversation', function(e) {
+        e.stopPropagation();
+        const conversationId = $(this).data('id');
+        if (confirm('Are you sure you want to delete this conversation? This cannot be undone.')) {
+            performAjaxRequest('aiohm_delete_conversation', { conversation_id: conversationId }).done(function(response) {
+                if (response.success) {
+                    showNotification('Conversation deleted.', 'success');
+                     if(currentConversationId === conversationId) {
+                        currentConversationId = null;
+                        restoreChatView();
+                        updateChatUIState();
+                    }
+                    loadHistory();
+                } else {
+                    showNotification('Error: ' + (response.data.message || 'Could not delete conversation.'), 'error');
+                }
+            });
+        }
+    });
+
+    sidebarToggleBtn.on('click', () => appContainer.toggleClass('sidebar-open'));
+    notesToggleBtn.on('click', () => appContainer.toggleClass('notes-open'));
+    closeNotesBtn.on('click', () => appContainer.removeClass('notes-open'));
+    fullscreenBtn.on('click', () => setFullscreen());
+    notificationBar.on('click', '.close-btn', () => notificationBar.fadeOut());
+
+
+    // ====================================================================
+    // 6. INITIALIZATION
+    // ====================================================================
+    function initialize() {
+        appContainer.addClass('sidebar-open');
+        loadHistory();
+        updateChatUIState();
+        if (aiohm_private_chat_params.startFullscreen) {
+            setFullscreen(true);
+        }
+    }
+
+    initialize();
 });
