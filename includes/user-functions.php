@@ -14,3 +14,31 @@ function aiohm_set_access_level($user_id, $level = 'basic') {
         'source' => 'aiohm_app'
     ]);
 }
+function create_conversation($user_id, $project_id, $title) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'aiohm_conversations';
+    $wpdb->insert(
+        $table_name,
+        [
+            'user_id'    => $user_id,
+            'project_id' => $project_id,
+            'title'      => $title,
+        ],
+        ['%d', '%d', '%s']
+    );
+    return $wpdb->insert_id;
+}
+
+function add_message_to_conversation($conversation_id, $sender, $content) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'aiohm_messages';
+    $wpdb->insert(
+        $table_name,
+        [
+            'conversation_id' => $conversation_id,
+            'sender'          => $sender,
+            'content'         => $content,
+        ],
+        ['%d', '%s', '%s']
+    );
+}
