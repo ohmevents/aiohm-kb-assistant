@@ -1,47 +1,180 @@
 <?php
 /**
  * Core initialization and configuration.
- * Final version with all AJAX handlers, including for Muse Mode and Mirror Mode.
+ * Final version with all original functions preserved and fixes for saving and loading conversations.
  */
 if (!defined('ABSPATH')) exit;
 
 class AIOHM_KB_Core_Init {
 
+    // ================== START: CONSOLIDATED FIX ==================
+    // By placing these functions directly inside the class, we guarantee they are
+    // always available when needed, preventing the fatal errors that were causing the crashes.
+    
+    private static function create_conversation_internal($user_id, $project_id, $title) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'aiohm_conversations';
+        $result = $wpdb->insert($table_name, ['user_id' => $user_id, 'project_id' => $project_id, 'title' => $title], ['%d', '%d', '%s']);
+        return ($result) ? $wpdb->insert_id : false;
+    }
+
+    private static function add_message_to_conversation_internal($conversation_id, $sender, $content) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'aiohm_messages';
+        $result = $wpdb->insert($table_name, ['conversation_id' => $conversation_id, 'sender' => $sender, 'content' => $content], ['%d', '%s', '%s']);
+        if ($result) {
+            $wpdb->update($wpdb->prefix . 'aiohm_conversations', ['updated_at' => current_time('mysql', 1)], ['id' => $conversation_id]);
+        }
+        return $result !== false;
+    }
+    // =================== END: CONSOLIDATED FIX ===================
+
     public static function init() {
-        // Core & Scanning Actions
+        // --- All original action hooks are preserved ---
         add_action('wp_ajax_aiohm_progressive_scan', array(__CLASS__, 'handle_progressive_scan_ajax'));
         add_action('wp_ajax_aiohm_check_api_key', array(__CLASS__, 'handle_check_api_key_ajax'));
-        
-        // Knowledge Base Management Actions
         add_action('wp_ajax_aiohm_export_kb', array(__CLASS__, 'handle_export_kb_ajax'));
         add_action('wp_ajax_aiohm_reset_kb', array(__CLASS__, 'handle_reset_kb_ajax'));
         add_action('wp_ajax_aiohm_toggle_kb_scope', array(__CLASS__, 'handle_toggle_kb_scope_ajax'));
         add_action('wp_ajax_aiohm_restore_kb', array(__CLASS__, 'handle_restore_kb_ajax'));
         add_action('wp_ajax_aiohm_delete_kb_entry', array(__CLASS__, 'handle_delete_kb_entry_ajax'));
-
-        // Brand Soul & Private Assistant Actions
         add_action('wp_ajax_aiohm_save_brand_soul', array(__CLASS__, 'handle_save_brand_soul_ajax'));
         add_action('wp_ajax_aiohm_add_brand_soul_to_kb', array(__CLASS__, 'handle_add_brand_soul_to_kb_ajax'));
         add_action('admin_init', array(__CLASS__, 'handle_pdf_download'));
-        
-        // Mirror Mode (Public Chat) Actions
         add_action('wp_ajax_aiohm_save_mirror_mode_settings', array(__CLASS__, 'handle_save_mirror_mode_settings_ajax'));
         add_action('wp_ajax_aiohm_generate_mirror_mode_qa', array(__CLASS__, 'handle_generate_mirror_mode_qa_ajax'));
         add_action('wp_ajax_aiohm_test_mirror_mode_chat', array(__CLASS__, 'handle_test_mirror_mode_chat_ajax'));
-        
-        // Muse Mode (Private Assistant) Actions
         add_action('wp_ajax_aiohm_save_muse_mode_settings', array(__CLASS__, 'handle_save_muse_mode_settings_ajax'));
         add_action('wp_ajax_aiohm_private_assistant_chat', array(__CLASS__, 'handle_private_assistant_chat_ajax'));
         add_action('wp_ajax_aiohm_test_muse_mode_chat', array(__CLASS__, 'handle_test_muse_mode_chat_ajax'));
-
-        // Frontend Actions (Shortcodes)
         add_action('wp_ajax_nopriv_aiohm_frontend_chat', array(__CLASS__, 'handle_frontend_chat_ajax'));
         add_action('wp_ajax_aiohm_frontend_chat', array(__CLASS__, 'handle_frontend_chat_ajax'));
         add_action('wp_ajax_nopriv_aiohm_search_knowledge', array(__CLASS__, 'handle_search_knowledge_ajax'));
         add_action('wp_ajax_aiohm_search_knowledge', array(__CLASS__, 'handle_search_knowledge_ajax'));
-
-        // Admin-Specific Actions
         add_action('wp_ajax_aiohm_admin_search_knowledge', array(__CLASS__, 'handle_admin_search_knowledge_ajax'));
+
+        // --- FIX: Add the missing action handler for loading project conversations ---
+        add_action('wp_ajax_aiohm_get_project_conversations', array(__CLASS__, 'handle_get_project_conversations_ajax'));
+        add_action('wp_ajax_aiohm_create_project', array(__CLASS__, 'handle_create_project_ajax'));
+    }
+    
+    // ================== START: NEW FUNCTION TO FIX PROJECTS ==================
+    /**
+     * Handles the AJAX request to get all conversations for a specific project.
+     * This function was missing, causing projects not to load.
+     */
+    public static function handle_get_project_conversations_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission Denied']);
+            wp_die();
+        }
+
+        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+        if (empty($project_id)) {
+            wp_send_json_error(['message' => 'Invalid Project ID.']);
+            wp_die();
+        }
+
+        global $wpdb;
+        $user_id = get_current_user_id();
+        $table_name = $wpdb->prefix . 'aiohm_conversations';
+
+        $conversations = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, title FROM {$table_name} WHERE user_id = %d AND project_id = %d ORDER BY updated_at DESC",
+            $user_id,
+            $project_id
+        ));
+
+        wp_send_json_success(['conversations' => $conversations]);
+        wp_die();
+    }
+    // =================== END: NEW FUNCTION TO FIX PROJECTS ===================
+
+    // --- FIX: This function was missing from the older file but is needed by the UI ---
+    public static function handle_create_project_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) { wp_send_json_error(['message' => 'Permission denied.']); wp_die(); }
+        
+        $project_name = isset($_POST['project_name']) ? sanitize_text_field(stripslashes($_POST['project_name'])) : '';
+        if (empty($project_name)) { wp_send_json_error(['message' => 'Project name cannot be empty.']); wp_die(); }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'aiohm_projects';
+        $user_id = get_current_user_id();
+        
+        $result = $wpdb->insert($table_name, ['user_id' => $user_id, 'project_name' => $project_name], ['%d', '%s']);
+        
+        if ($result === false) {
+             wp_send_json_error(['message' => 'Could not save the project to the database.']);
+        } else {
+            $project_id = $wpdb->insert_id;
+            wp_send_json_success(['id' => $project_id, 'name' => $project_name]);
+        }
+        wp_die();
+    }
+
+    public static function handle_private_assistant_chat_ajax() {
+        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false)) {
+            wp_send_json_error(['answer' => 'Security check failed.']);
+        }
+    
+        if (!current_user_can('administrator') && !current_user_can('ohm_brand_collaborator')) {
+            wp_send_json_error(['answer' => 'You do not have permission to use this feature.']);
+        }
+    
+        try {
+            $user_message = sanitize_textarea_field($_POST['message']);
+            $user_id = get_current_user_id();
+            
+            $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+            $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : null;
+
+            if (empty($project_id)) {
+                throw new Exception('A project must be selected to start a conversation.');
+            }
+
+            $settings = AIOHM_KB_Assistant::get_settings();
+            $muse_settings = $settings['muse_mode'] ?? [];
+    
+            $ai_client = new AIOHM_KB_AI_GPT_Client();
+            $rag_engine = new AIOHM_KB_RAG_Engine();
+            
+            $context_data = $rag_engine->find_context_for_user($user_message, $user_id, 10);
+            $context_string = "";
+            if (!empty($context_data)) {
+                foreach ($context_data as $data) {
+                    $context_string .= "Source: " . $data['entry']['title'] . "\nContent: " . $data['entry']['content'] . "\n\n";
+                }
+            }
+    
+            $system_prompt = $muse_settings['system_prompt'] ?? 'You are a helpful brand assistant.';
+            $temperature = floatval($muse_settings['temperature'] ?? 0.7);
+            $model = $muse_settings['ai_model'] ?? 'gpt-4';
+            
+            $final_system_message = $system_prompt . "\n\n--- CONTEXT ---\n" . $context_string;
+    
+            $answer = $ai_client->get_chat_completion($final_system_message, $user_message, $temperature, $model);
+
+            if (is_null($conversation_id)) {
+                $conversation_title = mb_strimwidth($user_message, 0, 100, '...');
+                $conversation_id = self::create_conversation_internal($user_id, $project_id, $conversation_title);
+                if (!$conversation_id) {
+                    AIOHM_KB_Assistant::log('Failed to create conversation record.', 'error');
+                }
+            }
+            
+            if ($conversation_id) {
+                self::add_message_to_conversation_internal($conversation_id, 'user', $user_message);
+                self::add_message_to_conversation_internal($conversation_id, 'ai', $answer);
+            }
+    
+            wp_send_json_success(['answer' => $answer, 'conversation_id' => $conversation_id]);
+    
+        } catch (Exception $e) {
+            AIOHM_KB_Assistant::log('Private Assistant Error: ' . $e->getMessage(), 'error');
+            wp_send_json_error(['answer' => 'An error occurred while processing your request.']);
+        }
     }
 
     public static function handle_frontend_chat_ajax() {
@@ -91,49 +224,6 @@ class AIOHM_KB_Core_Init {
         }
     }
     
-    public static function handle_private_assistant_chat_ajax() {
-        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false)) {
-            wp_send_json_error(['answer' => 'Security check failed.']);
-        }
-    
-        if (!current_user_can('administrator') && !current_user_can('ohm_brand_collaborator')) {
-            wp_send_json_error(['answer' => 'You do not have permission to use this feature.']);
-        }
-    
-        try {
-            $user_message = sanitize_textarea_field($_POST['message']);
-            $user_id = get_current_user_id();
-            
-            $settings = AIOHM_KB_Assistant::get_settings();
-            $muse_settings = $settings['muse_mode'] ?? [];
-    
-            $ai_client = new AIOHM_KB_AI_GPT_Client();
-            $rag_engine = new AIOHM_KB_RAG_Engine();
-            
-            $context_data = $rag_engine->find_context_for_user($user_message, $user_id, 10);
-            $context_string = "";
-            if (!empty($context_data)) {
-                foreach ($context_data as $data) {
-                    $context_string .= "Source: " . $data['entry']['title'] . "\nContent: " . $data['entry']['content'] . "\n\n";
-                }
-            }
-    
-            $system_prompt = $muse_settings['system_prompt'] ?? 'You are a helpful brand assistant.';
-            $temperature = floatval($muse_settings['temperature'] ?? 0.7);
-            $model = $muse_settings['ai_model'] ?? 'gpt-4';
-            
-            $final_system_message = $system_prompt . "\n\n--- CONTEXT ---\n" . $context_string;
-    
-            $answer = $ai_client->get_chat_completion($final_system_message, $user_message, $temperature, $model);
-    
-            wp_send_json_success(['answer' => $answer]);
-    
-        } catch (Exception $e) {
-            AIOHM_KB_Assistant::log('Private Assistant Error: ' . $e->getMessage(), 'error');
-            wp_send_json_error(['answer' => 'An error occurred while processing your request.']);
-        }
-    }
-
     public static function handle_search_knowledge_ajax() {
         if (!check_ajax_referer('aiohm_search_nonce', 'nonce', false)) {
             wp_send_json_error(['message' => 'Security check failed']);
