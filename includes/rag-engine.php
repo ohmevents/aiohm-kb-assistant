@@ -1,7 +1,7 @@
 <?php
 /**
  * RAG (Retrieval-Augmented Generation) Engine.
- * This version includes performance optimizations and improved error handling.
+ * This version includes performance optimizations, improved error handling, and live URL research.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -22,7 +22,7 @@ class AIOHM_KB_RAG_Engine {
      * Adds a new entry to the knowledge base, with robust error handling.
      *
      * @param string $content      The text content to add.
-     * @param string $content_type The type of content (e.g., 'post', 'page').
+     * @param string $content_type The type of content (e.g., 'post', 'page', 'external_url').
      * @param string $title        The title of the content.
      * @param array  $metadata     Additional metadata for the entry.
      * @param int    $user_id      The user ID for private entries (0 for public).
@@ -38,8 +38,6 @@ class AIOHM_KB_RAG_Engine {
 
             $chunks = $this->chunk_content($content, $chunk_size, $chunk_overlap);
 
-            // --- Start of Fix ---
-            // Gracefully handle cases where chunking results in an empty array.
             if (empty($chunks)) {
                 throw new Exception('Content was empty or could not be chunked.');
             }
@@ -48,7 +46,6 @@ class AIOHM_KB_RAG_Engine {
             $this->delete_entry_by_content_id($content_id);
 
             foreach ($chunks as $chunk_index => $chunk) {
-                // The generate_embeddings call can also throw an exception.
                 $embedding = $ai_client->generate_embeddings($chunk);
                 $chunk_metadata = array_merge($metadata, ['chunk_index' => $chunk_index]);
                 
@@ -70,21 +67,123 @@ class AIOHM_KB_RAG_Engine {
                     throw new Exception('Failed to insert a chunk into the database.');
                 }
             }
-            // --- End of Fix ---
-
         } catch (Exception $e) {
-            // Log the detailed technical error for debugging purposes.
             AIOHM_KB_Assistant::log('Failed to add entry for "' . $title . '": ' . $e->getMessage(), 'error');
-            
-            // Return a standard WordPress error object with a user-friendly message.
             return new WP_Error(
                 'add_entry_failed',
                 'Could not add the entry "' . esc_html($title) . '" to the knowledge base. Please check the logs for more details.',
                 ['title' => $title]
             );
         }
-
         return true;
+    }
+    
+    /**
+     * Main query method that handles both standard chats and special research commands.
+     *
+     * @param string $query_text The user's full message.
+     * @param string $scope      The scope ('site' or 'private').
+     * @param int    $user_id    The current user's ID.
+     * @return string            The AI's response.
+     */
+    public function query($query_text, $scope = 'site', $user_id = 0) {
+        $research_prefix = "Please research the following URL and provide a summary of its key points:";
+
+        if (strpos($query_text, $research_prefix) === 0) {
+            preg_match('/(https?:\/\/[^\s]+)/', $query_text, $matches);
+            $url = $matches[0] ?? null;
+
+            if (!$url) {
+                return "I couldn't find a valid URL in your request. Please try again with the full URL (e.g., https://example.com).";
+            }
+
+            $result = $this->research_and_add_url($url, $user_id);
+
+            if (is_wp_error($result)) {
+                return "I encountered an error trying to research that URL: " . $result->get_error_message();
+            }
+            
+            return $this->summarize_new_context($url, $user_id);
+        }
+
+        if ($scope === 'private') {
+            $context_entries = $this->find_context_for_user($query_text, $user_id);
+        } else {
+            $context_entries = $this->find_relevant_context($query_text);
+        }
+
+        $context = "";
+        foreach ($context_entries as $entry) {
+            $context .= "Title: " . $entry['entry']['title'] . "\n";
+            $context .= "Content: " . $entry['entry']['content'] . "\n\n";
+        }
+
+        $settings = AIOHM_KB_Assistant::get_settings();
+        $ai_settings = ($scope === 'private') ? $settings['muse_mode'] : $settings['mirror_mode'];
+        $system_message = ($scope === 'private') ? $ai_settings['system_prompt'] : $ai_settings['qa_system_message'];
+
+        $final_prompt = str_replace('{context}', $context, $system_message);
+
+        $ai_client = new AIOHM_KB_AI_GPT_Client();
+        try {
+            return $ai_client->get_chat_completion(
+                $final_prompt,
+                $query_text,
+                $ai_settings['temperature'],
+                $ai_settings['ai_model']
+            );
+        } catch (Exception $e) {
+            AIOHM_KB_Assistant::log('AI Query Error: ' . $e->getMessage(), 'error');
+            return 'I am currently unable to answer. Please try again later.';
+        }
+    }
+
+    /**
+     * Fetches content from a URL, processes it, and adds it to the private knowledge base.
+     *
+     * @param string $url     The URL to fetch.
+     * @param int    $user_id The user ID to associate the entry with.
+     * @return bool|WP_Error  True on success, WP_Error on failure.
+     */
+    public function research_and_add_url($url, $user_id) {
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            return new WP_Error('invalid_url', 'The provided URL is not valid.');
+        }
+
+        $response = wp_remote_get($url, ['timeout' => 25]);
+
+        if (is_wp_error($response)) {
+            return new WP_Error('fetch_failed', 'Could not retrieve content: ' . $response->get_error_message());
+        }
+
+        $content_type = wp_remote_retrieve_header($response, 'content-type');
+        if (strpos($content_type, 'text/html') === false) {
+            return new WP_Error('invalid_content_type', 'The URL does not appear to be an HTML page.');
+        }
+
+        $html_content = wp_remote_retrieve_body($response);
+        $title = 'Web Research: ' . $url;
+        if (preg_match('/<title>(.*?)<\/title>/i', $html_content, $matches)) {
+            $title = trim($matches[1]);
+        }
+
+        $plain_text = wp_strip_all_tags($html_content);
+        $plain_text = preg_replace('/\s+/', ' ', $plain_text);
+
+        if (empty(trim($plain_text))) {
+            return new WP_Error('no_content', 'Could not extract any readable text from the URL.');
+        }
+
+        $metadata = ['source_url' => $url];
+        return $this->add_entry($plain_text, 'external_url', $title, $metadata, $user_id);
+    }
+    
+    /**
+     * Creates a summary of newly added URL content.
+     */
+    private function summarize_new_context($url, $user_id) {
+        $summary_prompt = "You have just successfully read the content from the URL: {$url}. Now, provide a concise summary of its key points based on the context you've just learned.";
+        return $this->query($summary_prompt, 'private', $user_id);
     }
     
     /**
@@ -97,14 +196,13 @@ class AIOHM_KB_RAG_Engine {
         $ai_client = new AIOHM_KB_AI_GPT_Client();
         $query_embedding = $ai_client->generate_embeddings($query_text);
 
-        // Optimization: Pre-filter entries using a FULLTEXT search to reduce the search space.
         $keywords = preg_replace('/[^a-z0-9\s]/i', '', strtolower($query_text));
         
         $where_clauses = ["user_id = 0"];
         $query_args = [];
         if (!empty(trim($keywords))) {
             $where_clauses[] = "MATCH(content) AGAINST(%s IN BOOLEAN MODE)";
-            $query_args[] = '+' . str_replace(' ', ' +', trim($keywords)); // Add '+' to require all words
+            $query_args[] = '+' . str_replace(' ', ' +', trim($keywords));
         }
 
         $where_sql = implode(' AND ', $where_clauses);
@@ -114,7 +212,6 @@ class AIOHM_KB_RAG_Engine {
             $query_args
         ), ARRAY_A);
 
-        // If keyword search yields no results, fall back to a random sample to ensure there's some context.
         if (empty($pre_filtered_entries)) {
              $pre_filtered_entries = $wpdb->get_results("SELECT id, title, content, content_type, metadata, vector_data FROM {$this->table_name} WHERE user_id = 0 ORDER BY RAND() LIMIT 100", ARRAY_A);
         }
@@ -192,50 +289,6 @@ class AIOHM_KB_RAG_Engine {
         }
         return $chunks;
     }
-    
-    public function query($query_text, $scope = 'site', $user_id = 0) {
-    // 1. Find relevant context from the knowledge base
-    if ($scope === 'private') {
-        $context_entries = $this->find_context_for_user($query_text, $user_id);
-    } else {
-        $context_entries = $this->find_relevant_context($query_text);
-    }
-
-    $context = "";
-    foreach ($context_entries as $entry) {
-        $context .= "Title: " . $entry['entry']['title'] . "\n";
-        $context .= "Content: " . $entry['entry']['content'] . "\n\n";
-    }
-
-    // 2. Get AI settings
-    $settings = AIOHM_KB_Assistant::get_settings();
-    if ($scope === 'private') {
-        $ai_settings = $settings['muse_mode'];
-        $system_message = $ai_settings['system_prompt'];
-    } else {
-        $ai_settings = $settings['mirror_mode'];
-        $system_message = $ai_settings['qa_system_message'];
-    }
-
-    // 3. Prepare the final prompt for the AI
-    $final_prompt = str_replace('{context}', $context, $system_message);
-
-    // 4. Send to the AI and get the response
-    $ai_client = new AIOHM_KB_AI_GPT_Client();
-    try {
-        $response = $ai_client->get_chat_completion(
-            $final_prompt,
-            $query_text,
-            $ai_settings['temperature'],
-            $ai_settings['ai_model']
-        );
-        return $response;
-    } catch (Exception $e) {
-        // Log the error and return a user-friendly message
-        AIOHM_KB_Assistant::log('AI Query Error: ' . $e->getMessage(), 'error');
-        return 'I am currently unable to answer. Please try again later.';
-    }
-}
 
     public function export_knowledge_base() {
         global $wpdb;

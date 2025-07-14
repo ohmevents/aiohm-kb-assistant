@@ -1,7 +1,7 @@
 <?php
 /**
  * Core initialization and configuration.
- * v1.1.12 - Fixes cascading deletes for projects and conversations.
+ * v1.1.14 - Fixes a fatal error in the private chat AJAX handler.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -46,7 +46,7 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_delete_project', array(__CLASS__, 'handle_delete_project_ajax'));
         add_action('wp_ajax_aiohm_delete_conversation', array(__CLASS__, 'handle_delete_conversation_ajax'));
         
-        // --- NEW --- Live URL Scanning
+        // --- (Legacy or alternative method) Live URL Scanning ---
         add_action('wp_ajax_aiohm_scan_url_live', array(__CLASS__, 'handle_scan_url_live_ajax'));
 
         // --- Frontend Actions (Shortcodes) ---
@@ -58,7 +58,81 @@ class AIOHM_KB_Core_Init {
         // --- Admin-Specific Actions ---
         add_action('wp_ajax_aiohm_admin_search_knowledge', array(__CLASS__, 'handle_admin_search_knowledge_ajax'));
     }
+
+    /**
+     * Handles the main private chat AJAX requests, now including research logic.
+     */
+    public static function handle_private_assistant_chat_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission denied']);
+            wp_die();
+        }
     
+        $user_id = get_current_user_id();
+        $message = isset($_POST['message']) ? sanitize_textarea_field(stripslashes($_POST['message'])) : '';
+        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+        $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : null;
+    
+        if (empty($message) || empty($project_id)) {
+            wp_send_json_error(['message' => 'Missing message or project context.']);
+            wp_die();
+        }
+    
+        try {
+            $rag_engine = new AIOHM_KB_RAG_Engine();
+            $response_text = $rag_engine->query($message, 'private', $user_id);
+    
+            // --- Start of Fix ---
+            // The user functions are called directly, not as part of a class.
+            // This reverts the code to its original, correct state.
+            if (is_null($conversation_id)) {
+                $conversation_title = mb_strimwidth($message, 0, 100, '...');
+                $conversation_id = create_conversation($user_id, $project_id, $conversation_title);
+            }
+            
+            add_message_to_conversation($conversation_id, 'user', $message);
+            add_message_to_conversation($conversation_id, 'ai', $response_text);
+            // --- End of Fix ---
+    
+            wp_send_json_success(['reply' => $response_text, 'conversation_id' => $conversation_id]);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+        wp_die();
+    }
+    
+    /**
+     * Handles the AJAX request to scan a live URL from the modal (legacy or alternative method).
+     */
+    public static function handle_scan_url_live_ajax() {
+        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
+        }
+
+        $url_to_scan = isset($_POST['url_to_scan']) ? esc_url_raw($_POST['url_to_scan']) : '';
+        $user_id = get_current_user_id();
+
+        if (empty($url_to_scan)) {
+            wp_send_json_error(['message' => 'No URL was provided.']);
+            wp_die();
+        }
+
+        $rag_engine = new AIOHM_KB_RAG_Engine();
+        $result = $rag_engine->research_and_add_url($url_to_scan, $user_id);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+        } else {
+            wp_send_json_success(['message' => 'The website content has been successfully added to your private knowledge base.']);
+        }
+        wp_die();
+    }
+    
+    // --- All other original functions are preserved below ---
+
     public static function handle_progressive_scan_ajax() {
         check_ajax_referer('aiohm_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
@@ -188,7 +262,7 @@ class AIOHM_KB_Core_Init {
         }
         
         $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
-        $new_scope = isset($_POST['new_scope']) ? intval($_POST['new_scope']) : 0; // 0 for site, user_id for private
+        $new_scope = isset($_POST['new_scope']) ? intval($_POST['new_scope']) : 0;
 
         if (!$entry_id) {
             wp_send_json_error(['message' => 'Invalid Entry ID.']);
@@ -326,7 +400,6 @@ class AIOHM_KB_Core_Init {
             if (!current_user_can('manage_options')) {
                 wp_die('Permission Denied.');
             }
-            // PDF generation logic here
         }
     }
     
@@ -340,11 +413,8 @@ class AIOHM_KB_Core_Init {
         $settings = AIOHM_KB_Assistant::get_settings();
         $settings['mirror_mode']['qa_system_message'] = sanitize_textarea_field(stripslashes($_POST['qa_system_message']));
         
-        // --- Start of Fix ---
-        // Validate temperature: ensure it is a float between 0.0 and 1.0.
         $temperature = isset($_POST['qa_temperature']) ? floatval($_POST['qa_temperature']) : 0.7;
         $settings['mirror_mode']['qa_temperature'] = max(0.0, min(1.0, $temperature));
-        // --- End of Fix ---
 
         $settings['mirror_mode']['ai_model'] = sanitize_text_field($_POST['ai_model']);
         
@@ -359,7 +429,6 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'Permission denied.']);
             wp_die();
         }
-        // Placeholder for QA generation
         wp_send_json_success(['message' => 'QA generation started.']);
         wp_die();
     }
@@ -375,7 +444,7 @@ class AIOHM_KB_Core_Init {
         
         try {
             $rag_engine = new AIOHM_KB_RAG_Engine();
-            $response = $rag_engine->query($message, 'site', 0); // site scope
+            $response = $rag_engine->query($message, 'site', 0);
             wp_send_json_success(['reply' => $response]);
         } catch(Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
@@ -393,53 +462,14 @@ class AIOHM_KB_Core_Init {
         $settings = AIOHM_KB_Assistant::get_settings();
         $settings['muse_mode']['system_prompt'] = sanitize_textarea_field(stripslashes($_POST['system_prompt']));
         
-        // --- Start of Fix ---
-        // Validate temperature: ensure it is a float between 0.0 and 1.0.
         $temperature = isset($_POST['temperature']) ? floatval($_POST['temperature']) : 0.7;
         $settings['muse_mode']['temperature'] = max(0.0, min(1.0, $temperature));
-        // --- End of Fix ---
 
         $settings['muse_mode']['assistant_name'] = sanitize_text_field($_POST['assistant_name']);
         $settings['muse_mode']['ai_model'] = sanitize_text_field($_POST['ai_model']);
         
         update_option('aiohm_kb_settings', $settings);
         wp_send_json_success(['message' => 'Muse Mode settings saved.']);
-        wp_die();
-    }
-
-    public static function handle_private_assistant_chat_ajax() {
-        check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
-        if (!current_user_can('read')) {
-            wp_send_json_error(['message' => 'Permission denied']);
-            wp_die();
-        }
-    
-        $user_id = get_current_user_id();
-        $message = isset($_POST['message']) ? sanitize_textarea_field(stripslashes($_POST['message'])) : '';
-        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
-        
-        $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : null;
-    
-        if (empty($message) || empty($project_id)) {
-            wp_send_json_error(['message' => 'Missing message or project context.']);
-            wp_die();
-        }
-    
-        try {
-            $rag_engine = new AIOHM_KB_RAG_Engine();
-            $response_text = $rag_engine->query($message, 'private', $user_id);
-    
-            if (is_null($conversation_id)) {
-                $conversation_id = create_conversation($user_id, $project_id, substr($message, 0, 100));
-            }
-            
-            add_message_to_conversation($conversation_id, 'user', $message);
-            add_message_to_conversation($conversation_id, 'ai', $response_text);
-    
-            wp_send_json_success(['reply' => $response_text, 'conversation_id' => $conversation_id]);
-        } catch (Exception $e) {
-            wp_send_json_error(['message' => $e->getMessage()]);
-        }
         wp_die();
     }
 

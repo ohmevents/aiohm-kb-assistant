@@ -1,6 +1,6 @@
 /**
  * AIOHM Private Assistant Frontend Script
- * v1.4.4 - Adds Enter-to-send functionality.
+ * v1.4.5 - Implements "Research Online" prompt injection.
  */
 jQuery(document).ready(function($) {
     'use strict';
@@ -38,11 +38,12 @@ jQuery(document).ready(function($) {
     const fullscreenBtn = $('#fullscreen-toggle-btn');
     
     const researchBtn = $('#research-online-prompt-btn');
-    const researchModal = $('#research-url-modal');
-    const researchUrlInput = $('#research-url-input');
-    const researchUrlSubmit = $('#research-url-submit');
-    const researchUrlStatus = $('#research-url-status');
-    const researchModalClose = $('#close-research-modal');
+    // The modal elements are no longer needed for the new prompt-injection workflow.
+    // const researchModal = $('#research-url-modal');
+    // const researchUrlInput = $('#research-url-input');
+    // const researchUrlSubmit = $('#research-url-submit');
+    // const researchUrlStatus = $('#research-url-status');
+    // const researchModalClose = $('#close-research-modal');
 
 
     // ====================================================================
@@ -179,7 +180,10 @@ jQuery(document).ready(function($) {
                 appendMessage(assistantName, response.data.reply);
                 if (response.data.conversation_id) {
                     currentConversationId = response.data.conversation_id;
-                    loadHistory();
+                    // Only reload history if it's a new conversation
+                    if (!conversationList.find(`.aiohm-pa-list-item[data-id="${currentConversationId}"]`).length) {
+                        loadHistory();
+                    }
                 }
             } else {
                 appendMessage(assistantName, 'Error: ' + (response.data.message || 'Could not get a response.'));
@@ -188,7 +192,7 @@ jQuery(document).ready(function($) {
     }
 
     // ====================================================================
-    // 4. NOTES, KB & RESEARCH FUNCTIONALITY
+    // 4. NOTES & KB FUNCTIONALITY
     // ====================================================================
     
     function saveNotes() {
@@ -270,10 +274,9 @@ jQuery(document).ready(function($) {
     // --- Event Listeners ---
     $('#private-chat-form').on('submit', e => { e.preventDefault(); sendMessage(); });
     
-    // **FIX: Added keydown listener for Enter key**
     chatInput.on('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault(); // Prevents adding a new line
+            e.preventDefault();
             sendMessage();
         }
     });
@@ -415,47 +418,26 @@ jQuery(document).ready(function($) {
     fullscreenBtn.on('click', () => setFullscreen());
     notificationBar.on('click', '.close-btn', () => notificationBar.fadeOut());
     
+    // --- Start of Changes ---
+    // This is the new, improved functionality for the Research Online button.
     researchBtn.on('click', function() {
-        researchModal.css('display', 'flex');
-        researchUrlInput.focus();
-    });
-
-    researchModalClose.on('click', function() {
-        researchModal.hide();
-    });
-    
-    researchUrlSubmit.on('click', function() {
-        const url = researchUrlInput.val().trim();
-        if (!url) {
-            researchUrlStatus.text('Please enter a valid URL.');
+        if (!currentProjectId) {
+            showNotification('Please select a project first to start your research.', 'error');
             return;
         }
 
-        $(this).text('Scanning...').prop('disabled', true);
-        researchUrlStatus.text('Scanning website. This may take a moment...');
-
-        performAjaxRequest('aiohm_scan_url_live', { url_to_scan: url }, false)
-            .done(function(response) {
-                if(response.success) {
-                    showNotification(response.data.message, 'success');
-                    researchModal.hide();
-                } else {
-                    researchUrlStatus.text('Error: ' + (response.data.message || 'Scan failed.'));
-                }
-            }).fail(function() {
-                researchUrlStatus.text('An unexpected network error occurred.');
-            }).always(function() {
-                 researchUrlSubmit.text('Scan Website').prop('disabled', false);
-                 researchUrlInput.val('');
-                 researchUrlStatus.text('');
-            });
+        // Define the prompt that will be injected into the chat input.
+        const researchPrompt = "Please research the following URL and provide a summary of its key points: [PASTE URL HERE]";
+        
+        // Set the value of the chat input and focus on it for the user.
+        chatInput.val(researchPrompt);
+        chatInput.focus();
+        
+        // Optional: Move the cursor to the position where the user should paste the URL.
+        const promptLength = chatInput.val().length;
+        chatInput[0].setSelectionRange(promptLength - 16, promptLength - 1);
     });
-    
-    $(window).on('click', function(e) {
-        if ($(e.target).is(researchModal)) {
-            researchModal.hide();
-        }
-    });
+    // --- End of Changes ---
 
     // ====================================================================
     // 6. INITIALIZATION
