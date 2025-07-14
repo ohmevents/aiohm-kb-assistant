@@ -18,16 +18,6 @@ class AIOHM_KB_RAG_Engine {
         return $this->table_name;
     }
 
-    /**
-     * Adds a new entry to the knowledge base, with robust error handling.
-     *
-     * @param string $content      The text content to add.
-     * @param string $content_type The type of content (e.g., 'post', 'page', 'external_url').
-     * @param string $title        The title of the content.
-     * @param array  $metadata     Additional metadata for the entry.
-     * @param int    $user_id      The user ID for private entries (0 for public).
-     * @return bool|WP_Error       True on success, WP_Error on failure.
-     */
     public function add_entry($content, $content_type, $title, $metadata = [], $user_id = 0) {
         try {
             global $wpdb;
@@ -78,73 +68,66 @@ class AIOHM_KB_RAG_Engine {
         return true;
     }
     
-    /**
-     * Main query method that handles both standard chats and special research commands.
-     *
-     * @param string $query_text The user's full message.
-     * @param string $scope      The scope ('site' or 'private').
-     * @param int    $user_id    The current user's ID.
-     * @return string            The AI's response.
-     */
     public function query($query_text, $scope = 'site', $user_id = 0) {
-        $research_prefix = "Please research the following URL and provide a summary of its key points:";
-
-        if (strpos($query_text, $research_prefix) === 0) {
-            preg_match('/(https?:\/\/[^\s]+)/', $query_text, $matches);
-            $url = $matches[0] ?? null;
-
-            if (!$url) {
-                return "I couldn't find a valid URL in your request. Please try again with the full URL (e.g., https://example.com).";
-            }
-
-            $result = $this->research_and_add_url($url, $user_id);
-
-            if (is_wp_error($result)) {
-                return "I encountered an error trying to research that URL: " . $result->get_error_message();
-            }
-            
-            return $this->summarize_new_context($url, $user_id);
-        }
-
-        if ($scope === 'private') {
-            $context_entries = $this->find_context_for_user($query_text, $user_id);
-        } else {
-            $context_entries = $this->find_relevant_context($query_text);
-        }
-
-        $context = "";
-        foreach ($context_entries as $entry) {
-            $context .= "Title: " . $entry['entry']['title'] . "\n";
-            $context .= "Content: " . $entry['entry']['content'] . "\n\n";
-        }
-
-        $settings = AIOHM_KB_Assistant::get_settings();
-        $ai_settings = ($scope === 'private') ? $settings['muse_mode'] : $settings['mirror_mode'];
-        $system_message = ($scope === 'private') ? $ai_settings['system_prompt'] : $ai_settings['qa_system_message'];
-
-        $final_prompt = str_replace('{context}', $context, $system_message);
-
-        $ai_client = new AIOHM_KB_AI_GPT_Client();
         try {
+            $research_prefix = "Please research the following URL and provide a summary of its key points:";
+
+            if (strpos($query_text, $research_prefix) === 0) {
+                preg_match('/(https?:\/\/[^\s]+)/', $query_text, $matches);
+                $url = $matches[0] ?? null;
+
+                if (!$url) {
+                    return "I couldn't find a valid URL in your request. Please try again with the full URL (e.g., https://example.com).";
+                }
+
+                $result = $this->research_and_add_url($url, $user_id);
+
+                if (is_wp_error($result)) {
+                    return "I encountered an error trying to research that URL: " . $result->get_error_message();
+                }
+                
+                return $this->summarize_new_context($url, $user_id);
+            }
+
+            if ($scope === 'private') {
+                $context_entries = $this->find_context_for_user($query_text, $user_id);
+            } else {
+                $context_entries = $this->find_relevant_context($query_text);
+            }
+
+            $context = "";
+            foreach ($context_entries as $entry) {
+                $context .= "Title: " . $entry['entry']['title'] . "\n";
+                $context .= "Content: " . $entry['entry']['content'] . "\n\n";
+            }
+
+            $settings = AIOHM_KB_Assistant::get_settings();
+            $ai_settings = ($scope === 'private') ? $settings['muse_mode'] : $settings['mirror_mode'];
+            
+            $system_message_key = ($scope === 'private') ? 'system_prompt' : 'qa_system_message';
+            $system_message = $ai_settings[$system_message_key] ?? 'You are a helpful assistant.';
+            $model_name = $ai_settings['ai_model'] ?? 'gpt-3.5-turbo';
+            $temperature = $ai_settings['temperature'] ?? 0.7;
+            
+            $enriched_user_message = "Here is some context to help you answer:\n\n---\n\n{$context}\n\n---\n\nBased on that context, please answer the following question:\n\n{$query_text}";
+
+            $ai_client = new AIOHM_KB_AI_GPT_Client();
             return $ai_client->get_chat_completion(
-                $final_prompt,
-                $query_text,
-                $ai_settings['temperature'],
-                $ai_settings['ai_model']
+                $system_message,
+                $enriched_user_message,
+                $temperature,
+                $model_name
             );
+
         } catch (Exception $e) {
             AIOHM_KB_Assistant::log('AI Query Error: ' . $e->getMessage(), 'error');
-            return 'I am currently unable to answer. Please try again later.';
+            // ================== START: BUG FIX ==================
+            // Return the ACTUAL error message to the user for debugging.
+            return "AI Error: " . $e->getMessage();
+            // =================== END: BUG FIX ===================
         }
     }
 
-    /**
-     * Fetches content from a URL, processes it, and adds it to the private knowledge base.
-     *
-     * @param string $url     The URL to fetch.
-     * @param int    $user_id The user ID to associate the entry with.
-     * @return bool|WP_Error  True on success, WP_Error on failure.
-     */
     public function research_and_add_url($url, $user_id) {
         if (!filter_var($url, FILTER_VALIDATE_URL)) {
             return new WP_Error('invalid_url', 'The provided URL is not valid.');
@@ -178,19 +161,11 @@ class AIOHM_KB_RAG_Engine {
         return $this->add_entry($plain_text, 'external_url', $title, $metadata, $user_id);
     }
     
-    /**
-     * Creates a summary of newly added URL content.
-     */
     private function summarize_new_context($url, $user_id) {
         $summary_prompt = "You have just successfully read the content from the URL: {$url}. Now, provide a concise summary of its key points based on the context you've just learned.";
         return $this->query($summary_prompt, 'private', $user_id);
     }
     
-    /**
-     * **MODIFIED FOR PERFORMANCE**
-     * This function now uses a `MATCH() AGAINST()` query on the `FULLTEXT` index,
-     * which is significantly faster for keyword searches than the previous `LIKE` query.
-     */
     public function find_relevant_context($query_text, $limit = 5) {
         global $wpdb;
         $ai_client = new AIOHM_KB_AI_GPT_Client();

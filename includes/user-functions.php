@@ -1,44 +1,123 @@
 <?php
-function aiohm_get_user_arm_id($user_id = null) {
-    if (!$user_id) $user_id = get_current_user_id();
-    return get_user_meta($user_id, '_aiohm_app_arm_user_id', true);
+/**
+ * User-related functions for the AIOHM KB Assistant plugin.
+ * This includes functions for managing user-specific data like projects,
+ * conversations, and messages.
+ *
+ * @package AIOHM_KB_Assistant
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly.
 }
 
-function aiohm_store_user_arm_id($user_id, $arm_id) {
-    update_user_meta($user_id, '_aiohm_app_arm_user_id', $arm_id);
+/**
+ * Creates a new project for a user.
+ *
+ * @param int    $user_id      The ID of the user.
+ * @param string $project_name The name of the new project.
+ * @return int|false The ID of the newly created project, or false on failure.
+ */
+function aiohm_create_project( $user_id, $project_name ) {
+	global $wpdb;
+	$table_name = $wpdb->prefix . 'aiohm_projects';
+
+	$inserted = $wpdb->insert(
+		$table_name,
+		array(
+			'user_id'       => $user_id,
+			'project_name'  => $project_name,
+			'creation_date' => current_time( 'mysql' ),
+		),
+		array( '%d', '%s', '%s' )
+	);
+
+	if ( ! $inserted ) {
+		return false;
+	}
+
+	return $wpdb->insert_id;
 }
 
-function aiohm_set_access_level($user_id, $level = 'basic') {
-    update_user_meta($user_id, 'aiohm_knowledge_profile', [
-        'access_level' => $level,
-        'source' => 'aiohm_app'
-    ]);
-}
-function create_conversation($user_id, $project_id, $title) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'aiohm_conversations';
-    $wpdb->insert(
-        $table_name,
-        [
-            'user_id'    => $user_id,
-            'project_id' => $project_id,
-            'title'      => $title,
-        ],
-        ['%d', '%d', '%s']
-    );
-    return $wpdb->insert_id;
+/**
+ * Creates a new conversation associated with a project.
+ *
+ * @param int    $user_id    The ID of the user.
+ * @param int    $project_id The ID of the project.
+ * @param string $title      The title of the conversation.
+ * @return int|false The ID of the new conversation, or false on failure.
+ */
+function create_conversation( $user_id, $project_id, $title ) {
+	global $wpdb;
+	$table_name = $wpdb->prefix . 'aiohm_conversations';
+
+	$result = $wpdb->insert(
+		$table_name,
+		array(
+			'user_id'    => $user_id,
+			'project_id' => $project_id,
+			'title'      => $title,
+			'created_at' => current_time( 'mysql', 1 ),
+			'updated_at' => current_time( 'mysql', 1 ),
+		),
+		// FIX: Added correct data formats for the insert query.
+		array(
+			'%d', // user_id
+			'%d', // project_id
+			'%s', // title
+			'%s', // created_at
+			'%s', // updated_at
+		)
+	);
+
+	// FIX: Check if the insert failed.
+	if ( ! $result ) {
+		return false;
+	}
+
+	return $wpdb->insert_id;
 }
 
-function add_message_to_conversation($conversation_id, $sender, $content) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'aiohm_messages';
-    $wpdb->insert(
-        $table_name,
-        [
-            'conversation_id' => $conversation_id,
-            'sender'          => $sender,
-            'content'         => $content,
-        ],
-        ['%d', '%s', '%s']
-    );
+/**
+ * Adds a message to a conversation.
+ *
+ * @param int    $conversation_id The ID of the conversation.
+ * @param string $sender          The sender of the message ('user' or 'ai').
+ * @param string $content         The message content.
+ * @return bool True on success, false on failure.
+ */
+function add_message_to_conversation( $conversation_id, $sender, $content ) {
+	global $wpdb;
+	$table_name = $wpdb->prefix . 'aiohm_messages';
+
+	$result = $wpdb->insert(
+		$table_name,
+		array(
+			'conversation_id' => $conversation_id,
+			'sender'          => $sender,
+			'content'         => $content,
+			'created_at'      => current_time( 'mysql', 1 ),
+		),
+		// FIX: Added correct data formats for the insert query.
+		array(
+			'%d', // conversation_id
+			'%s', // sender
+			'%s', // content
+			'%s', // created_at
+		)
+	);
+
+	// Also update the 'updated_at' timestamp of the parent conversation
+    if ($result) {
+        $wpdb->update(
+            $wpdb->prefix . 'aiohm_conversations',
+            ['updated_at' => current_time('mysql', 1)],
+            ['id' => $conversation_id],
+            ['%s'],
+            ['%d']
+        );
+    }
+	
+	// FIX: Return true or false to indicate if the save was successful.
+	return $result !== false;
 }
