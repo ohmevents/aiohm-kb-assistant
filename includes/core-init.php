@@ -363,12 +363,14 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_private_assistant_chat_ajax() {
+        // FIX: Changed 'answer' to 'message' for security check error.
         if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false)) {
-            wp_send_json_error(['answer' => 'Security check failed.']);
+            wp_send_json_error(['message' => 'Security check failed.']);
         }
     
+        // FIX: Changed 'answer' to 'message' for permission error.
         if (!current_user_can('administrator') && !current_user_can('ohm_brand_collaborator')) {
-            wp_send_json_error(['answer' => 'You do not have permission to use this feature.']);
+            wp_send_json_error(['message' => 'You do not have permission to use this feature.']);
         }
     
         try {
@@ -379,6 +381,7 @@ class AIOHM_KB_Core_Init {
             $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : null;
 
             if (empty($project_id)) {
+                // This exception message is already clear for the developer.
                 throw new Exception('A project must be selected to start a conversation.');
             }
 
@@ -417,11 +420,13 @@ class AIOHM_KB_Core_Init {
                 self::add_message_to_conversation_internal($conversation_id, 'ai', $answer);
             }
     
-            wp_send_json_success(['answer' => $answer, 'conversation_id' => $conversation_id]);
+            // This was already fixed in the last step to use 'reply'
+            wp_send_json_success(['reply' => $answer, 'conversation_id' => $conversation_id]);
     
         } catch (Exception $e) {
             AIOHM_KB_Assistant::log('Private Assistant Error: ' . $e->getMessage(), 'error');
-            wp_send_json_error(['answer' => 'An error occurred while processing your request.']);
+            // FIX: Changed 'answer' to 'message' for the catch block error.
+            wp_send_json_error(['message' => 'An error occurred while processing your request: ' . $e->getMessage()]); // Include exception message for clarity
         }
     }
 
