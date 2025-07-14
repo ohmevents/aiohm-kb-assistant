@@ -2,6 +2,7 @@
 /**
  * Search shortcode implementation - [aiohm_search]
  * This version includes a fully functional AJAX handler and layout fixes.
+ * Refactored to move search logic into a reusable private method.
  */
 
 // Prevent direct access
@@ -99,10 +100,14 @@ class AIOHM_KB_Shortcode_Search {
         
         return $output;
     }
-    
+
+    /**
+     * Handles the AJAX request for searching the knowledge base.
+     */
     public static function handle_search_ajax() {
         if (!wp_verify_nonce($_POST['nonce'], 'aiohm_search_nonce')) {
             wp_send_json_error(['message' => 'Security check failed']);
+            wp_die();
         }
         
         $query = sanitize_text_field($_POST['query']);
@@ -112,46 +117,64 @@ class AIOHM_KB_Shortcode_Search {
         
         if (empty($query)) {
             wp_send_json_error(['message' => 'Search query is required']);
+            wp_die();
         }
         
         try {
-            $rag_engine = new AIOHM_KB_RAG_Engine();
-            $results = $rag_engine->find_relevant_context($query, $max_results);
-            
-            $filtered_results = [];
-            if (!empty($content_type_filter)) {
-                 foreach ($results as $result) {
-                    if ($result['entry']['content_type'] === $content_type_filter) {
-                        $filtered_results[] = $result;
-                    }
-                }
-            } else {
-                $filtered_results = $results;
-            }
-            
-            $formatted_results = array();
-            foreach ($filtered_results as $result) {
-                $entry = $result['entry'];
-                $excerpt = wp_trim_words($entry['content'], $excerpt_length, '...');
-                $metadata = is_string($entry['metadata']) ? json_decode($entry['metadata'], true) : $entry['metadata'];
-
-                $formatted_results[] = array(
-                    'title' => $entry['title'],
-                    'excerpt' => $excerpt,
-                    'content_type' => $entry['content_type'],
-                    'similarity' => round($result['score'] * 100, 1),
-                    'url' => $metadata['url'] ?? get_permalink($metadata['post_id'] ?? 0) ?? '#',
-                );
-            }
-            
-            wp_send_json_success([
-                'results' => $formatted_results,
-                'total_count' => count($formatted_results),
-            ]);
+            $results = self::perform_search($query, $content_type_filter, $max_results, $excerpt_length);
+            wp_send_json_success($results);
             
         } catch (Exception $e) {
             AIOHM_KB_Assistant::log('Search Error: ' . $e->getMessage(), 'error');
             wp_send_json_error(['message' => 'Search failed: ' . $e->getMessage()]);
         }
+
+        wp_die();
+    }
+
+    /**
+     * Performs the knowledge base search and formats the results.
+     * This private method encapsulates the core search logic.
+     *
+     * @param string $query The search term.
+     * @param string $content_type_filter The content type to filter by.
+     * @param int    $max_results The maximum number of results to return.
+     * @param int    $excerpt_length The length of the result excerpts.
+     * @return array An array of formatted search results.
+     */
+    private static function perform_search($query, $content_type_filter, $max_results, $excerpt_length) {
+        $rag_engine = new AIOHM_KB_RAG_Engine();
+        $results = $rag_engine->find_relevant_context($query, $max_results);
+        
+        $filtered_results = [];
+        if (!empty($content_type_filter)) {
+             foreach ($results as $result) {
+                if ($result['entry']['content_type'] === $content_type_filter) {
+                    $filtered_results[] = $result;
+                }
+            }
+        } else {
+            $filtered_results = $results;
+        }
+        
+        $formatted_results = array();
+        foreach ($filtered_results as $result) {
+            $entry = $result['entry'];
+            $excerpt = wp_trim_words($entry['content'], $excerpt_length, '...');
+            $metadata = is_string($entry['metadata']) ? json_decode($entry['metadata'], true) : $entry['metadata'];
+
+            $formatted_results[] = array(
+                'title' => $entry['title'],
+                'excerpt' => $excerpt,
+                'content_type' => $entry['content_type'],
+                'similarity' => round($result['score'] * 100, 1),
+                'url' => $metadata['url'] ?? get_permalink($metadata['post_id'] ?? 0) ?? '#',
+            );
+        }
+        
+        return [
+            'results' => $formatted_results,
+            'total_count' => count($formatted_results),
+        ];
     }
 }

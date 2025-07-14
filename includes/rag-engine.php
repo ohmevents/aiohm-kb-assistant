@@ -1,7 +1,7 @@
 <?php
 /**
  * RAG (Retrieval-Augmented Generation) Engine.
- * This version includes performance optimizations for context retrieval to prevent timeouts.
+ * This version includes performance optimizations and improved error handling.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -18,25 +18,72 @@ class AIOHM_KB_RAG_Engine {
         return $this->table_name;
     }
 
+    /**
+     * Adds a new entry to the knowledge base, with robust error handling.
+     *
+     * @param string $content      The text content to add.
+     * @param string $content_type The type of content (e.g., 'post', 'page').
+     * @param string $title        The title of the content.
+     * @param array  $metadata     Additional metadata for the entry.
+     * @param int    $user_id      The user ID for private entries (0 for public).
+     * @return bool|WP_Error       True on success, WP_Error on failure.
+     */
     public function add_entry($content, $content_type, $title, $metadata = [], $user_id = 0) {
-        global $wpdb;
-        $ai_client = new AIOHM_KB_AI_GPT_Client();
-        $settings = AIOHM_KB_Assistant::get_settings();
-        $chunk_size = $settings['chunk_size'] ?? 1000;
-        $chunk_overlap = $settings['chunk_overlap'] ?? 200;
-        $chunks = $this->chunk_content($content, $chunk_size, $chunk_overlap);
-        if (empty($chunks)) { throw new Exception('Content chunking failed for title: ' . $title); }
-        $content_id = $this->generate_entry_id($title, $content);
-        $this->delete_entry_by_content_id($content_id);
-        foreach ($chunks as $chunk_index => $chunk) {
-            $embedding = $ai_client->generate_embeddings($chunk);
-            $chunk_metadata = array_merge($metadata, ['chunk_index' => $chunk_index]);
-            $wpdb->insert(
-                $this->table_name,
-                ['user_id' => $user_id, 'content_id' => $content_id, 'content_type' => $content_type, 'title' => $title, 'content' => $chunk, 'vector_data' => json_encode($embedding), 'metadata' => json_encode($chunk_metadata)],
-                ['%d', '%s', '%s', '%s', '%s', '%s', '%s']
+        try {
+            global $wpdb;
+            $ai_client = new AIOHM_KB_AI_GPT_Client();
+            $settings = AIOHM_KB_Assistant::get_settings();
+            $chunk_size = $settings['chunk_size'] ?? 1000;
+            $chunk_overlap = $settings['chunk_overlap'] ?? 200;
+
+            $chunks = $this->chunk_content($content, $chunk_size, $chunk_overlap);
+
+            // --- Start of Fix ---
+            // Gracefully handle cases where chunking results in an empty array.
+            if (empty($chunks)) {
+                throw new Exception('Content was empty or could not be chunked.');
+            }
+            
+            $content_id = $this->generate_entry_id($title, $content);
+            $this->delete_entry_by_content_id($content_id);
+
+            foreach ($chunks as $chunk_index => $chunk) {
+                // The generate_embeddings call can also throw an exception.
+                $embedding = $ai_client->generate_embeddings($chunk);
+                $chunk_metadata = array_merge($metadata, ['chunk_index' => $chunk_index]);
+                
+                $result = $wpdb->insert(
+                    $this->table_name,
+                    [
+                        'user_id' => $user_id, 
+                        'content_id' => $content_id, 
+                        'content_type' => $content_type, 
+                        'title' => $title, 
+                        'content' => $chunk, 
+                        'vector_data' => json_encode($embedding), 
+                        'metadata' => json_encode($chunk_metadata)
+                    ],
+                    ['%d', '%s', '%s', '%s', '%s', '%s', '%s']
+                );
+
+                if ($result === false) {
+                    throw new Exception('Failed to insert a chunk into the database.');
+                }
+            }
+            // --- End of Fix ---
+
+        } catch (Exception $e) {
+            // Log the detailed technical error for debugging purposes.
+            AIOHM_KB_Assistant::log('Failed to add entry for "' . $title . '": ' . $e->getMessage(), 'error');
+            
+            // Return a standard WordPress error object with a user-friendly message.
+            return new WP_Error(
+                'add_entry_failed',
+                'Could not add the entry "' . esc_html($title) . '" to the knowledge base. Please check the logs for more details.',
+                ['title' => $title]
             );
         }
+
         return true;
     }
     

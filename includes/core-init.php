@@ -63,6 +63,7 @@ class AIOHM_KB_Core_Init {
         check_ajax_referer('aiohm_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
     
         $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
@@ -75,7 +76,7 @@ class AIOHM_KB_Core_Init {
         
         if (empty($urls_for_this_batch)) {
             wp_send_json_success(['done' => true, 'message' => 'Scan complete.']);
-            return;
+            wp_die();
         }
         
         try {
@@ -85,6 +86,7 @@ class AIOHM_KB_Core_Init {
             }
         } catch (Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
+            wp_die();
         }
         
         $new_offset = $offset + $limit;
@@ -95,12 +97,14 @@ class AIOHM_KB_Core_Init {
         } else {
             wp_send_json_success(['done' => false, 'progress' => $progress, 'offset' => $new_offset, 'message' => "Scanned " . count($urls_for_this_batch) . " more URLs..."]);
         }
+        wp_die();
     }
 
     public static function handle_check_api_key_ajax() {
         check_ajax_referer('aiohm_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
         $provider = isset($_POST['provider']) ? sanitize_text_field($_POST['provider']) : '';
         $settings = AIOHM_KB_Assistant::get_settings();
@@ -120,6 +124,7 @@ class AIOHM_KB_Core_Init {
 
         if (empty($api_key)) {
             wp_send_json_error(['message' => 'API key is not set.']);
+            wp_die();
         }
 
         try {
@@ -133,12 +138,14 @@ class AIOHM_KB_Core_Init {
         } catch (Exception $e) {
             wp_send_json_error(['message' => 'Error: ' . $e->getMessage()]);
         }
+        wp_die();
     }
 
     public static function handle_export_kb_ajax() {
         check_ajax_referer('aiohm_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
 
         global $wpdb;
@@ -147,6 +154,7 @@ class AIOHM_KB_Core_Init {
 
         if ($results === null) {
             wp_send_json_error(['message' => 'Failed to retrieve data from the database.']);
+            wp_die();
         }
 
         $json_data = json_encode($results, JSON_PRETTY_PRINT);
@@ -154,12 +162,14 @@ class AIOHM_KB_Core_Init {
         file_put_contents($file_path, $json_data);
 
         wp_send_json_success(['file_url' => wp_upload_dir()['url'] . '/aiohm_kb_export.json']);
+        wp_die();
     }
 
     public static function handle_reset_kb_ajax() {
         check_ajax_referer('aiohm_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
 
         global $wpdb;
@@ -167,12 +177,14 @@ class AIOHM_KB_Core_Init {
         $wpdb->query("TRUNCATE TABLE $table_name");
         
         wp_send_json_success(['message' => 'Knowledge Base has been reset.']);
+        wp_die();
     }
 
     public static function handle_toggle_kb_scope_ajax() {
         check_ajax_referer('aiohm_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
         
         $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
@@ -180,6 +192,7 @@ class AIOHM_KB_Core_Init {
 
         if (!$entry_id) {
             wp_send_json_error(['message' => 'Invalid Entry ID.']);
+            wp_die();
         }
 
         global $wpdb;
@@ -195,19 +208,22 @@ class AIOHM_KB_Core_Init {
 
         if ($result === false) {
             wp_send_json_error(['message' => 'Failed to update entry scope.']);
+        } else {
+            wp_send_json_success(['message' => 'Entry scope updated successfully.']);
         }
-
-        wp_send_json_success(['message' => 'Entry scope updated successfully.']);
+        wp_die();
     }
 
     public static function handle_restore_kb_ajax() {
         check_ajax_referer('aiohm_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
 
         if (empty($_FILES['file']['tmp_name'])) {
             wp_send_json_error(['message' => 'No file uploaded.']);
+            wp_die();
         }
 
         $json_data = file_get_contents($_FILES['file']['tmp_name']);
@@ -215,6 +231,7 @@ class AIOHM_KB_Core_Init {
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             wp_send_json_error(['message' => 'Invalid JSON file.']);
+            wp_die();
         }
 
         global $wpdb;
@@ -226,18 +243,21 @@ class AIOHM_KB_Core_Init {
         }
 
         wp_send_json_success(['message' => 'Knowledge Base restored successfully.']);
+        wp_die();
     }
     
     public static function handle_delete_kb_entry_ajax() {
         check_ajax_referer('aiohm_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
 
         $entry_id = isset($_POST['entry_id']) ? intval($_POST['entry_id']) : 0;
 
         if (!$entry_id) {
             wp_send_json_error(['message' => 'Invalid entry ID.']);
+            wp_die();
         }
         
         global $wpdb;
@@ -246,15 +266,17 @@ class AIOHM_KB_Core_Init {
 
         if ($result === false) {
             wp_send_json_error(['message' => 'Failed to delete the entry.']);
+        } else {
+            wp_send_json_success(['message' => 'Entry deleted successfully.']);
         }
-        
-        wp_send_json_success(['message' => 'Entry deleted successfully.']);
+        wp_die();
     }
 
     public static function handle_save_brand_soul_ajax() {
         check_ajax_referer('aiohm_brand_soul_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
 
         $questions_answers = isset($_POST['questions']) ? $_POST['questions'] : [];
@@ -269,17 +291,20 @@ class AIOHM_KB_Core_Init {
 
         update_option('aiohm_brand_soul_data', $sanitized_data);
         wp_send_json_success(['message' => 'Brand Soul saved successfully.']);
+        wp_die();
     }
 
     public static function handle_add_brand_soul_to_kb_ajax() {
         check_ajax_referer('aiohm_brand_soul_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'No Brand Soul data to add.']);
+            wp_die();
         }
 
         $brand_soul_data = get_option('aiohm_brand_soul_data', []);
         if (empty($brand_soul_data)) {
             wp_send_json_error(['message' => 'No Brand Soul data to add.']);
+            wp_die();
         }
         
         $rag_engine = new AIOHM_KB_RAG_Engine();
@@ -293,6 +318,7 @@ class AIOHM_KB_Core_Init {
         $rag_engine->add_entry($content, 'brand_soul', 'Brand Soul Answers', [], $user_id);
 
         wp_send_json_success(['message' => 'Brand Soul data successfully added to your private knowledge base.']);
+        wp_die();
     }
 
     public static function handle_pdf_download() {
@@ -308,30 +334,41 @@ class AIOHM_KB_Core_Init {
         check_ajax_referer('aiohm_mirror_mode_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
 
         $settings = AIOHM_KB_Assistant::get_settings();
         $settings['mirror_mode']['qa_system_message'] = sanitize_textarea_field(stripslashes($_POST['qa_system_message']));
-        $settings['mirror_mode']['qa_temperature'] = sanitize_text_field($_POST['qa_temperature']);
+        
+        // --- Start of Fix ---
+        // Validate temperature: ensure it is a float between 0.0 and 1.0.
+        $temperature = isset($_POST['qa_temperature']) ? floatval($_POST['qa_temperature']) : 0.7;
+        $settings['mirror_mode']['qa_temperature'] = max(0.0, min(1.0, $temperature));
+        // --- End of Fix ---
+
         $settings['mirror_mode']['ai_model'] = sanitize_text_field($_POST['ai_model']);
         
         update_option('aiohm_kb_settings', $settings);
         wp_send_json_success(['message' => 'Mirror Mode settings saved.']);
+        wp_die();
     }
     
     public static function handle_generate_mirror_mode_qa_ajax() {
         check_ajax_referer('aiohm_mirror_mode_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
         // Placeholder for QA generation
         wp_send_json_success(['message' => 'QA generation started.']);
+        wp_die();
     }
     
     public static function handle_test_mirror_mode_chat_ajax() {
         check_ajax_referer('aiohm_mirror_mode_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
 
         $message = sanitize_text_field($_POST['message']);
@@ -343,28 +380,38 @@ class AIOHM_KB_Core_Init {
         } catch(Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
+        wp_die();
     }
 
     public static function handle_save_muse_mode_settings_ajax() {
         check_ajax_referer('aiohm_muse_mode_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
 
         $settings = AIOHM_KB_Assistant::get_settings();
         $settings['muse_mode']['system_prompt'] = sanitize_textarea_field(stripslashes($_POST['system_prompt']));
-        $settings['muse_mode']['temperature'] = sanitize_text_field($_POST['temperature']);
+        
+        // --- Start of Fix ---
+        // Validate temperature: ensure it is a float between 0.0 and 1.0.
+        $temperature = isset($_POST['temperature']) ? floatval($_POST['temperature']) : 0.7;
+        $settings['muse_mode']['temperature'] = max(0.0, min(1.0, $temperature));
+        // --- End of Fix ---
+
         $settings['muse_mode']['assistant_name'] = sanitize_text_field($_POST['assistant_name']);
         $settings['muse_mode']['ai_model'] = sanitize_text_field($_POST['ai_model']);
         
         update_option('aiohm_kb_settings', $settings);
         wp_send_json_success(['message' => 'Muse Mode settings saved.']);
+        wp_die();
     }
 
     public static function handle_private_assistant_chat_ajax() {
         check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
         if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied']);
+            wp_die();
         }
     
         $user_id = get_current_user_id();
@@ -375,6 +422,7 @@ class AIOHM_KB_Core_Init {
     
         if (empty($message) || empty($project_id)) {
             wp_send_json_error(['message' => 'Missing message or project context.']);
+            wp_die();
         }
     
         try {
@@ -392,12 +440,14 @@ class AIOHM_KB_Core_Init {
         } catch (Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
+        wp_die();
     }
 
     public static function handle_save_project_notes_ajax() {
         check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
         if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
 
         $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
@@ -406,6 +456,7 @@ class AIOHM_KB_Core_Init {
 
         if (empty($project_id)) {
             wp_send_json_error(['message' => 'Invalid Project ID.']);
+            wp_die();
         }
         
         global $wpdb;
@@ -420,12 +471,14 @@ class AIOHM_KB_Core_Init {
         );
 
         wp_send_json_success(['message' => 'Notes saved.']);
+        wp_die();
     }
 
     public static function handle_load_project_notes_ajax() {
         check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
         if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
 
         $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
@@ -433,6 +486,7 @@ class AIOHM_KB_Core_Init {
 
         if (empty($project_id)) {
             wp_send_json_error(['message' => 'Invalid Project ID.']);
+            wp_die();
         }
         
         global $wpdb;
@@ -445,16 +499,14 @@ class AIOHM_KB_Core_Init {
         ));
 
         wp_send_json_success(['note_content' => $note_content]);
+        wp_die();
     }
     
-    /**
-     * **FIXED: Implements a cascading delete for projects.**
-     * Deletes a project, its associated conversations, and all messages within those conversations.
-     */
     public static function handle_delete_project_ajax() {
         check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
         if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied']);
+            wp_die();
         }
 
         $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
@@ -462,6 +514,7 @@ class AIOHM_KB_Core_Init {
 
         if (empty($project_id)) {
             wp_send_json_error(['message' => 'Invalid project ID.']);
+            wp_die();
         }
 
         global $wpdb;
@@ -469,28 +522,22 @@ class AIOHM_KB_Core_Init {
         $conversations_table = $wpdb->prefix . 'aiohm_conversations';
         $messages_table = $wpdb->prefix . 'aiohm_messages';
         
-        // Find all conversations in this project
         $conversation_ids = $wpdb->get_col($wpdb->prepare(
             "SELECT id FROM $conversations_table WHERE project_id = %d AND user_id = %d",
             $project_id, $user_id
         ));
 
-        // Start a transaction to ensure all or nothing is deleted
         $wpdb->query('START TRANSACTION');
 
         try {
             if (!empty($conversation_ids)) {
-                // Delete messages for all found conversations
                 $wpdb->query($wpdb->prepare(
                     "DELETE FROM $messages_table WHERE conversation_id IN (" . implode(',', array_fill(0, count($conversation_ids), '%d')) . ")",
                     $conversation_ids
                 ));
-
-                // Delete all conversations in the project
                 $wpdb->delete($conversations_table, ['project_id' => $project_id], ['%d']);
             }
 
-            // Delete the project itself
             $deleted_project = $wpdb->delete($projects_table, ['id' => $project_id, 'user_id' => $user_id], ['%d', '%d']);
 
             if ($deleted_project === false) {
@@ -504,16 +551,14 @@ class AIOHM_KB_Core_Init {
             $wpdb->query('ROLLBACK');
             wp_send_json_error(['message' => 'Failed to delete project: ' . $e->getMessage()]);
         }
+        wp_die();
     }
 
-    /**
-     * **FIXED: Implements a cascading delete for conversations.**
-     * Deletes a conversation and all its messages.
-     */
     public static function handle_delete_conversation_ajax() {
         check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
         if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied']);
+            wp_die();
         }
 
         $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
@@ -521,19 +566,16 @@ class AIOHM_KB_Core_Init {
         
         if (empty($conversation_id)) {
             wp_send_json_error(['message' => 'Invalid conversation ID.']);
+            wp_die();
         }
 
         global $wpdb;
         $conversations_table = $wpdb->prefix . 'aiohm_conversations';
         $messages_table = $wpdb->prefix . 'aiohm_messages';
 
-        // Start transaction
         $wpdb->query('START TRANSACTION');
         try {
-            // Delete all messages in the conversation
             $wpdb->delete($messages_table, ['conversation_id' => $conversation_id], ['%d']);
-
-            // Delete the conversation itself, ensuring it belongs to the current user
             $deleted_conversation = $wpdb->delete($conversations_table, ['id' => $conversation_id, 'user_id' => $user_id], ['%d', '%d']);
 
             if ($deleted_conversation === false) {
@@ -546,12 +588,14 @@ class AIOHM_KB_Core_Init {
             $wpdb->query('ROLLBACK');
             wp_send_json_error(['message' => 'Failed to delete conversation: ' . $e->getMessage()]);
         }
+        wp_die();
     }
     
     public static function handle_test_muse_mode_chat_ajax() {
         check_ajax_referer('aiohm_muse_mode_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
         $message = sanitize_text_field($_POST['message']);
         $user_id = get_current_user_id();
@@ -562,6 +606,7 @@ class AIOHM_KB_Core_Init {
         } catch(Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
+        wp_die();
     }
 
     public static function handle_frontend_chat_ajax() {
@@ -574,6 +619,7 @@ class AIOHM_KB_Core_Init {
         } catch(Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
+        wp_die();
     }
 
     public static function handle_search_knowledge_ajax() {
@@ -586,12 +632,14 @@ class AIOHM_KB_Core_Init {
         } catch (Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
+        wp_die();
     }
 
     public static function handle_admin_search_knowledge_ajax() {
         check_ajax_referer('aiohm_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
         $query = sanitize_text_field($_POST['query']);
         try {
@@ -601,29 +649,34 @@ class AIOHM_KB_Core_Init {
         } catch (Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
+        wp_die();
     }
 
     public static function handle_get_projects_ajax() {
         check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
         if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied']);
+            wp_die();
         }
         global $wpdb;
         $user_id = get_current_user_id();
         $results = $wpdb->get_results($wpdb->prepare("SELECT id, project_name, notes FROM {$wpdb->prefix}aiohm_projects WHERE user_id = %d", $user_id));
         wp_send_json_success($results);
+        wp_die();
     }
 
     public static function handle_create_project_ajax() {
         check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
         if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied.']);
+            wp_die();
         }
 
         $project_name = isset($_POST['name']) ? sanitize_text_field(stripslashes($_POST['name'])) : '';
 
         if (empty($project_name)) {
             wp_send_json_error(['message' => 'Project name cannot be empty.']);
+            wp_die();
         }
 
         global $wpdb;
@@ -638,21 +691,23 @@ class AIOHM_KB_Core_Init {
         
         if ($result === false) {
              wp_send_json_error(['message' => 'Could not save the project to the database.']);
+        } else {
+            $project_id = $wpdb->insert_id;
+            wp_send_json_success(['id' => $project_id, 'project_name' => $project_name, 'new_project_id' => $project_id]);
         }
-
-        $project_id = $wpdb->insert_id;
-        
-        wp_send_json_success(['id' => $project_id, 'project_name' => $project_name, 'new_project_id' => $project_id]);
+        wp_die();
     }
     
     public static function handle_get_conversation_history_ajax() {
         check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
         if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied']);
+            wp_die();
         }
         $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
         if(empty($conversation_id)){
             wp_send_json_error(['message' => 'Invalid conversation ID.']);
+            wp_die();
         }
 
         global $wpdb;
@@ -662,17 +717,20 @@ class AIOHM_KB_Core_Init {
         $messages = $wpdb->get_results($wpdb->prepare("SELECT sender, content as message_content FROM {$wpdb->prefix}aiohm_messages WHERE conversation_id = %d ORDER BY created_at ASC", $conversation_id));
         
         wp_send_json_success(['messages' => $messages, 'project_id' => $project_id, 'project_name' => $project_name]);
+        wp_die();
     }
     
     public static function handle_load_history_ajax() {
         check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
         if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'Permission denied']);
+            wp_die();
         }
         global $wpdb;
         $user_id = get_current_user_id();
         $projects = $wpdb->get_results($wpdb->prepare("SELECT id, project_name as name FROM {$wpdb->prefix}aiohm_projects WHERE user_id = %d ORDER BY creation_date DESC", $user_id));
         $conversations = $wpdb->get_results($wpdb->prepare("SELECT id, title FROM {$wpdb->prefix}aiohm_conversations WHERE user_id = %d ORDER BY updated_at DESC LIMIT 100", $user_id));
         wp_send_json_success(['projects' => $projects, 'conversations' => $conversations]);
+        wp_die();
     }
 }
