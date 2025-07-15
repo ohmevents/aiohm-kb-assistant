@@ -77,6 +77,8 @@ class AIOHM_KB_Shortcode_Private_Assistant {
             </aside>
 
             <main class="aiohm-pa-content-wrapper">
+                <div id="aiohm-admin-notice" class="aiohm-admin-notice" style="display:none;" tabindex="-1" role="alert" aria-live="polite"><p></p><span class="aiohm-notice-dismiss">&times;</span></div>
+                
                 <header class="aiohm-pa-header">
                     <button class="aiohm-pa-header-btn" id="sidebar-toggle" title="Toggle Sidebar">
                         <span class="dashicons dashicons-menu-alt"></span>
@@ -170,8 +172,8 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                     <textarea id="aiohm-pa-notes-textarea" placeholder="Write your project notes here..."></textarea>
                 </div>
                 <div class="aiohm-pa-sidebar-footer">
-                    <span id="aiohm-notes-status"></span>
-                    <button type="button" id="add-note-to-kb-btn" class="button aiohm-ohm-green-btn">Add Note to KB</button>
+                    <span id="aiohm-notes-status" class="aiohm-footer-status"></span>
+                    <button type="button" id="add-note-to-kb-btn" class="aiohm-footer-action-btn">Add to KB</button>
                 </div>
             </aside>
         </div>

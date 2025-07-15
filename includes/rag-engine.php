@@ -433,7 +433,7 @@ class AIOHM_KB_RAG_Engine {
         $all_entries = $wpdb->get_results($sql, ARRAY_A);
         $similarities = [];
         foreach ($all_entries as $entry) {
-            $vector = json_decode($entry['vector_data'], true);
+            $vector = !empty($entry['vector_data']) ? json_decode($entry['vector_data'], true) : null;
             if (is_array($vector)) {
                 $dot_product = array_sum(array_map(fn($a, $b) => $a * $b, $query_embedding, $vector));
                 $mag_a = sqrt(array_sum(array_map(fn($a) => $a * $a, $query_embedding)));

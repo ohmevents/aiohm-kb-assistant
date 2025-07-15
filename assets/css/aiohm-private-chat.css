@@ -165,6 +165,43 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     font-weight: 500;
 }
 
+/* Consistent footer styling for both sidebars */
+#aiohm-app-container .aiohm-footer-status {
+    color: var(--pa-text-secondary);
+    font-size: 11px;
+    font-style: italic;
+}
+
+#aiohm-app-container .aiohm-footer-action-btn {
+    background: var(--pa-brand-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#aiohm-app-container .aiohm-footer-action-btn:hover {
+    background: var(--pa-brand-color-hover);
+}
+
+/* Ensure both sidebar footers have consistent height and alignment */
+#aiohm-app-container .aiohm-pa-sidebar-footer,
+#aiohm-app-container .aiohm-pa-notes-sidebar .aiohm-pa-sidebar-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--pa-border-color);
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    white-space: nowrap;
+    min-height: 50px;
+    box-sizing: border-box;
+}
+
 /* --- 4. Notes Sidebar (Right) --- */
 #aiohm-app-container .aiohm-pa-notes-sidebar {
     width: 0; background-color: var(--pa-bg-darkest); display: flex;
@@ -203,10 +240,7 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     border-color: var(--pa-brand-color-hover) !important;
 }
 
-#aiohm-app-container .aiohm-pa-notes-sidebar .aiohm-pa-sidebar-footer #aiohm-notes-status {
-    color: var(--pa-text-secondary);
-    font-style: italic;
-}
+/* Removed - now using unified footer styling */
 
 
 /* --- 5. Main Content Wrapper --- */
@@ -214,6 +248,106 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     flex-grow: 1; display: flex; flex-direction: column;
     background-color: var(--pa-bg-dark); min-width: 0;
     position: relative; /* For popovers */
+}
+
+/* Admin Notice System for Private Chat */
+#aiohm-app-container .aiohm-admin-notice {
+    margin: 0;
+    padding: 12px 20px;
+    border-left: 4px solid;
+    background: var(--pa-bg-light);
+    color: var(--pa-text-primary);
+    font-size: 14px;
+    position: relative;
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+#aiohm-app-container .aiohm-admin-notice.notice-success {
+    border-left-color: var(--pa-success-color);
+    background: rgba(40, 167, 69, 0.1);
+}
+
+#aiohm-app-container .aiohm-admin-notice.notice-error {
+    border-left-color: var(--pa-error-color);
+    background: rgba(220, 53, 69, 0.1);
+}
+
+#aiohm-app-container .aiohm-admin-notice.notice-warning {
+    border-left-color: var(--pa-highlight-color);
+    background: rgba(255, 185, 35, 0.1);
+}
+
+#aiohm-app-container .aiohm-admin-notice.notice-info {
+    border-left-color: #17a2b8;
+    background: rgba(23, 162, 184, 0.1);
+}
+
+#aiohm-app-container .aiohm-admin-notice p {
+    margin: 0;
+    padding: 0;
+    color: var(--pa-text-primary);
+}
+
+#aiohm-app-container .aiohm-notice-dismiss {
+    position: absolute;
+    top: 12px;
+    right: 15px;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--pa-text-secondary);
+    line-height: 1;
+}
+
+#aiohm-app-container .aiohm-notice-dismiss:hover {
+    color: var(--pa-text-primary);
+}
+
+/* Confirmation buttons within notices */
+#aiohm-app-container .aiohm-admin-notice .aiohm-confirm-btn {
+    background: var(--pa-brand-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: background-color 0.2s ease;
+}
+
+#aiohm-app-container .aiohm-admin-notice .aiohm-confirm-btn:hover {
+    background: var(--pa-brand-color-hover);
+}
+
+#aiohm-app-container .aiohm-admin-notice .aiohm-cancel-btn {
+    background: transparent;
+    color: var(--pa-text-secondary);
+    border: 1px solid var(--pa-border-color);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-left: 5px;
+    transition: all 0.2s ease;
+}
+
+#aiohm-app-container .aiohm-admin-notice .aiohm-cancel-btn:hover {
+    background: var(--pa-bg-lighter);
+    color: var(--pa-text-primary);
+}
+
+/* Input fields within notices */
+#aiohm-app-container .aiohm-admin-notice input[type="text"] {
+    background: var(--pa-bg-darkest);
+    border: 1px solid var(--pa-border-color);
+    color: var(--pa-text-primary);
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin: 0 8px;
+    min-width: 200px;
 }
 
 /* --- 6. Header & Window Controls --- */
@@ -361,7 +495,194 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     cursor: pointer; margin-left: 15px; font-size: 18px;
 }
 
-/* --- 10. Modals --- */
+/* --- 10. Create Project Form & Modals --- */
+#aiohm-app-container .aiohm-create-project-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, var(--pa-bg-dark) 0%, var(--pa-bg-darkest) 100%);
+}
+
+#aiohm-app-container .aiohm-create-project-card {
+    background: var(--pa-bg-light);
+    border: 1px solid var(--pa-border-color);
+    border-radius: 12px;
+    padding: 40px 35px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#aiohm-app-container .aiohm-create-project-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+}
+
+#aiohm-app-container .aiohm-create-project-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, var(--pa-brand-color), var(--pa-brand-color-hover));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    box-shadow: 0 4px 15px rgba(31, 80, 20, 0.3);
+}
+
+#aiohm-app-container .aiohm-create-project-icon .dashicons {
+    font-size: 28px;
+    color: white;
+    line-height: 1;
+}
+
+#aiohm-app-container .aiohm-create-project-title {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--pa-text-primary);
+    letter-spacing: -0.02em;
+}
+
+#aiohm-app-container .aiohm-create-project-description {
+    margin: 0 0 30px 0;
+    color: var(--pa-text-secondary);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+#aiohm-app-container .aiohm-create-project-form {
+    text-align: left;
+}
+
+#aiohm-app-container .aiohm-input-group {
+    margin-bottom: 25px;
+}
+
+#aiohm-app-container .aiohm-input-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--pa-text-primary);
+    letter-spacing: 0.01em;
+}
+
+#aiohm-app-container .aiohm-create-project-input {
+    width: 100%;
+    padding: 14px 16px;
+    background: var(--pa-bg-darkest);
+    border: 2px solid var(--pa-border-color);
+    color: var(--pa-text-primary);
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+#aiohm-app-container .aiohm-create-project-input:focus {
+    outline: none;
+    border-color: var(--pa-brand-color);
+    box-shadow: 0 0 0 3px rgba(31, 80, 20, 0.1);
+    background: var(--pa-bg-dark);
+}
+
+#aiohm-app-container .aiohm-create-project-input::placeholder {
+    color: var(--pa-text-secondary);
+    opacity: 0.8;
+}
+
+#aiohm-app-container .aiohm-create-project-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 30px;
+}
+
+#aiohm-app-container .aiohm-create-project-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.01em;
+}
+
+#aiohm-app-container .aiohm-create-project-btn.primary {
+    background: linear-gradient(135deg, var(--pa-brand-color), var(--pa-brand-color-hover));
+    color: white;
+    box-shadow: 0 4px 12px rgba(31, 80, 20, 0.3);
+}
+
+#aiohm-app-container .aiohm-create-project-btn.primary:hover {
+    background: linear-gradient(135deg, var(--pa-brand-color-hover), #0f2a08);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(31, 80, 20, 0.4);
+}
+
+#aiohm-app-container .aiohm-create-project-btn.primary:active {
+    transform: translateY(0);
+}
+
+#aiohm-app-container .aiohm-create-project-btn.secondary {
+    background: transparent;
+    color: var(--pa-text-secondary);
+    border: 2px solid var(--pa-border-color);
+}
+
+#aiohm-app-container .aiohm-create-project-btn.secondary:hover {
+    background: var(--pa-bg-darkest);
+    color: var(--pa-text-primary);
+    border-color: var(--pa-text-secondary);
+}
+
+#aiohm-app-container .aiohm-create-project-btn .dashicons {
+    font-size: 18px;
+    line-height: 1;
+}
+
+#aiohm-app-container .aiohm-create-project-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+#aiohm-app-container .aiohm-create-project-btn .dashicons-update {
+    animation: aiohm-spin 1s linear infinite;
+}
+
+@keyframes aiohm-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 600px) {
+    #aiohm-app-container .aiohm-create-project-card {
+        padding: 30px 25px;
+        margin: 20px 10px;
+    }
+    
+    #aiohm-app-container .aiohm-create-project-actions {
+        flex-direction: column;
+    }
+    
+    #aiohm-app-container .aiohm-create-project-btn {
+        flex: none;
+    }
+}
+
+/* Legacy create project view fallback */
 #aiohm-app-container #create-project-view {
     padding: 40px; text-align: center;
     display: flex; flex-direction: column; justify-content: center;

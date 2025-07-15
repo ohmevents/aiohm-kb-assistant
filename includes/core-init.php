@@ -5,6 +5,8 @@
  */
 if (!defined('ABSPATH')) exit;
 
+// Prevent class redeclaration errors
+if (!class_exists('AIOHM_KB_Core_Init')) {
 
 class AIOHM_KB_Core_Init {
 
@@ -30,42 +32,82 @@ class AIOHM_KB_Core_Init {
     }
     // =================== END: CONSOLIDATED FIX ===================
 
-
     /**
      * Generate AI-powered conversation title
      */
     private static function generate_conversation_title($user_message, $ai_client, $model) {
         try {
-            $title_prompt = "Generate a concise, descriptive title (3-6 words) for this conversation based on the user's first message. Do not use quotes or special characters. Examples: 'Brand Strategy Discussion', 'Website Content Planning', 'Marketing Campaign Ideas'. User message: " . substr($user_message, 0, 200);
+            // Simplified and more reliable title generation
+            $title_prompt = "Create a short title (3-5 words) for this conversation. Remove quotes. Examples: Website Design Project, Marketing Strategy Planning, Brand Development Discussion. Message: " . substr($user_message, 0, 150);
             
             $title = $ai_client->get_chat_completion(
-                "You are a helpful assistant that creates short, descriptive titles for conversations.",
+                "Create concise conversation titles without quotes or special characters.",
                 $title_prompt,
-                0.3, // Lower temperature for more consistent titles
+                0.2, // Even lower temperature for consistency
                 $model
             );
             
             // Clean and validate the title
             $title = trim(strip_tags($title));
+            $title = str_replace(['"', "'", '`', '«', '»'], '', $title); // Remove all quote types
             $title = preg_replace('/[^\w\s-]/', '', $title); // Remove special chars except hyphens
             $title = preg_replace('/\s+/', ' ', $title); // Normalize whitespace
+            $title = trim($title);
             
             // Ensure reasonable length
-            if (strlen($title) > 60) {
-                $title = mb_strimwidth($title, 0, 57, '...');
+            if (strlen($title) > 50) {
+                $title = mb_strimwidth($title, 0, 47, '...');
             }
             
-            // Fallback to user message excerpt if AI title is too short or empty
-            if (strlen($title) < 3) {
-                $title = mb_strimwidth($user_message, 0, 50, '...');
+            // More robust fallback check
+            if (strlen($title) < 3 || empty($title) || $title === '...' || strtolower($title) === 'new chat') {
+                $title = self::create_fallback_title($user_message);
             }
+            
+            // Log the generated title for debugging
+            AIOHM_KB_Assistant::log('Generated conversation title: "' . $title . '" from message: "' . substr($user_message, 0, 50) . '"', 'info');
             
             return $title;
             
         } catch (Exception $e) {
-            // Fallback to truncated user message if AI title generation fails
+            // Fallback to smart title generation
             AIOHM_KB_Assistant::log('Title generation error: ' . $e->getMessage(), 'warning');
-            return mb_strimwidth($user_message, 0, 50, '...');
+            return self::create_fallback_title($user_message);
+        }
+    }
+
+    /**
+     * Create a smart fallback title from user message
+     */
+    private static function create_fallback_title($user_message) {
+        // Extract key words and create a meaningful title
+        $message = strtolower(trim($user_message));
+        
+        // Common patterns for smart titles
+        if (strpos($message, 'help') !== false && strpos($message, 'with') !== false) {
+            return 'Help Request';
+        } elseif (strpos($message, 'create') !== false || strpos($message, 'make') !== false) {
+            return 'Creation Project';
+        } elseif (strpos($message, 'plan') !== false || strpos($message, 'strategy') !== false) {
+            return 'Planning Session';
+        } elseif (strpos($message, 'write') !== false || strpos($message, 'content') !== false) {
+            return 'Content Writing';
+        } elseif (strpos($message, 'design') !== false) {
+            return 'Design Discussion';
+        } elseif (strpos($message, 'market') !== false) {
+            return 'Marketing Discussion';
+        } elseif (strpos($message, 'brand') !== false) {
+            return 'Brand Development';
+        } elseif (strpos($message, 'website') !== false || strpos($message, 'web') !== false) {
+            return 'Web Development';
+        } elseif (strpos($message, 'question') !== false) {
+            return 'General Questions';
+        } else {
+            // Use first few words as title
+            $words = explode(' ', $message);
+            $title_words = array_slice($words, 0, 3);
+            $title = ucwords(implode(' ', $title_words));
+            return strlen($title) > 3 ? $title : 'General Discussion';
         }
     }
 
@@ -436,7 +478,7 @@ class AIOHM_KB_Core_Init {
         check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
         if (!current_user_can('read')) { wp_send_json_error(['message' => 'Permission denied.']); wp_die(); }
         
-        $project_name = isset($_POST['project_name']) ? sanitize_text_field(stripslashes($_POST['project_name'])) : '';
+        $project_name = isset($_POST['name']) ? sanitize_text_field(stripslashes($_POST['name'])) : '';
         if (empty($project_name)) { wp_send_json_error(['message' => 'Project name cannot be empty.']); wp_die(); }
         
         global $wpdb;
@@ -449,7 +491,7 @@ class AIOHM_KB_Core_Init {
              wp_send_json_error(['message' => 'Could not save the project to the database.']);
         } else {
             $project_id = $wpdb->insert_id;
-            wp_send_json_success(['id' => $project_id, 'name' => $project_name]);
+            wp_send_json_success(['new_project_id' => $project_id, 'name' => $project_name]);
         }
         wp_die();
     }
@@ -473,7 +515,6 @@ class AIOHM_KB_Core_Init {
             $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : null;
 
             if (empty($project_id)) {
-                // This exception message is already clear for the developer.
                 throw new Exception('A project must be selected to start a conversation.');
             }
 
@@ -509,7 +550,7 @@ class AIOHM_KB_Core_Init {
     
             $answer = $ai_client->get_chat_completion($final_system_message, $user_message, $temperature, $model);
 
-            if (is_null($conversation_id)) {
+            if (is_null($conversation_id) || empty($conversation_id)) {
                 // Generate AI-powered conversation title
                 $conversation_title = self::generate_conversation_title($user_message, $ai_client, $model);
                 $conversation_id = self::create_conversation_internal($user_id, $project_id, $conversation_title);
@@ -1944,3 +1985,5 @@ class AIOHM_KB_Core_Init {
         }
     }
 }
+
+} // End class_exists check

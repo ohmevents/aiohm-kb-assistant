@@ -1,6 +1,6 @@
 # AIOHM Knowledge Assistant
 
-**Version:** 1.2.0
+**Version:** 1.1.11
 **Author:** AIOHM
 **Author URI:** [https://aiohm.app](https://aiohm.app)
 **WordPress Compatibility:** 5.0+

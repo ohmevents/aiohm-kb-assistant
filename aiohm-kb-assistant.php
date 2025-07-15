@@ -2,16 +2,18 @@
 /**
  * Plugin Name: AIOHM Knowledge Assistant
  * Plugin URI:  https://aiohm.app
- * Description: Bring your wisdom to life. The AIOHM Knowledge Assistant listens, learns, and speaks in your brand's voice, offering real-time answers, soulful brand support, and intuitive guidance for your visitors.
+ * Description: AI-powered knowledge assistant with chat functionality, conversation management, and smart content generation. Features include project-based conversations, AI-generated titles, PDF exports, and voice-to-text support.
  * Version:     1.1.11
  * Author:      OHM Events Agency
  * Author URI:  https://aiohm.app
  * Text Domain: aiohm-kb-assistant
+ * Domain Path: /languages
  * License:     GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires at least: 5.8
- * Tested up to: 6.5
+ * Tested up to: 6.7
  * Requires PHP: 7.4
+ * Network: false
  */
 
 if (!defined('ABSPATH')) exit;
