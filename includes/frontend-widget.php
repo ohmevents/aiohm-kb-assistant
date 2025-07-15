@@ -22,7 +22,7 @@ class AIOHM_KB_Frontend_Widget {
         
         wp_enqueue_script(
             'aiohm-chat',
-            AIOHM_KB_PLUGIN_URL . 'assets/js/aiohm-chat.js',
+            AIOHM_KB_PLUGIN_URL . 'assets/js/aiohm-chat-shortcode.js',
             array('jquery'),
             AIOHM_KB_VERSION,
             true

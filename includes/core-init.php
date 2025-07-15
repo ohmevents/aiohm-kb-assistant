@@ -5,6 +5,7 @@
  */
 if (!defined('ABSPATH')) exit;
 
+
 class AIOHM_KB_Core_Init {
 
     // ================== START: CONSOLIDATED FIX ==================
@@ -28,6 +29,45 @@ class AIOHM_KB_Core_Init {
         return $result !== false;
     }
     // =================== END: CONSOLIDATED FIX ===================
+
+
+    /**
+     * Generate AI-powered conversation title
+     */
+    private static function generate_conversation_title($user_message, $ai_client, $model) {
+        try {
+            $title_prompt = "Generate a concise, descriptive title (3-6 words) for this conversation based on the user's first message. Do not use quotes or special characters. Examples: 'Brand Strategy Discussion', 'Website Content Planning', 'Marketing Campaign Ideas'. User message: " . substr($user_message, 0, 200);
+            
+            $title = $ai_client->get_chat_completion(
+                "You are a helpful assistant that creates short, descriptive titles for conversations.",
+                $title_prompt,
+                0.3, // Lower temperature for more consistent titles
+                $model
+            );
+            
+            // Clean and validate the title
+            $title = trim(strip_tags($title));
+            $title = preg_replace('/[^\w\s-]/', '', $title); // Remove special chars except hyphens
+            $title = preg_replace('/\s+/', ' ', $title); // Normalize whitespace
+            
+            // Ensure reasonable length
+            if (strlen($title) > 60) {
+                $title = mb_strimwidth($title, 0, 57, '...');
+            }
+            
+            // Fallback to user message excerpt if AI title is too short or empty
+            if (strlen($title) < 3) {
+                $title = mb_strimwidth($user_message, 0, 50, '...');
+            }
+            
+            return $title;
+            
+        } catch (Exception $e) {
+            // Fallback to truncated user message if AI title generation fails
+            AIOHM_KB_Assistant::log('Title generation error: ' . $e->getMessage(), 'warning');
+            return mb_strimwidth($user_message, 0, 50, '...');
+        }
+    }
 
     public static function init() {
         // --- All original action hooks are preserved ---
@@ -67,6 +107,11 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_delete_conversation', array(__CLASS__, 'handle_delete_conversation_ajax'));
         add_action('wp_ajax_aiohm_create_conversation', array(__CLASS__, 'handle_create_conversation_ajax'));
         add_action('wp_ajax_aiohm_upload_project_files', array(__CLASS__, 'handle_upload_project_files_ajax'));
+        add_action('wp_ajax_aiohm_get_brand_soul_content', array(__CLASS__, 'handle_get_brand_soul_content_ajax'));
+        add_action('wp_ajax_aiohm_get_content_for_view', array(__CLASS__, 'handle_get_content_for_view_ajax'));
+        add_action('wp_ajax_aiohm_get_usage_stats', array(__CLASS__, 'handle_get_usage_stats_ajax'));
+        add_action('wp_ajax_aiohm_download_conversation_pdf', array(__CLASS__, 'handle_download_conversation_pdf_ajax'));
+        add_action('wp_ajax_aiohm_add_conversation_to_kb', array(__CLASS__, 'handle_add_conversation_to_kb_ajax'));
     }
     
     /**
@@ -450,12 +495,23 @@ class AIOHM_KB_Core_Init {
             $temperature = floatval($muse_settings['temperature'] ?? 0.7);
             $model = $muse_settings['ai_model'] ?? 'gpt-4';
             
-            $final_system_message = $system_prompt . "\n\n--- CONTEXT ---\n" . $context_string;
+            // Enhanced formatting instructions for better readability
+            $formatting_instructions = "\n\n--- FORMATTING INSTRUCTIONS ---\n" .
+                "Format your responses with clear structure using:\n" .
+                "- **Bold headings** for main topics\n" .
+                "- Bullet points for lists\n" .
+                "- Numbered lists for step-by-step instructions\n" .
+                "- Tables when presenting comparative data\n" .
+                "- Use line breaks for better readability\n" .
+                "- Keep paragraphs concise and focused\n\n";
+            
+            $final_system_message = $system_prompt . $formatting_instructions . "--- CONTEXT ---\n" . $context_string;
     
             $answer = $ai_client->get_chat_completion($final_system_message, $user_message, $temperature, $model);
 
             if (is_null($conversation_id)) {
-                $conversation_title = mb_strimwidth($user_message, 0, 100, '...');
+                // Generate AI-powered conversation title
+                $conversation_title = self::generate_conversation_title($user_message, $ai_client, $model);
                 $conversation_id = self::create_conversation_internal($user_id, $project_id, $conversation_title);
                 if (!$conversation_id) {
                     AIOHM_KB_Assistant::log('Failed to create conversation record.', 'error');
@@ -479,7 +535,7 @@ class AIOHM_KB_Core_Init {
 
     public static function handle_frontend_chat_ajax() {
         if (!check_ajax_referer('aiohm_chat_nonce', 'nonce', false)) {
-            wp_send_json_error(['answer' => 'Security check failed.']);
+            wp_send_json_error(['reply' => 'Security check failed.']);
         }
 
         try {
@@ -502,21 +558,14 @@ class AIOHM_KB_Core_Init {
             }
 
             $system_message = $mirror_settings['qa_system_message'] ?? 'You are a helpful assistant.';
-            
-
-            $temperature = floatval($mirror_settings['temperature'] ?? 0.7);
-            // Change the default model from 'gpt-4' to 'gpt-3.5-turbo' for Mirror Mode consistency
+            $temperature = floatval($mirror_settings['qa_temperature'] ?? 0.8);
             $model = $mirror_settings['ai_model'] ?? 'gpt-3.5-turbo';
             
-            $final_system_message = $system_message . "\n\n--- CONTEXT ---\n" . $context_string;
-    
-            $answer = $ai_client->get_chat_completion($final_system_message, $user_message, $temperature, $model);
-
-
-            
+            // Apply variable replacements to system message
             $replacements = [
                 '{context}'        => $context_string,
                 '%site_name%'      => get_bloginfo('name'),
+                '%site_tagline%'   => get_bloginfo('description'),
                 '%business_name%'  => $mirror_settings['business_name'] ?? get_bloginfo('name'),
                 '%day_of_week%'    => wp_date('l'),
                 '%current_date%'   => wp_date(get_option('date_format')),
@@ -524,13 +573,13 @@ class AIOHM_KB_Core_Init {
             ];
             $final_system_message = str_replace(array_keys($replacements), array_values($replacements), $system_message);
 
-            $answer = $ai_client->get_chat_completion($final_system_message, $user_message, $temperature, $mirror_settings['ai_model'] ?? 'gpt-3.5-turbo');
+            $answer = $ai_client->get_chat_completion($final_system_message, $user_message, $temperature, $model);
 
-            wp_send_json_success(['answer' => $answer]);
+            wp_send_json_success(['reply' => $answer]);
 
         } catch (Exception $e) {
             AIOHM_KB_Assistant::log('Frontend Chat Error: ' . $e->getMessage(), 'error');
-            wp_send_json_error(['answer' => 'An error occurred while processing your request. Please try again.']);
+            wp_send_json_error(['reply' => 'An error occurred while processing your request. Please try again.']);
         }
     }
     
@@ -801,6 +850,15 @@ class AIOHM_KB_Core_Init {
                         wp_send_json_success(['message' => 'Gemini connection successful!']);
                     } else {
                         wp_send_json_error(['message' => 'Gemini connection failed: ' . ($result['error'] ?? 'Unknown error.')]);
+                    }
+                    break;
+                case 'claude':
+                    $ai_client = new AIOHM_KB_AI_GPT_Client(['claude_api_key' => $api_key]);
+                    $result = $ai_client->test_claude_api_connection();
+                    if ($result['success']) {
+                        wp_send_json_success(['message' => 'Claude connection successful!']);
+                    } else {
+                        wp_send_json_error(['message' => 'Claude connection failed: ' . ($result['error'] ?? 'Unknown error.')]);
                     }
                     break;
                 default:
@@ -1518,6 +1576,371 @@ class AIOHM_KB_Core_Init {
         } catch (Exception $e) {
             error_log('Error extracting document content: ' . $e->getMessage());
             return "Document: {$original_name} - Content extraction failed, but file is available for reference.";
+        }
+    }
+
+    /**
+     * Handle AJAX request to get Brand Soul content for viewing
+     */
+    public static function handle_get_brand_soul_content_ajax() {
+        if (!check_ajax_referer('aiohm_admin_nonce', 'nonce', false) || !current_user_can('read')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+            return;
+        }
+
+        $content_id = sanitize_text_field($_POST['content_id'] ?? '');
+        if (empty($content_id)) {
+            wp_send_json_error(['message' => 'Content ID is required.']);
+            return;
+        }
+
+        try {
+            global $wpdb;
+            $rag_engine = new AIOHM_KB_RAG_Engine();
+            $table_name = $rag_engine->get_table_name();
+
+            // Get the brand soul content by content_id
+            $entry = $wpdb->get_row($wpdb->prepare(
+                "SELECT content, title FROM {$table_name} WHERE content_id = %s AND content_type IN ('brand-soul', 'brand_soul') LIMIT 1",
+                $content_id
+            ), ARRAY_A);
+
+            if (!$entry) {
+                wp_send_json_error(['message' => 'Brand Soul content not found.']);
+                return;
+            }
+
+            wp_send_json_success([
+                'content' => $entry['content'],
+                'title' => $entry['title']
+            ]);
+
+        } catch (Exception $e) {
+            error_log('Error retrieving Brand Soul content: ' . $e->getMessage());
+            wp_send_json_error(['message' => 'Error retrieving Brand Soul content.']);
+        }
+    }
+
+    /**
+     * Handle AJAX request to get content for viewing (supports all content types)
+     */
+    public static function handle_get_content_for_view_ajax() {
+        if (!check_ajax_referer('aiohm_admin_nonce', 'nonce', false) || !current_user_can('read')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+            return;
+        }
+
+        $content_id = sanitize_text_field($_POST['content_id'] ?? '');
+        $content_type = sanitize_text_field($_POST['content_type'] ?? '');
+        
+        if (empty($content_id)) {
+            wp_send_json_error(['message' => 'Content ID is required.']);
+            return;
+        }
+
+        try {
+            global $wpdb;
+            $rag_engine = new AIOHM_KB_RAG_Engine();
+            $table_name = $rag_engine->get_table_name();
+
+            // Get the content by content_id
+            $entry = $wpdb->get_row($wpdb->prepare(
+                "SELECT content, title, content_type FROM {$table_name} WHERE content_id = %s LIMIT 1",
+                $content_id
+            ), ARRAY_A);
+
+            if (!$entry) {
+                wp_send_json_error(['message' => 'Content not found.']);
+                return;
+            }
+
+            wp_send_json_success([
+                'content' => $entry['content'],
+                'title' => $entry['title'],
+                'content_type' => $entry['content_type']
+            ]);
+
+        } catch (Exception $e) {
+            error_log('Error retrieving content for view: ' . $e->getMessage());
+            wp_send_json_error(['message' => 'Error retrieving content.']);
+        }
+    }
+
+    /**
+     * Handles the AJAX request to get AI usage statistics
+     */
+    public static function handle_get_usage_stats_ajax() {
+        if (!check_ajax_referer('aiohm_admin_nonce', 'nonce', false) || !current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+            return;
+        }
+
+        try {
+            global $wpdb;
+            
+            // Create usage stats table if it doesn't exist
+            $table_name = $wpdb->prefix . 'aiohm_usage_stats';
+            $charset_collate = $wpdb->get_charset_collate();
+            
+            $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                provider varchar(20) NOT NULL,
+                tokens_used int(11) NOT NULL DEFAULT 0,
+                requests_count int(11) NOT NULL DEFAULT 1,
+                cost_estimate decimal(10,6) NOT NULL DEFAULT 0.000000,
+                usage_date date NOT NULL,
+                created_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY provider_date (provider, usage_date)
+            ) $charset_collate;";
+            
+            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+            dbDelta($sql);
+
+            // Get current date and 30 days ago
+            $today = date('Y-m-d');
+            $thirty_days_ago = date('Y-m-d', strtotime('-30 days'));
+
+            // Calculate total tokens for last 30 days
+            $total_tokens_30d = $wpdb->get_var($wpdb->prepare(
+                "SELECT SUM(tokens_used) FROM $table_name WHERE usage_date >= %s",
+                $thirty_days_ago
+            )) ?: 0;
+
+            // Calculate today's tokens
+            $tokens_today = $wpdb->get_var($wpdb->prepare(
+                "SELECT SUM(tokens_used) FROM $table_name WHERE usage_date = %s",
+                $today
+            )) ?: 0;
+
+            // Calculate estimated cost for last 30 days
+            $estimated_cost = $wpdb->get_var($wpdb->prepare(
+                "SELECT SUM(cost_estimate) FROM $table_name WHERE usage_date >= %s",
+                $thirty_days_ago
+            )) ?: 0;
+
+            // Get breakdown by provider
+            $provider_stats = $wpdb->get_results($wpdb->prepare(
+                "SELECT 
+                    provider,
+                    SUM(tokens_used) as tokens,
+                    SUM(requests_count) as requests,
+                    SUM(cost_estimate) as cost
+                FROM $table_name 
+                WHERE usage_date >= %s 
+                GROUP BY provider",
+                $thirty_days_ago
+            ), ARRAY_A);
+
+            // Format provider data
+            $providers = [
+                'openai' => ['tokens' => 0, 'requests' => 0, 'cost' => '0.00'],
+                'gemini' => ['tokens' => 0, 'requests' => 0, 'cost' => '0.00'],
+                'claude' => ['tokens' => 0, 'requests' => 0, 'cost' => '0.00']
+            ];
+
+            foreach ($provider_stats as $stat) {
+                if (isset($providers[$stat['provider']])) {
+                    $providers[$stat['provider']] = [
+                        'tokens' => (int) $stat['tokens'],
+                        'requests' => (int) $stat['requests'],
+                        'cost' => number_format((float) $stat['cost'], 2)
+                    ];
+                }
+            }
+
+            wp_send_json_success([
+                'total_tokens_30d' => (int) $total_tokens_30d,
+                'tokens_today' => (int) $tokens_today,
+                'estimated_cost' => number_format((float) $estimated_cost, 2),
+                'providers' => $providers
+            ]);
+
+        } catch (Exception $e) {
+            error_log('Error retrieving usage stats: ' . $e->getMessage());
+            wp_send_json_error(['message' => 'Error retrieving usage statistics.']);
+        }
+    }
+
+    /**
+     * Helper function to log AI usage (call this whenever AI APIs are used)
+     */
+    public static function log_ai_usage($provider, $tokens_used, $cost_estimate = 0) {
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix . 'aiohm_usage_stats';
+        $today = date('Y-m-d');
+        
+        // Check if we already have an entry for today and this provider
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, tokens_used, requests_count, cost_estimate FROM $table_name 
+             WHERE provider = %s AND usage_date = %s",
+            $provider, $today
+        ));
+        
+        if ($existing) {
+            // Update existing record
+            $wpdb->update(
+                $table_name,
+                [
+                    'tokens_used' => $existing->tokens_used + $tokens_used,
+                    'requests_count' => $existing->requests_count + 1,
+                    'cost_estimate' => $existing->cost_estimate + $cost_estimate
+                ],
+                ['id' => $existing->id]
+            );
+        } else {
+            // Create new record
+            $wpdb->insert(
+                $table_name,
+                [
+                    'provider' => $provider,
+                    'tokens_used' => $tokens_used,
+                    'requests_count' => 1,
+                    'cost_estimate' => $cost_estimate,
+                    'usage_date' => $today
+                ]
+            );
+        }
+    }
+
+    /**
+     * Handle download conversation as PDF
+     */
+    public static function handle_download_conversation_pdf_ajax() {
+        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false)) {
+            wp_die('Security check failed.');
+        }
+        
+        if (!current_user_can('read')) {
+            wp_die('You do not have permission to access this feature.');
+        }
+        
+        try {
+            $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
+            if (!$conversation_id) {
+                wp_die('Invalid conversation ID.');
+            }
+            
+            global $wpdb;
+            $user_id = get_current_user_id();
+            
+            // Get conversation details
+            $conversation = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}aiohm_conversations WHERE id = %d AND user_id = %d",
+                $conversation_id, $user_id
+            ));
+            
+            if (!$conversation) {
+                wp_die('Conversation not found or access denied.');
+            }
+            
+            // Get all messages for this conversation
+            $messages = $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}aiohm_messages WHERE conversation_id = %d ORDER BY created_at ASC",
+                $conversation_id
+            ));
+            
+            // Include the FPDF library and enhanced PDF class
+            require_once AIOHM_KB_PLUGIN_DIR . 'includes/lib/fpdf/fpdf.php';
+            require_once AIOHM_KB_PLUGIN_DIR . 'includes/class-enhanced-pdf.php';
+            
+            // Create enhanced PDF instance
+            $pdf = new AIOHM_Enhanced_PDF();
+            $pdf->AddPage();
+            
+            // Conversation details
+            $pdf->ChapterTitle('Conversation: ' . $conversation->title);
+            
+            $pdf->SetFont('Arial', '', 10);
+            $pdf->SetTextColor(100);
+            $pdf->Cell(0, 6, 'Created: ' . date('F j, Y g:i A', strtotime($conversation->created_at)), 0, 1);
+            $pdf->Cell(0, 6, 'Project ID: ' . $conversation->project_id, 0, 1);
+            $pdf->Cell(0, 6, 'Generated: ' . date('F j, Y g:i A'), 0, 1);
+            $pdf->Ln(10);
+            
+            // Messages
+            foreach ($messages as $message) {
+                $pdf->MessageBlock($message->sender, $message->content, $message->created_at);
+            }
+            
+            // Output PDF
+            $filename = 'conversation-' . $conversation_id . '-' . date('Y-m-d') . '.pdf';
+            $pdf->Output('D', $filename);
+            exit;
+            
+        } catch (Exception $e) {
+            AIOHM_KB_Assistant::log('PDF Download Error: ' . $e->getMessage(), 'error');
+            wp_die('Error generating PDF: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Handle adding conversation to knowledge base
+     */
+    public static function handle_add_conversation_to_kb_ajax() {
+        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+        
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'You do not have permission to use this feature.']);
+        }
+        
+        try {
+            $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : 0;
+            if (!$conversation_id) {
+                wp_send_json_error(['message' => 'Invalid conversation ID.']);
+            }
+            
+            global $wpdb;
+            $user_id = get_current_user_id();
+            
+            // Get conversation details
+            $conversation = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}aiohm_conversations WHERE id = %d AND user_id = %d",
+                $conversation_id, $user_id
+            ));
+            
+            if (!$conversation) {
+                wp_send_json_error(['message' => 'Conversation not found or access denied.']);
+            }
+            
+            // Get all messages for this conversation
+            $messages = $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}aiohm_messages WHERE conversation_id = %d ORDER BY created_at ASC",
+                $conversation_id
+            ));
+            
+            // Compile conversation content
+            $content = "Conversation: " . $conversation->title . "\n";
+            $content .= "Date: " . $conversation->created_at . "\n\n";
+            
+            foreach ($messages as $message) {
+                $sender = ($message->sender === 'user') ? 'User' : 'Assistant';
+                $content .= $sender . ": " . strip_tags($message->content) . "\n\n";
+            }
+            
+            // Add to knowledge base
+            $vectorizer = new AIOHM_KB_Vectorizer();
+            $result = $vectorizer->add_entry([
+                'title' => 'Conversation: ' . $conversation->title,
+                'content' => $content,
+                'scope' => 'private',
+                'user_id' => $user_id,
+                'source_type' => 'conversation',
+                'source_id' => $conversation_id
+            ]);
+            
+            if ($result) {
+                wp_send_json_success(['message' => 'Conversation added to knowledge base successfully.']);
+            } else {
+                wp_send_json_error(['message' => 'Failed to add conversation to knowledge base.']);
+            }
+            
+        } catch (Exception $e) {
+            AIOHM_KB_Assistant::log('Add to KB Error: ' . $e->getMessage(), 'error');
+            wp_send_json_error(['message' => 'Error adding to KB: ' . $e->getMessage()]);
         }
     }
 }

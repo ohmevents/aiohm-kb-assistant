@@ -35,7 +35,7 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
     <h1><?php _e('Mirror Mode Customization', 'aiohm-kb-assistant'); ?></h1>
     <p class="page-description"><?php _e('Fine-tune your AI\'s personality and appearance on the left, and test your changes in real-time on the right.', 'aiohm-kb-assistant'); ?></p>
 
-    <div id="aiohm-admin-notice" class="notice" style="display:none; margin-top: 10px;"><p></p></div>
+    <div id="aiohm-admin-notice" class="notice is-dismissible" style="display:none; margin-top: 10px;" tabindex="-1" role="alert" aria-live="polite"><p></p></div>
 
     <div class="aiohm-mirror-mode-layout">
         
@@ -179,3 +179,59 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
         </div>
     </div>
 </div>
+
+<script>
+jQuery(document).ready(function($) {
+    // Enhanced admin notice function with accessibility features
+    function showAdminNotice(message, type = 'success', persistent = false) {
+        let $noticeDiv = $('#aiohm-admin-notice');
+        
+        // Create notice div if it doesn't exist
+        if ($noticeDiv.length === 0) {
+            $('<div id="aiohm-admin-notice" class="notice is-dismissible" style="margin-top: 10px;" tabindex="-1" role="alert" aria-live="polite"><p></p></div>').insertAfter('h1');
+            $noticeDiv = $('#aiohm-admin-notice');
+        }
+        
+        // Clear existing classes and add new type
+        $noticeDiv.removeClass('notice-success notice-error notice-warning').addClass('notice-' + type);
+        
+        // Set message content
+        $noticeDiv.find('p').html(message);
+        
+        // Show notice with fade in effect
+        $noticeDiv.fadeIn(300, function() {
+            // Auto-focus for accessibility after fade in completes
+            $noticeDiv.focus();
+            
+            // Announce to screen readers
+            if (type === 'error') {
+                $noticeDiv.attr('aria-live', 'assertive');
+            } else {
+                $noticeDiv.attr('aria-live', 'polite');
+            }
+        });
+        
+        // Handle dismiss button
+        $noticeDiv.off('click.notice-dismiss').on('click.notice-dismiss', '.notice-dismiss', function() {
+            $noticeDiv.fadeOut(300);
+            // Return focus to the previously focused element or main content
+            $('h1').focus();
+        });
+        
+        // Auto-hide after timeout (unless persistent)
+        if (!persistent) {
+            setTimeout(() => {
+                if ($noticeDiv.is(':visible')) {
+                    $noticeDiv.fadeOut(300, function() {
+                        // Return focus to main content when auto-hiding
+                        $('h1').focus();
+                    });
+                }
+            }, 7000); // Increased to 7 seconds for better UX
+        }
+    }
+
+    // If there are any AJAX calls or form submissions in this page,
+    // they should use showAdminNotice instead of alerts
+});
+</script>

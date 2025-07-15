@@ -61,7 +61,7 @@ foreach ($brand_soul_questions as $section) {
     <h1><?php _e('Your Brand Core Questionnaire', 'aiohm-kb-assistant'); ?></h1>
     <p class="page-description"><?php _e('Answer these questions to define the core of your brand. Your answers will help shape your AI assistant\'s voice and knowledge.', 'aiohm-kb-assistant'); ?></p>
 
-    <div id="aiohm-admin-notice" class="notice" style="display:none; margin-top: 10px;"><p></p></div>
+    <div id="aiohm-admin-notice" class="notice is-dismissible" style="display:none; margin-top: 10px;" tabindex="-1" role="alert" aria-live="polite"><p></p></div>
 
     <?php if (!$is_tribe_member_connected) : ?>
         <div class="aiohm-content-locked">
@@ -308,11 +308,53 @@ foreach ($brand_soul_questions as $section) {
             }).fail(() => showAdminNotice('An unexpected server error occurred.', 'error')).always(() => $btn.prop('disabled', false).text('Add to My Knowledge Base'));
         });
     
-        function showAdminNotice(message, type = 'success') {
-            const $notice = $('#aiohm-admin-notice');
-            $notice.removeClass('notice-success notice-error notice-warning notice-info').addClass('notice-' + type).addClass('is-dismissible');
-            $notice.find('p').html(message);
-            $notice.fadeIn().delay(5000).fadeOut();
+        // Enhanced admin notice function with accessibility features
+        function showAdminNotice(message, type = 'success', persistent = false) {
+            let $noticeDiv = $('#aiohm-admin-notice');
+            
+            // Create notice div if it doesn't exist
+            if ($noticeDiv.length === 0) {
+                $('<div id="aiohm-admin-notice" class="notice is-dismissible" style="margin-top: 10px;" tabindex="-1" role="alert" aria-live="polite"><p></p></div>').insertAfter('h1');
+                $noticeDiv = $('#aiohm-admin-notice');
+            }
+            
+            // Clear existing classes and add new type
+            $noticeDiv.removeClass('notice-success notice-error notice-warning notice-info').addClass('notice-' + type);
+            
+            // Set message content
+            $noticeDiv.find('p').html(message);
+            
+            // Show notice with fade in effect
+            $noticeDiv.fadeIn(300, function() {
+                // Auto-focus for accessibility after fade in completes
+                $noticeDiv.focus();
+                
+                // Announce to screen readers
+                if (type === 'error') {
+                    $noticeDiv.attr('aria-live', 'assertive');
+                } else {
+                    $noticeDiv.attr('aria-live', 'polite');
+                }
+            });
+            
+            // Handle dismiss button
+            $noticeDiv.off('click.notice-dismiss').on('click.notice-dismiss', '.notice-dismiss', function() {
+                $noticeDiv.fadeOut(300);
+                // Return focus to the previously focused element or main content
+                $('h1').focus();
+            });
+            
+            // Auto-hide after timeout (unless persistent)
+            if (!persistent) {
+                setTimeout(() => {
+                    if ($noticeDiv.is(':visible')) {
+                        $noticeDiv.fadeOut(300, function() {
+                            // Return focus to main content when auto-hiding
+                            $('h1').focus();
+                        });
+                    }
+                }, 7000); // Increased to 7 seconds for better UX
+            }
         }
 
         // Initial view setup

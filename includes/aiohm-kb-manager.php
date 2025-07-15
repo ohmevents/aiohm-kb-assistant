@@ -43,6 +43,7 @@ class AIOHM_KB_List_Table extends WP_List_Table {
         return $sortable_columns;
     }
 
+
     function column_cb($item) {
         return sprintf('<input type="checkbox" name="entry_ids[]" value="%s" />', esc_attr($item['content_id']));
     }
@@ -57,21 +58,57 @@ class AIOHM_KB_List_Table extends WP_List_Table {
         $is_global = ($item['user_id'] == 0);
         $is_mine = ($item['user_id'] == $current_user_id);
         
-        // Toggle Scope button
+        // Toggle Scope link
         if ($is_global || $is_mine) {
             $new_scope = $is_global ? 'private' : 'public';
             $button_text = $is_global ? 'Make Private' : 'Make Public';
             $action_links_html[] = sprintf(
-                '<button type="button" class="button button-secondary button-small scope-toggle-btn" data-content-id="%s" data-new-scope="%s">%s</button>',
+                '<a href="#" class="scope-toggle-btn" data-content-id="%s" data-new-scope="%s">%s</a>',
                 esc_attr($item['content_id']),
                 $new_scope,
                 $button_text
             );
         }
         
-        // View Original Source button
+        // View Button - Enhanced to handle Brand Soul content type
         $metadata = isset($item['metadata']) ? json_decode($item['metadata'], true) : null;
-        if (is_array($metadata)) {
+        $content_type = $item['content_type'] ?? '';
+        
+        // Enhanced View button logic for different content types
+        
+        // Content types that need modal view (Brand Soul, Brand Core, etc.)
+        if (in_array($content_type, ['brand-soul', 'brand_soul', 'brand-core', 'brand_core', 'github', 'repository', 'contact', 'contact_type'])) {
+            $action_links_html[] = sprintf(
+                '<a href="#" class="view-content-btn" data-content-id="%s" data-content-type="%s">%s</a>',
+                esc_attr($item['content_id']),
+                esc_attr($content_type),
+                __('View', 'aiohm-kb-assistant')
+            );
+        }
+        // PDF files - always show View button (modal or direct link)
+        elseif ($content_type === 'application/pdf') {
+            // Check if we have a direct URL to the PDF
+            if (is_array($metadata) && isset($metadata['attachment_id'])) {
+                $pdf_url = wp_get_attachment_url($metadata['attachment_id']);
+                if ($pdf_url) {
+                    $action_links_html[] = sprintf('<a href="%s" target="_blank" class="view-pdf-btn">%s</a>', esc_url($pdf_url), __('View', 'aiohm-kb-assistant'));
+                }
+            } else {
+                // Show modal view for PDF content
+                $action_links_html[] = sprintf(
+                    '<a href="#" class="view-content-btn" data-content-id="%s" data-content-type="%s">%s</a>',
+                    esc_attr($item['content_id']),
+                    esc_attr($content_type),
+                    __('View', 'aiohm-kb-assistant')
+                );
+            }
+        }
+        // Links/URLs - always show View button
+        elseif (is_array($metadata) && isset($metadata['url'])) {
+            $action_links_html[] = sprintf('<a href="%s" target="_blank" class="view-link-btn">%s</a>', esc_url($metadata['url']), __('View', 'aiohm-kb-assistant'));
+        }
+        // Other content with metadata (posts, pages, attachments)
+        elseif (is_array($metadata)) {
             $view_url = '';
             $view_text = __('View', 'aiohm-kb-assistant');
 
@@ -79,13 +116,20 @@ class AIOHM_KB_List_Table extends WP_List_Table {
                 $view_url = get_permalink($metadata['post_id']);
             } elseif (isset($metadata['attachment_id'])) {
                 $view_url = wp_get_attachment_url($metadata['attachment_id']);
-            } elseif (isset($metadata['url'])) { // For web content that isn't a WordPress post/page/attachment
-                $view_url = $metadata['url'];
             }
 
             if ($view_url) {
-                $action_links_html[] = sprintf('<a href="%s" target="_blank" class="button button-secondary button-small">%s</a>', esc_url($view_url), $view_text);
+                $action_links_html[] = sprintf('<a href="%s" target="_blank">%s</a>', esc_url($view_url), $view_text);
             }
+        }
+        // Fallback: if no metadata but content exists, show modal view
+        elseif (!empty($item['content'])) {
+            $action_links_html[] = sprintf(
+                '<a href="#" class="view-content-btn" data-content-id="%s" data-content-type="%s">%s</a>',
+                esc_attr($item['content_id']),
+                esc_attr($content_type),
+                __('View', 'aiohm-kb-assistant')
+            );
         }
 
         // Delete button
@@ -93,7 +137,7 @@ class AIOHM_KB_List_Table extends WP_List_Table {
         $delete_url = sprintf('?page=%s&action=delete&content_id=%s&_wpnonce=%s', esc_attr($_REQUEST['page']), esc_attr($item['content_id']), $delete_nonce);
         $action_links_html[] = sprintf('<a href="%s" onclick="return confirm(\'Are you sure you want to delete this entry?\')" class="button-link-delete" style="vertical-align: middle;">Delete</a>', $delete_url);
         
-        return '<div style="display: flex; gap: 8px; align-items: center;">' . implode('', $action_links_html) . '</div>';
+        return implode(' | ', $action_links_html);
     }
 
     function get_bulk_actions() {
@@ -134,6 +178,18 @@ class AIOHM_KB_List_Table extends WP_List_Table {
                 } elseif ($type === 'manual') {
                     $display_type = 'Manual';
                     $type_class = 'type-manual';
+                } elseif ($type === 'brand-soul' || $type === 'brand_soul') {
+                    $display_type = 'Brand Soul';
+                    $type_class = 'type-brand-soul';
+                } elseif ($type === 'brand-core' || $type === 'brand_core') {
+                    $display_type = 'Brand Core';
+                    $type_class = 'type-brand-core';
+                } elseif ($type === 'github' || $type === 'repository') {
+                    $display_type = 'GitHub';
+                    $type_class = 'type-github';
+                } elseif ($type === 'contact' || $type === 'contact_type') {
+                    $display_type = 'Contact';
+                    $type_class = 'type-contact';
                 } else {
                     if (strpos($type, '/') !== false) {
                         $main_type = explode('/', $type)[0];
@@ -181,6 +237,10 @@ class AIOHM_KB_List_Table extends WP_List_Table {
                     <option value="text/csv" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'text/csv'); ?>><?php _e('CSV', 'aiohm-kb-assistant'); ?></option>
                     <option value="application/json" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'application/json'); ?>><?php _e('JSON', 'aiohm-kb-assistant'); ?></option>
                     <option value="manual" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'manual'); ?>><?php _e('Manual Entries', 'aiohm-kb-assistant'); ?></option>
+                    <option value="brand-soul" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'brand-soul'); ?>><?php _e('Brand Soul', 'aiohm-kb-assistant'); ?></option>
+                    <option value="brand-core" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'brand-core'); ?>><?php _e('Brand Core', 'aiohm-kb-assistant'); ?></option>
+                    <option value="github" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'github'); ?>><?php _e('GitHub', 'aiohm-kb-assistant'); ?></option>
+                    <option value="contact" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'contact'); ?>><?php _e('Contact', 'aiohm-kb-assistant'); ?></option>
                 </select>
 
                 <label for="filter-visibility" class="screen-reader-text">Filter by Visibility</label>
@@ -208,7 +268,7 @@ class AIOHM_KB_List_Table extends WP_List_Table {
 
     function prepare_items() {
         global $wpdb;
-        $this->_column_headers = [$this->get_columns(), [], []];
+        $this->_column_headers = [$this->get_columns(), [], $this->get_sortable_columns()];
         $per_page = 20;
         $current_page = $this->get_pagenum();
 

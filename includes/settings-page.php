@@ -26,9 +26,101 @@ class AIOHM_KB_Settings_Page {
         include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/footer.php';
     }
 
+    /**
+     * Get the appropriate menu icon based on admin color scheme
+     * @return string Base64 encoded SVG data URI
+     */
+    private function get_menu_icon() {
+        // Detect admin color scheme for dynamic theming
+        $admin_color = get_user_option('admin_color');
+        $is_dark_theme = in_array($admin_color, ['midnight', 'blue', 'coffee', 'ectoplasm', 'ocean']);
+        
+        // Try to load and optimize the actual OHM logo first
+        $logo_path = $is_dark_theme 
+            ? AIOHM_KB_PLUGIN_DIR . 'assets/images/OHM_logo-white.svg'
+            : AIOHM_KB_PLUGIN_DIR . 'assets/images/OHM_logo.svg';
+            
+        if (file_exists($logo_path)) {
+            // Load and optimize the OHM logo for menu use
+            $svg_content = file_get_contents($logo_path);
+            if ($svg_content !== false) {
+                // Create optimized version by extracting key elements and simplifying
+                $optimized_svg = $this->optimize_logo_for_menu($svg_content, $is_dark_theme);
+                return 'data:image/svg+xml;base64,' . base64_encode($optimized_svg);
+            }
+        }
+        
+        // Fallback: Custom designed OHM-inspired icon
+        if ($is_dark_theme) {
+            // White/light icon for dark themes
+            $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="8.5" stroke="rgba(255,255,255,0.8)" stroke-width="0.8" fill="none"/>
+                <circle cx="10" cy="7" r="2" fill="rgba(255,255,255,0.9)"/>
+                <path d="M6 12c1.5-0.8 3-1.2 4-1.2s2.5 0.4 4 1.2" stroke="rgba(255,255,255,0.9)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+                <path d="M7 14.5c1-0.5 2-0.8 3-0.8s2 0.3 3 0.8" stroke="rgba(255,255,255,0.7)" stroke-width="1" stroke-linecap="round" fill="none"/>
+                <circle cx="4.5" cy="10" r="0.8" fill="rgba(255,255,255,0.6)"/>
+                <circle cx="15.5" cy="10" r="0.8" fill="rgba(255,255,255,0.6)"/>
+                <circle cx="10" cy="4.5" r="0.8" fill="rgba(255,255,255,0.6)"/>
+                <circle cx="10" cy="15.5" r="0.8" fill="rgba(255,255,255,0.6)"/>
+            </svg>';
+        } else {
+            // Dark/OHM green icon for light themes
+            $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="8.5" stroke="#1f5014" stroke-width="0.8" fill="none"/>
+                <circle cx="10" cy="7" r="2" fill="#1f5014"/>
+                <path d="M6 12c1.5-0.8 3-1.2 4-1.2s2.5 0.4 4 1.2" stroke="#1f5014" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+                <path d="M7 14.5c1-0.5 2-0.8 3-0.8s2 0.3 3 0.8" stroke="#457d58" stroke-width="1" stroke-linecap="round" fill="none"/>
+                <circle cx="4.5" cy="10" r="0.8" fill="#457d58"/>
+                <circle cx="15.5" cy="10" r="0.8" fill="#457d58"/>
+                <circle cx="10" cy="4.5" r="0.8" fill="#457d58"/>
+                <circle cx="10" cy="15.5" r="0.8" fill="#457d58"/>
+            </svg>';
+        }
+        
+        return 'data:image/svg+xml;base64,' . base64_encode($svg);
+    }
+
+    /**
+     * Optimize the full OHM logo for use as a 20x20 menu icon
+     * @param string $svg_content Original SVG content
+     * @param bool $is_dark_theme Whether we're using dark theme
+     * @return string Optimized SVG
+     */
+    private function optimize_logo_for_menu($svg_content, $is_dark_theme) {
+        // Create a simplified version of the OHM logo that works well at small sizes
+        $fill_color = $is_dark_theme ? '#ffffff' : '#1f5014';
+        $accent_color = $is_dark_theme ? 'rgba(255,255,255,0.7)' : '#457d58';
+        
+        // Simplified OHM logo based on the original complex design
+        $optimized_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+            <g transform="translate(10,10)">
+                <!-- Central circle element -->
+                <circle cx="0" cy="0" r="7.5" stroke="' . $fill_color . '" stroke-width="0.6" fill="none" opacity="0.8"/>
+                
+                <!-- Inner mandala-inspired pattern -->
+                <circle cx="0" cy="-3" r="1.2" fill="' . $fill_color . '"/>
+                <circle cx="2.6" cy="1.5" r="1.2" fill="' . $fill_color . '"/>
+                <circle cx="-2.6" cy="1.5" r="1.2" fill="' . $fill_color . '"/>
+                
+                <!-- Outer energy points -->
+                <circle cx="0" cy="-6.5" r="0.6" fill="' . $accent_color . '"/>
+                <circle cx="4.6" cy="4.6" r="0.6" fill="' . $accent_color . '"/>
+                <circle cx="-4.6" cy="4.6" r="0.6" fill="' . $accent_color . '"/>
+                <circle cx="6.5" cy="0" r="0.6" fill="' . $accent_color . '"/>
+                <circle cx="-6.5" cy="0" r="0.6" fill="' . $accent_color . '"/>
+                
+                <!-- Center connecting lines -->
+                <path d="M-2,2 L2,2" stroke="' . $fill_color . '" stroke-width="0.8" opacity="0.9"/>
+                <path d="M0,-1.5 L0,0.5" stroke="' . $fill_color . '" stroke-width="0.8" opacity="0.9"/>
+            </g>
+        </svg>';
+        
+        return $optimized_svg;
+    }
+
     public function register_admin_pages() {
-        // Main Menu Page
-        add_menu_page('AIOHM Assistant', 'AIOHM', 'manage_options', 'aiohm-dashboard', array($this, 'render_dashboard_page'), AIOHM_KB_PLUGIN_URL . 'assets/images/ohm-icon.png', 60);
+        // Main Menu Page - using dynamic SVG icon
+        add_menu_page('AIOHM Assistant', 'AIOHM', 'manage_options', 'aiohm-dashboard', array($this, 'render_dashboard_page'), $this->get_menu_icon(), 60);
 
         // Submenu Pages
         add_submenu_page('aiohm-dashboard', 'Dashboard', 'Dashboard', 'manage_options', 'aiohm-dashboard', array($this, 'render_dashboard_page'));

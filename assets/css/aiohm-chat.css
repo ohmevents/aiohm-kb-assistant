@@ -59,7 +59,22 @@
     height: 8px;
     border-radius: 50%;
     background-color: #28a745;
+    transition: background-color 0.3s ease;
+}
+
+.aiohm-status-indicator[data-status="ready"] {
+    background-color: #28a745;
     animation: pulse 2s infinite;
+}
+
+.aiohm-status-indicator[data-status="thinking"] {
+    background-color: #ffc107;
+    animation: pulse 1s infinite;
+}
+
+.aiohm-status-indicator[data-status="error"] {
+    background-color: #dc3545;
+    animation: none;
 }
 
 @keyframes pulse {
@@ -160,28 +175,33 @@
 
 .aiohm-chat-input-wrapper {
     display: flex;
-    align-items: center;
-    border: 1px solid var(--ohm-light-bg);
-    border-radius: 8px;
-    padding: 5px;
+    align-items: flex-end;
+    gap: 8px;
+    border: 2px solid var(--ohm-light-bg, #EBEBEB);
+    border-radius: 12px;
+    padding: 8px 12px;
+    background: #fff;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .aiohm-chat-input-wrapper:focus-within {
     border-color: var(--aiohm-primary-color, #457d58);
-    box-shadow: 0 0 0 2px var(--ohm-light-accent);
+    box-shadow: 0 0 0 3px rgba(69, 125, 88, 0.1);
 }
 
 .aiohm-chat-input {
     flex-grow: 1;
     border: none;
-    padding: 8px;
+    padding: 8px 4px;
     background: transparent;
     outline: none;
     box-shadow: none;
     resize: none;
     font-family: var(--ohm-font-secondary);
     font-size: 1em;
+    line-height: 1.4;
+    min-height: 20px;
+    max-height: 120px;
 }
 
 .aiohm-chat-input::placeholder {
@@ -191,19 +211,33 @@
 .aiohm-chat-send-btn {
     background: var(--aiohm-primary-color, #1f5014);
     border: none;
-    border-radius: 5px;
+    border-radius: 6px;
     color: #fff;
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.aiohm-chat-send-btn:hover:not(:disabled) {
+    background: var(--aiohm-primary-color, #457d58);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.aiohm-chat-send-btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .aiohm-chat-send-btn:disabled {
-    background: var(--ohm-muted-accent);
+    background: var(--ohm-muted-accent, #ccc);
     cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .aiohm-chat-branding { text-align: center; }

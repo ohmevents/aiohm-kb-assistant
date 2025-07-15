@@ -51,9 +51,49 @@ jQuery(document).ready(function($) {
         const messageClass = sender.toLowerCase() === 'user' ? 'user' : 'assistant';
         const senderName = sender.toLowerCase() === 'user' ? 'You' : assistantName;
         
+        // Enhanced formatting for AI responses
+        let formattedText = text;
+        if (messageClass === 'assistant') {
+            // Convert markdown-like formatting to HTML
+            formattedText = text
+                // Bold text: **text** -> <strong>text</strong>
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                // Bullet points: - item -> <li>item</li>
+                .replace(/^- (.+)$/gm, '<li>$1</li>')
+                // Numbered lists: 1. item -> <ol><li>item</li></ol>
+                .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+                // Line breaks for better readability
+                .replace(/\n\n/g, '</p><p>')
+                // Tables: | cell | cell | -> proper table HTML (basic)
+                .replace(/\|(.+)\|/g, function(match, content) {
+                    const cells = content.split('|').map(cell => `<td>${cell.trim()}</td>`).join('');
+                    return `<tr>${cells}</tr>`;
+                });
+            
+            // Wrap lists in proper HTML
+            if (formattedText.includes('<li>')) {
+                // Handle bullet points
+                formattedText = formattedText.replace(/(<li>(?:(?!<li>).)*<\/li>)/gs, function(match) {
+                    return '<ul>' + match + '</ul>';
+                });
+                // Handle numbered lists (need to check for numbered pattern)
+                if (/^\d+\./.test(text)) {
+                    formattedText = formattedText.replace(/<ul>/g, '<ol>').replace(/<\/ul>/g, '</ol>');
+                }
+            }
+            
+            // Wrap tables
+            if (formattedText.includes('<tr>')) {
+                formattedText = '<table class="aiohm-response-table">' + formattedText + '</table>';
+            }
+        }
+        
         const messageHTML = `
             <div class="message ${messageClass}">
-                <p><strong>${senderName}:</strong> ${text}</p>
+                <div class="message-content">
+                    <strong>${senderName}:</strong> 
+                    <div class="message-text">${formattedText}</div>
+                </div>
             </div>`;
         conversationPanel.append(messageHTML);
         conversationPanel.scrollTop(conversationPanel[0].scrollHeight);
@@ -300,6 +340,12 @@ jQuery(document).ready(function($) {
 
     conversationList.on('click', '.aiohm-pa-list-item', function(e) {
         e.preventDefault();
+        
+        // Auto-save current project notes before switching conversations
+        if (currentProjectId) {
+            saveNotes(currentProjectId);
+        }
+        
         restoreChatView();
         $('.aiohm-pa-list-item').removeClass('active');
         $(this).addClass('active');
@@ -424,6 +470,141 @@ jQuery(document).ready(function($) {
             return;
         }
         insertResearchPrompt();
+    });
+
+    // Download PDF button handler
+    $('#download-pdf-btn').on('click', function() {
+        if (!currentConversationId) {
+            showNotification('Please start a conversation before downloading PDF.', 'error');
+            return;
+        }
+        
+        const $btn = $(this);
+        const originalTitle = $btn.attr('title');
+        $btn.prop('disabled', true).attr('title', 'Generating PDF...');
+        
+        // Create a form and submit it to trigger PDF download
+        const form = $('<form>', {
+            method: 'POST',
+            action: aiohm_private_chat_params.ajax_url,
+            target: '_blank'
+        });
+        
+        form.append($('<input>', {type: 'hidden', name: 'action', value: 'aiohm_download_conversation_pdf'}));
+        form.append($('<input>', {type: 'hidden', name: 'nonce', value: aiohm_private_chat_params.nonce}));
+        form.append($('<input>', {type: 'hidden', name: 'conversation_id', value: currentConversationId}));
+        
+        $('body').append(form);
+        form.submit();
+        form.remove();
+        
+        setTimeout(() => {
+            $btn.prop('disabled', false).attr('title', originalTitle);
+        }, 3000);
+    });
+
+    // Add to KB button handler
+    $('#add-to-kb-btn').on('click', function() {
+        if (!currentConversationId) {
+            showNotification('Please start a conversation before adding to knowledge base.', 'error');
+            return;
+        }
+        
+        const $btn = $(this);
+        const originalTitle = $btn.attr('title');
+        $btn.prop('disabled', true).attr('title', 'Adding to KB...');
+        
+        performAjaxRequest('aiohm_add_conversation_to_kb', {
+            conversation_id: currentConversationId
+        }).done(function(response) {
+            if (response.success) {
+                showNotification('Conversation added to knowledge base successfully!', 'success');
+            } else {
+                showNotification('Error adding to KB: ' + (response.data.message || 'Unknown error'), 'error');
+            }
+        }).fail(function() {
+            showNotification('Error adding conversation to knowledge base.', 'error');
+        }).always(function() {
+            $btn.prop('disabled', false).attr('title', originalTitle);
+        });
+    });
+
+    // Speech-to-text microphone button handler
+    $('#activate-audio-btn').on('click', function() {
+        if (!currentProjectId) {
+            showNotification('Please select a project first.', 'error');
+            return;
+        }
+        
+        // Check if browser supports speech recognition
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            showNotification('Speech recognition is not supported in your browser.', 'error');
+            return;
+        }
+        
+        const $btn = $(this);
+        const $icon = $btn.find('.dashicons');
+        
+        // Initialize speech recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+        
+        // Start recording
+        $btn.prop('disabled', true).attr('title', 'Listening...');
+        $icon.removeClass('dashicons-microphone').addClass('dashicons-controls-pause');
+        $btn.css('background-color', '#dc3545'); // Red color when recording
+        
+        showNotification('Listening... Speak now!', 'success');
+        
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            if (transcript.trim()) {
+                // Insert the transcribed text into the chat input
+                const currentText = chatInput.val();
+                const newText = currentText ? currentText + ' ' + transcript : transcript;
+                chatInput.val(newText);
+                chatInput.focus();
+                showNotification('Speech captured successfully!', 'success');
+            } else {
+                showNotification('No speech detected. Please try again.', 'error');
+            }
+        };
+        
+        recognition.onerror = function(event) {
+            let errorMessage = 'Speech recognition error: ';
+            switch(event.error) {
+                case 'no-speech':
+                    errorMessage += 'No speech detected.';
+                    break;
+                case 'audio-capture':
+                    errorMessage += 'No microphone found.';
+                    break;
+                case 'not-allowed':
+                    errorMessage += 'Microphone access denied.';
+                    break;
+                default:
+                    errorMessage += event.error;
+            }
+            showNotification(errorMessage, 'error');
+        };
+        
+        recognition.onend = function() {
+            // Reset button state
+            $btn.prop('disabled', false).attr('title', 'Activate voice-to-text');
+            $icon.removeClass('dashicons-controls-pause').addClass('dashicons-microphone');
+            $btn.css('background-color', ''); // Reset color
+        };
+        
+        try {
+            recognition.start();
+        } catch (error) {
+            showNotification('Could not start speech recognition: ' + error.message, 'error');
+            recognition.onend(); // Reset button state
+        }
     });
 
     // ====================================================================
