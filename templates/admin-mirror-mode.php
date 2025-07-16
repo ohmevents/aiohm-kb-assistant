@@ -11,28 +11,6 @@ $all_settings = AIOHM_KB_Assistant::get_settings();
 $settings = $all_settings['mirror_mode'] ?? [];
 $global_settings = $all_settings; // for API keys
 
-// Debug: Show what settings are loaded
-if (isset($_GET['debug'])) {
-    // Force cache clear
-    wp_cache_delete('aiohm_kb_settings', 'options');
-    wp_cache_flush();
-    
-    // Direct database query
-    global $wpdb;
-    $db_result = $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'aiohm_kb_settings'));
-    $db_unserialized = $db_result ? unserialize($db_result) : [];
-    
-    echo '<div style="background: #fff; border: 1px solid #ccc; padding: 10px; margin: 10px 0;">';
-    echo '<h3>DEBUG: Mirror Mode Settings Loaded</h3>';
-    echo '<pre>' . print_r($settings, true) . '</pre>';
-    echo '<h3>DEBUG: Raw Database Option (after cache clear)</h3>';
-    echo '<pre>' . print_r(get_option('aiohm_kb_settings', []), true) . '</pre>';
-    echo '<h3>DEBUG: Direct Database Query</h3>';
-    echo '<pre>' . print_r($db_unserialized, true) . '</pre>';
-    echo '<h3>DEBUG: All Settings Method</h3>';
-    echo '<pre>' . print_r(AIOHM_KB_Assistant::get_settings(), true) . '</pre>';
-    echo '</div>';
-}
 
 // Helper function for color contrast
 function aiohm_is_color_dark($hex) {
@@ -55,8 +33,8 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
 ?>
 
 <div class="wrap aiohm-settings-page aiohm-mirror-mode-page">
-    <h1><?php _e('Mirror Mode Customization', 'aiohm-kb-assistant'); ?></h1>
-    <p class="page-description"><?php _e('Fine-tune your AI\'s personality and appearance on the left, and test your changes in real-time on the right.', 'aiohm-kb-assistant'); ?></p>
+    <h1><?php esc_html_e('Mirror Mode Customization', 'aiohm-kb-assistant'); ?></h1>
+    <p class="page-description"><?php esc_html_e('Fine-tune your AI\'s personality and appearance on the left, and test your changes in real-time on the right.', 'aiohm-kb-assistant'); ?></p>
 
     <div id="aiohm-admin-notice" class="notice is-dismissible" style="display:none; margin-top: 10px;" tabindex="-1" role="alert" aria-live="polite"><p></p></div>
 
@@ -74,8 +52,8 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
 
                 <div class="aiohm-setting-block">
                     <div class="aiohm-setting-header">
-                        <label for="qa_system_message"><?php _e('Soul Signature for Q&A Assistant', 'aiohm-kb-assistant'); ?></label>
-                        <button type="button" id="reset-prompt-btn" class="button-link"><?php _e('Reset to Default', 'aiohm-kb-assistant'); ?></button>
+                        <label for="qa_system_message"><?php esc_html_e('Soul Signature for Q&A Assistant', 'aiohm-kb-assistant'); ?></label>
+                        <button type="button" id="reset-prompt-btn" class="button-link"><?php esc_html_e('Reset to Default', 'aiohm-kb-assistant'); ?></button>
                     </div>
                     <textarea id="qa_system_message" name="aiohm_kb_settings[mirror_mode][qa_system_message]" rows="15"><?php echo esc_textarea($qa_system_message); ?></textarea>
                     <p class="description">This is the core instruction set for your AI.</p>
@@ -141,14 +119,14 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
                 </div>
                 
                 <div class="form-actions">
-                    <button type="button" id="save-mirror-mode-settings" class="button button-primary"><?php _e('Save Mirror Mode Settings', 'aiohm-kb-assistant'); ?></button>
+                    <button type="button" id="save-mirror-mode-settings" class="button button-primary"><?php esc_html_e('Save Mirror Mode Settings', 'aiohm-kb-assistant'); ?></button>
                 </div>
             </form>
         </div>
         
         <div class="aiohm-test-column">
-            <h3><?php _e('Test Your Q&A Assistant', 'aiohm-kb-assistant'); ?></h3>
-            <p class="description"><?php _e('Test your assistant here. To display this on your website, use the shortcode: <code>[aiohm_chat]</code>', 'aiohm-kb-assistant'); ?></p>
+            <h3><?php esc_html_e('Test Your Q&A Assistant', 'aiohm-kb-assistant'); ?></h3>
+            <p class="description"><?php esc_html_e('Test your assistant here. To display this on your website, use the shortcode: <code>[aiohm_chat]</code>', 'aiohm-kb-assistant'); ?></p>
             <div id="aiohm-test-chat" class="aiohm-chat-container">
                 <div class="aiohm-chat-header">
                     <div class="aiohm-chat-title-preview"><?php echo esc_html($settings['business_name'] ?? 'Live Preview'); ?></div>
@@ -160,7 +138,13 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
                 <div class="aiohm-chat-messages">
                     <div class="aiohm-message aiohm-message-bot">
                         <div class="aiohm-message-avatar">
-                            <img src="<?php echo esc_url($settings['ai_avatar'] ?? AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="AI Avatar" class="aiohm-avatar-preview">
+                            <?php
+                            echo wp_kses_post(AIOHM_KB_Core_Init::render_image(
+                                $settings['ai_avatar'] ?? AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png',
+                                esc_attr__('AI Avatar', 'aiohm-kb-assistant'),
+                                ['class' => 'aiohm-avatar-preview']
+                            ));
+                            ?>
                         </div>
                         <div class="aiohm-message-bubble"><div class="aiohm-message-content">Ask a question to test the settings from the left. Your changes are applied instantly here without saving.</div></div>
                     </div>
@@ -199,9 +183,9 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
             </div>
 
             <div class="q-and-a-generator">
-                <h3><?php _e('Generate Sample Q&A', 'aiohm-kb-assistant'); ?></h3>
+                <h3><?php esc_html_e('Generate Sample Q&A', 'aiohm-kb-assistant'); ?></h3>
                 <p class="description">Generate a random question and answer from your knowledge base to test the AI's understanding.</p>
-                <button type="button" id="generate-q-and-a" class="button button-secondary"><?php _e('Generate Sample Q&A', 'aiohm-kb-assistant'); ?></button>
+                <button type="button" id="generate-q-and-a" class="button button-secondary"><?php esc_html_e('Generate Sample Q&A', 'aiohm-kb-assistant'); ?></button>
                 <div id="q-and-a-results" class="q-and-a-container"></div>
             </div>
 

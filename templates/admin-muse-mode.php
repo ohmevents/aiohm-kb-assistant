@@ -14,28 +14,6 @@ $all_settings = AIOHM_KB_Assistant::get_settings();
 $settings = $all_settings['muse_mode'] ?? [];
 $global_settings = $all_settings;
 
-// Debug: Show what settings are loaded
-if (isset($_GET['debug'])) {
-    // Force cache clear
-    wp_cache_delete('aiohm_kb_settings', 'options');
-    wp_cache_flush();
-    
-    // Direct database query
-    global $wpdb;
-    $db_result = $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'aiohm_kb_settings'));
-    $db_unserialized = $db_result ? unserialize($db_result) : [];
-    
-    echo '<div style="background: #fff; border: 1px solid #ccc; padding: 10px; margin: 10px 0;">';
-    echo '<h3>DEBUG: Muse Mode Settings Loaded</h3>';
-    echo '<pre>' . print_r($settings, true) . '</pre>';
-    echo '<h3>DEBUG: Raw Database Option (after cache clear)</h3>';
-    echo '<pre>' . print_r(get_option('aiohm_kb_settings', []), true) . '</pre>';
-    echo '<h3>DEBUG: Direct Database Query</h3>';
-    echo '<pre>' . print_r($db_unserialized, true) . '</pre>';
-    echo '<h3>DEBUG: All Settings Method</h3>';
-    echo '<pre>' . print_r(AIOHM_KB_Assistant::get_settings(), true) . '</pre>';
-    echo '</div>';
-}
 
 // --- START: Archetype Prompts ---
 $archetype_prompts = [
@@ -63,8 +41,8 @@ $brand_archetypes = [
 ?>
 
 <div class="wrap aiohm-settings-page aiohm-muse-mode-page">
-    <h1><?php _e('Muse Mode Customization', 'aiohm-kb-assistant'); ?></h1>
-    <p class="page-description"><?php _e('Here, you attune your AI to be a true creative partner. Define its energetic signature and workflow to transform your brand dialogue.', 'aiohm-kb-assistant'); ?></p>
+    <h1><?php esc_html_e('Muse Mode Customization', 'aiohm-kb-assistant'); ?></h1>
+    <p class="page-description"><?php esc_html_e('Here, you attune your AI to be a true creative partner. Define its energetic signature and workflow to transform your brand dialogue.', 'aiohm-kb-assistant'); ?></p>
 
     <div id="aiohm-admin-notice" class="notice is-dismissible" style="display:none; margin-top: 10px;" tabindex="-1" role="alert" aria-live="polite"><p></p></div>
 
@@ -77,32 +55,32 @@ $brand_archetypes = [
                 <div class="aiohm-settings-section">
 
                     <div class="aiohm-setting-block">
-                        <label for="assistant_name"><?php _e('1. Brand Assistant Name', 'aiohm-kb-assistant'); ?></label>
+                        <label for="assistant_name"><?php esc_html_e('1. Brand Assistant Name', 'aiohm-kb-assistant'); ?></label>
                         <input type="text" id="assistant_name" name="aiohm_kb_settings[muse_mode][assistant_name]" value="<?php echo esc_attr($settings['assistant_name'] ?? 'Muse'); ?>">
                     </div>
 
                     <div class="aiohm-setting-block">
-                        <label for="brand_archetype"><?php _e('2. Brand Archetype', 'aiohm-kb-assistant'); ?></label>
+                        <label for="brand_archetype"><?php esc_html_e('2. Brand Archetype', 'aiohm-kb-assistant'); ?></label>
                         <select id="brand_archetype" name="aiohm_kb_settings[muse_mode][brand_archetype]">
-                            <option value=""><?php _e('-- Select an Archetype --', 'aiohm-kb-assistant'); ?></option>
+                            <option value=""><?php esc_html_e('-- Select an Archetype --', 'aiohm-kb-assistant'); ?></option>
                             <?php foreach ($brand_archetypes as $key => $label) : ?>
                                 <option value="<?php echo esc_attr($key); ?>" <?php selected($settings['brand_archetype'] ?? '', $key); ?>><?php echo esc_html($label); ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <p class="description"><?php _e('Select an archetype to give your Muse a foundational personality.', 'aiohm-kb-assistant'); ?></p>
+                        <p class="description"><?php esc_html_e('Select an archetype to give your Muse a foundational personality.', 'aiohm-kb-assistant'); ?></p>
                     </div>
 
                     <div class="aiohm-setting-block">
                         <div class="aiohm-setting-header">
-                            <label for="system_prompt"><?php _e('3. Soul Signature Brand Assistant', 'aiohm-kb-assistant'); ?></label>
-                            <button type="button" id="reset-prompt-btn" class="button-link"><?php _e('Reset to Default', 'aiohm-kb-assistant'); ?></button>
+                            <label for="system_prompt"><?php esc_html_e('3. Soul Signature Brand Assistant', 'aiohm-kb-assistant'); ?></label>
+                            <button type="button" id="reset-prompt-btn" class="button-link"><?php esc_html_e('Reset to Default', 'aiohm-kb-assistant'); ?></button>
                         </div>
                         <textarea id="system_prompt" name="aiohm_kb_settings[muse_mode][system_prompt]" rows="10"><?php echo esc_textarea($system_prompt); ?></textarea>
-                        <p class="description"><?php _e('This is the core instruction set for your AI. Selecting an archetype will provide a starting template.', 'aiohm-kb-assistant'); ?></p>
+                        <p class="description"><?php esc_html_e('This is the core instruction set for your AI. Selecting an archetype will provide a starting template.', 'aiohm-kb-assistant'); ?></p>
                     </div>
 
                     <div class="aiohm-setting-block">
-    <label for="ai_model_selector"><?php _e('4. AI Model', 'aiohm-kb-assistant'); ?></label>
+    <label for="ai_model_selector"><?php esc_html_e('4. AI Model', 'aiohm-kb-assistant'); ?></label>
     <select id="ai_model_selector" name="aiohm_kb_settings[muse_mode][ai_model]">
         <?php if (!empty($global_settings['openai_api_key'])): ?>
             <option value="gpt-3.5-turbo" <?php selected($settings['ai_model'] ?? 'gpt-3.5-turbo', 'gpt-3.5-turbo'); ?>>OpenAI: GPT-3.5 Turbo</option>
@@ -118,29 +96,29 @@ $brand_archetypes = [
 </div>
 
                     <div class="aiohm-setting-block">
-                        <label for="temperature"><?php _e('5. Temperature:', 'aiohm-kb-assistant'); ?> <span class="temp-value"><?php echo esc_attr($settings['temperature'] ?? '0.7'); ?></span></label>
+                        <label for="temperature"><?php esc_html_e('5. Temperature:', 'aiohm-kb-assistant'); ?> <span class="temp-value"><?php echo esc_attr($settings['temperature'] ?? '0.7'); ?></span></label>
                         <input type="range" id="temperature" name="aiohm_kb_settings[muse_mode][temperature]" value="<?php echo esc_attr($settings['temperature'] ?? '0.7'); ?>" min="0" max="1" step="0.1">
-                        <p class="description"><?php _e('Lower is more predictable; higher is more creative.', 'aiohm-kb-assistant'); ?></p>
+                        <p class="description"><?php esc_html_e('Lower is more predictable; higher is more creative.', 'aiohm-kb-assistant'); ?></p>
                     </div>
                     
                     <div class="aiohm-setting-block">
                         <label for="start_fullscreen">
                             <input type="checkbox" id="start_fullscreen" name="aiohm_kb_settings[muse_mode][start_fullscreen]" value="1" <?php checked($settings['start_fullscreen'] ?? false); ?>>
-                            <?php _e('Start in Fullscreen Mode', 'aiohm-kb-assistant'); ?>
+                            <?php esc_html_e('Start in Fullscreen Mode', 'aiohm-kb-assistant'); ?>
                         </label>
-                        <p class="description"><?php _e('Check this to make the private assistant always open in fullscreen.', 'aiohm-kb-assistant'); ?></p>
+                        <p class="description"><?php esc_html_e('Check this to make the private assistant always open in fullscreen.', 'aiohm-kb-assistant'); ?></p>
                     </div>
 
                 </div>
                 <div class="form-actions">
-                    <button type="button" id="save-muse-mode-settings" class="button button-primary"><?php _e('Save Muse Settings', 'aiohm-kb-assistant'); ?></button>
+                    <button type="button" id="save-muse-mode-settings" class="button button-primary"><?php esc_html_e('Save Muse Settings', 'aiohm-kb-assistant'); ?></button>
                 </div>
             </form>
         </div>
         
         <div class="aiohm-test-column">
-            <h3><?php _e('Test Your Muse Assistant', 'aiohm-kb-assistant'); ?></h3>
-            <p class="description"><?php _e('Test your assistant here. For the full experience, use the shortcode: <code>[aiohm_private_assistant]</code> on a new page', 'aiohm-kb-assistant'); ?></p>
+            <h3><?php esc_html_e('Test Your Muse Assistant', 'aiohm-kb-assistant'); ?></h3>
+            <p class="description"><?php esc_html_e('Test your assistant here. For the full experience, use the shortcode: <code>[aiohm_private_assistant]</code> on a new page', 'aiohm-kb-assistant'); ?></p>
             <div id="aiohm-test-chat" class="aiohm-chat-container">
                 <div class="aiohm-chat-header">
                     <div class="aiohm-chat-title-preview"><?php echo esc_html($settings['assistant_name'] ?? 'Muse'); ?></div>
@@ -148,7 +126,13 @@ $brand_archetypes = [
                 <div class="aiohm-chat-messages">
                     <div class="aiohm-message aiohm-message-bot">
                         <div class="aiohm-message-avatar">
-                            <img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="AI Avatar" class="aiohm-avatar-preview">
+                            <?php
+                            echo wp_kses_post(AIOHM_KB_Core_Init::render_image(
+                                AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png',
+                                esc_attr__('AI Avatar', 'aiohm-kb-assistant'),
+                                ['class' => 'aiohm-avatar-preview']
+                            ));
+                            ?>
                         </div>
                         <div class="aiohm-message-bubble"><div class="aiohm-message-content">I'm your private brand assistant. Ask me to help you create content or brainstorm ideas.</div></div>
                     </div>
@@ -161,7 +145,7 @@ $brand_archetypes = [
                 </div>
             </div>
             <div class="aiohm-search-container-wrapper">
-                <h3><?php _e('Test Knowledge Base Context', 'aiohm-kb-assistant'); ?></h3>
+                <h3><?php esc_html_e('Test Knowledge Base Context', 'aiohm-kb-assistant'); ?></h3>
                 <p class="description">Check what information the AI can find in your knowledge base for a given query.</p>
                 <div class="aiohm-search-controls">
                     <div class="aiohm-search-form">

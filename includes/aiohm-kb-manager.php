@@ -229,37 +229,37 @@ class AIOHM_KB_List_Table extends WP_List_Table {
             <div class="alignleft actions filters-block">
                 <label for="filter-content-type" class="screen-reader-text">Filter by Content Type</label>
                 <select name="content_type" id="filter-content-type">
-                    <option value=""><?php _e('All Types', 'aiohm-kb-assistant'); ?></option>
-                    <option value="post" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'post'); ?>><?php _e('Posts', 'aiohm-kb-assistant'); ?></option>
-                    <option value="page" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'page'); ?>><?php _e('Pages', 'aiohm-kb-assistant'); ?></option>
-                    <option value="application/pdf" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'application/pdf'); ?>><?php _e('PDFs', 'aiohm-kb-assistant'); ?></option>
-                    <option value="text/plain" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'text/plain'); ?>><?php _e('TXT', 'aiohm-kb-assistant'); ?></option>
-                    <option value="text/csv" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'text/csv'); ?>><?php _e('CSV', 'aiohm-kb-assistant'); ?></option>
-                    <option value="application/json" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'application/json'); ?>><?php _e('JSON', 'aiohm-kb-assistant'); ?></option>
-                    <option value="manual" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'manual'); ?>><?php _e('Manual Entries', 'aiohm-kb-assistant'); ?></option>
-                    <option value="brand-soul" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'brand-soul'); ?>><?php _e('Brand Soul', 'aiohm-kb-assistant'); ?></option>
-                    <option value="brand-core" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'brand-core'); ?>><?php _e('Brand Core', 'aiohm-kb-assistant'); ?></option>
-                    <option value="github" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'github'); ?>><?php _e('GitHub', 'aiohm-kb-assistant'); ?></option>
-                    <option value="contact" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'contact'); ?>><?php _e('Contact', 'aiohm-kb-assistant'); ?></option>
+                    <option value=""><?php esc_html_e('All Types', 'aiohm-kb-assistant'); ?></option>
+                    <option value="post" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'post'); ?>><?php esc_html_e('Posts', 'aiohm-kb-assistant'); ?></option>
+                    <option value="page" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'page'); ?>><?php esc_html_e('Pages', 'aiohm-kb-assistant'); ?></option>
+                    <option value="application/pdf" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'application/pdf'); ?>><?php esc_html_e('PDFs', 'aiohm-kb-assistant'); ?></option>
+                    <option value="text/plain" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'text/plain'); ?>><?php esc_html_e('TXT', 'aiohm-kb-assistant'); ?></option>
+                    <option value="text/csv" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'text/csv'); ?>><?php esc_html_e('CSV', 'aiohm-kb-assistant'); ?></option>
+                    <option value="application/json" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'application/json'); ?>><?php esc_html_e('JSON', 'aiohm-kb-assistant'); ?></option>
+                    <option value="manual" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'manual'); ?>><?php esc_html_e('Manual Entries', 'aiohm-kb-assistant'); ?></option>
+                    <option value="brand-soul" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'brand-soul'); ?>><?php esc_html_e('Brand Soul', 'aiohm-kb-assistant'); ?></option>
+                    <option value="brand-core" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'brand-core'); ?>><?php esc_html_e('Brand Core', 'aiohm-kb-assistant'); ?></option>
+                    <option value="github" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'github'); ?>><?php esc_html_e('GitHub', 'aiohm-kb-assistant'); ?></option>
+                    <option value="contact" <?php selected(isset($_GET['content_type']) ? $_GET['content_type'] : '', 'contact'); ?>><?php esc_html_e('Contact', 'aiohm-kb-assistant'); ?></option>
                 </select>
 
                 <label for="filter-visibility" class="screen-reader-text">Filter by Visibility</label>
                 <select name="visibility" id="filter-visibility">
-                    <option value=""><?php _e('All Visibility', 'aiohm-kb-assistant'); ?></option>
-                    <option value="public" <?php selected(isset($_GET['visibility']) ? $_GET['visibility'] : '', 'public'); ?>><?php _e('Public', 'aiohm-kb-assistant'); ?></option>
-                    <option value="private" <?php selected(isset($_GET['visibility']) ? $_GET['visibility'] : '', 'private'); ?>><?php _e('Private', 'aiohm-kb-assistant'); ?></option>
+                    <option value=""><?php esc_html_e('All Visibility', 'aiohm-kb-assistant'); ?></option>
+                    <option value="public" <?php selected(isset($_GET['visibility']) ? $_GET['visibility'] : '', 'public'); ?>><?php esc_html_e('Public', 'aiohm-kb-assistant'); ?></option>
+                    <option value="private" <?php selected(isset($_GET['visibility']) ? $_GET['visibility'] : '', 'private'); ?>><?php esc_html_e('Private', 'aiohm-kb-assistant'); ?></option>
                 </select>
 
                 <label for="filter-date-range" class="screen-reader-text">Filter by Date Range</label>
                 <select name="date_range" id="filter-date-range">
-                    <option value=""><?php _e('All Dates', 'aiohm-kb-assistant'); ?></option>
-                    <option value="last_7_days" <?php selected(isset($_GET['date_range']) ? $_GET['date_range'] : '', 'last_7_days'); ?>><?php _e('Last 7 Days', 'aiohm-kb-assistant'); ?></option>
-                    <option value="last_30_days" <?php selected(isset($_GET['date_range']) ? $_GET['date_range'] : '', 'last_30_days'); ?>><?php _e('Last 30 Days', 'aiohm-kb-assistant'); ?></option>
-                    <option value="this_month" <?php selected(isset($_GET['date_range']) ? $_GET['date_range'] : '', 'this_month'); ?>><?php _e('This Month', 'aiohm-kb-assistant'); ?></option>
-                    <option value="this_year" <?php selected(isset($_GET['date_range']) ? $_GET['date_range'] : '', 'this_year'); ?>><?php _e('This Year', 'aiohm-kb-assistant'); ?></option>
+                    <option value=""><?php esc_html_e('All Dates', 'aiohm-kb-assistant'); ?></option>
+                    <option value="last_7_days" <?php selected(isset($_GET['date_range']) ? $_GET['date_range'] : '', 'last_7_days'); ?>><?php esc_html_e('Last 7 Days', 'aiohm-kb-assistant'); ?></option>
+                    <option value="last_30_days" <?php selected(isset($_GET['date_range']) ? $_GET['date_range'] : '', 'last_30_days'); ?>><?php esc_html_e('Last 30 Days', 'aiohm-kb-assistant'); ?></option>
+                    <option value="this_month" <?php selected(isset($_GET['date_range']) ? $_GET['date_range'] : '', 'this_month'); ?>><?php esc_html_e('This Month', 'aiohm-kb-assistant'); ?></option>
+                    <option value="this_year" <?php selected(isset($_GET['date_range']) ? $_GET['date_range'] : '', 'this_year'); ?>><?php esc_html_e('This Year', 'aiohm-kb-assistant'); ?></option>
                 </select>
 
-                <?php submit_button(__('Filter'), 'button', false, false, ['id' => 'post-query-submit']); ?>
+                <?php submit_button(__('Filter', 'aiohm-kb-assistant'), 'button', false, false, ['id' => 'post-query-submit']); ?>
             </div>
             <?php
         }

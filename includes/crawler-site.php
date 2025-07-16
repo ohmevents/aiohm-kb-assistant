@@ -40,15 +40,39 @@ class AIOHM_KB_Site_Crawler {
     }
 
     public function get_scan_stats() {
+        global $wpdb;
+        
         $total_posts = wp_count_posts('post')->publish;
         $total_pages = wp_count_posts('page')->publish;
         
-        $indexed_posts = (new WP_Query(['post_type' => 'post', 'post_status' => 'publish', 'posts_per_page' => -1, 'meta_key' => '_aiohm_indexed', 'fields' => 'ids']))->post_count;
-        $indexed_pages = (new WP_Query(['post_type' => 'page', 'post_status' => 'publish', 'posts_per_page' => -1, 'meta_key' => '_aiohm_indexed', 'fields' => 'ids']))->post_count;
+        // Use direct database queries to avoid meta_query warnings
+        $indexed_posts = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(DISTINCT p.ID) 
+             FROM {$wpdb->posts} p 
+             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
+             WHERE p.post_type = %s 
+             AND p.post_status = %s 
+             AND pm.meta_key = %s",
+            'post',
+            'publish',
+            '_aiohm_indexed'
+        ));
+        
+        $indexed_pages = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(DISTINCT p.ID) 
+             FROM {$wpdb->posts} p 
+             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
+             WHERE p.post_type = %s 
+             AND p.post_status = %s 
+             AND pm.meta_key = %s",
+            'page',
+            'publish',
+            '_aiohm_indexed'
+        ));
 
         return [
-            'posts' => ['total' => $total_posts, 'indexed' => $indexed_posts, 'pending' => $total_posts - $indexed_posts],
-            'pages' => ['total' => $total_pages, 'indexed' => $indexed_pages, 'pending' => $total_pages - $indexed_pages]
+            'posts' => ['total' => $total_posts, 'indexed' => (int)$indexed_posts, 'pending' => $total_posts - (int)$indexed_posts],
+            'pages' => ['total' => $total_pages, 'indexed' => (int)$indexed_pages, 'pending' => $total_pages - (int)$indexed_pages]
         ];
     }
 

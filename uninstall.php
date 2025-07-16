@@ -33,7 +33,7 @@ $tables_to_drop = array(
 );
 
 foreach ($tables_to_drop as $table) {
-    $wpdb->query("DROP TABLE IF EXISTS {$table}");
+    $wpdb->query($wpdb->prepare("DROP TABLE IF EXISTS %s", $table));
 }
 
 // Remove scheduled hooks

@@ -139,15 +139,9 @@ class AIOHM_KB_Assistant {
                 'ai_model' => 'gpt-4',
             ]
         ];
-        // Add debug logging
-        error_log('=== GET_SETTINGS DEBUG ===');
-        error_log('Getting option aiohm_kb_settings from database...');
-        
         $saved_settings = get_option('aiohm_kb_settings', []);
-        error_log('Raw saved settings from DB: ' . print_r($saved_settings, true));
         
         $settings = wp_parse_args($saved_settings, $default_settings);
-        error_log('After wp_parse_args with defaults: ' . print_r($settings, true));
         
         // Fix: Don't override saved values with defaults
         if (isset($saved_settings['mirror_mode'])) {
@@ -162,14 +156,6 @@ class AIOHM_KB_Assistant {
             $settings['muse_mode'] = $default_settings['muse_mode'];
         }
         
-        error_log('Final settings being returned: ' . print_r($settings, true));
-        error_log('=== END GET_SETTINGS DEBUG ===');
-
-        // Check if settings were unexpectedly cleared
-        if (empty($saved_settings['mirror_mode']) && empty($saved_settings['muse_mode'])) {
-            error_log('WARNING: Mirror/Muse mode settings are missing from database!');
-            error_log('This might indicate another process is clearing the settings.');
-        }
         
         return $settings;
     }
@@ -252,9 +238,9 @@ class AIOHM_KB_Assistant {
     
         // This secondary check is no longer strictly necessary but is kept as a safeguard.
         $table_name_conversations = $wpdb->prefix . 'aiohm_conversations';
-        if($wpdb->get_var("SHOW TABLES LIKE '$table_name_conversations'") == $table_name_conversations) {
-            if ($wpdb->get_var("SHOW COLUMNS FROM `{$table_name_conversations}` LIKE 'project_id'") != 'project_id') {
-                $wpdb->query("ALTER TABLE `{$table_name_conversations}` ADD `project_id` mediumint(9) NOT NULL DEFAULT 0;");
+        if($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name_conversations)) == $table_name_conversations) {
+            if ($wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM `%s` LIKE 'project_id'", $table_name_conversations)) != 'project_id') {
+                $wpdb->query($wpdb->prepare("ALTER TABLE `%s` ADD `project_id` mediumint(9) NOT NULL DEFAULT 0", $table_name_conversations));
             }
         }
     }
@@ -286,8 +272,8 @@ class AIOHM_KB_Assistant {
     }
 
     public static function log($message, $level = 'info') {
-        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG === true) {
-            error_log('[AIOHM_KB_Assistant] ' . strtoupper($level) . ': ' . print_r($message, true));
+        if (defined('WP_DEBUG') && WP_DEBUG === true && defined('WP_DEBUG_LOG') && WP_DEBUG_LOG === true) {
+            error_log('[AIOHM_KB_Assistant] ' . strtoupper($level) . ': ' . $message);
         }
     }
 

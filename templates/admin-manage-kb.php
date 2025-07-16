@@ -10,9 +10,9 @@ include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/header.php';
 ?>
 
 <div class="wrap aiohm-manage-kb-page">
-    <h1 class="wp-heading-inline"><?php _e('Manage Knowledge Base', 'aiohm-kb-assistant'); ?></h1>
-    <a href="<?php echo esc_url(add_query_arg(['page' => 'aiohm-scan-content'], admin_url('admin.php'))); ?>" class="page-title-action"><?php _e('Add New Content', 'aiohm-kb-assistant'); ?></a>
-    <p class="page-description"><?php _e('View, organize, and manage all your knowledge base entries in one place.', 'aiohm-kb-assistant'); ?></p>
+    <h1 class="wp-heading-inline"><?php esc_html_e('Manage Knowledge Base', 'aiohm-kb-assistant'); ?></h1>
+    <a href="<?php echo esc_url(add_query_arg(['page' => 'aiohm-scan-content'], admin_url('admin.php'))); ?>" class="page-title-action"><?php esc_html_e('Add New Content', 'aiohm-kb-assistant'); ?></a>
+    <p class="page-description"><?php esc_html_e('View, organize, and manage all your knowledge base entries in one place.', 'aiohm-kb-assistant'); ?></p>
 
     <div id="aiohm-admin-notice" class="notice is-dismissible" style="display:none; margin-top: 10px;" tabindex="-1" role="alert" aria-live="polite"><p></p></div>
 
@@ -21,23 +21,23 @@ include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/header.php';
     <div class="aiohm-knowledge-intro">
         <div class="knowledge-section public-section">
             <div class="section-header">
-                <h3><span class="section-icon">🌍</span> <?php _e('Public Knowledge (Mirror Mode)', 'aiohm-kb-assistant'); ?></h3>
+                <h3><span class="section-icon">🌍</span> <?php esc_html_e('Public Knowledge (Mirror Mode)', 'aiohm-kb-assistant'); ?></h3>
                 <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-mirror-mode')); ?>" class="button button-secondary section-link">
-                    <span class="dashicons dashicons-admin-settings"></span> <?php _e('Configure Mirror Mode', 'aiohm-kb-assistant'); ?>
+                    <span class="dashicons dashicons-admin-settings"></span> <?php esc_html_e('Configure Mirror Mode', 'aiohm-kb-assistant'); ?>
                 </a>
             </div>
-            <p><?php _e('<strong>Public</strong> entries are part of the global knowledge base. They are used by your AI assistant to answer questions from any website visitor.', 'aiohm-kb-assistant'); ?></p>
-            <p><?php _e('This is perfect for general support, FAQs, and public information about your brand.', 'aiohm-kb-assistant'); ?></p>
+            <p><?php esc_html_e('<strong>Public</strong> entries are part of the global knowledge base. They are used by your AI assistant to answer questions from any website visitor.', 'aiohm-kb-assistant'); ?></p>
+            <p><?php esc_html_e('This is perfect for general support, FAQs, and public information about your brand.', 'aiohm-kb-assistant'); ?></p>
         </div>
         <div class="knowledge-section private-section">
             <div class="section-header">
-                <h3><span class="section-icon">🔒</span> <?php _e('Private Knowledge (Muse Mode)', 'aiohm-kb-assistant'); ?></h3>
+                <h3><span class="section-icon">🔒</span> <?php esc_html_e('Private Knowledge (Muse Mode)', 'aiohm-kb-assistant'); ?></h3>
                 <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-muse-mode')); ?>" class="button button-secondary section-link">
-                    <span class="dashicons dashicons-admin-settings"></span> <?php _e('Configure Muse Mode', 'aiohm-kb-assistant'); ?>
+                    <span class="dashicons dashicons-admin-settings"></span> <?php esc_html_e('Configure Muse Mode', 'aiohm-kb-assistant'); ?>
                 </a>
             </div>
-            <p><?php _e('<strong>Private</strong> entries are only accessible to you when using the Brand Assistant chat (Muse Mode).', 'aiohm-kb-assistant'); ?></p>
-            <p><?php _e('Use this for personal notes, strategic insights, or confidential brand guidelines that only you should access.', 'aiohm-kb-assistant'); ?></p>
+            <p><?php esc_html_e('<strong>Private</strong> entries are only accessible to you when using the Brand Assistant chat (Muse Mode).', 'aiohm-kb-assistant'); ?></p>
+            <p><?php esc_html_e('Use this for personal notes, strategic insights, or confidential brand guidelines that only you should access.', 'aiohm-kb-assistant'); ?></p>
         </div>
     </div>
 
@@ -58,32 +58,32 @@ include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/header.php';
         <form method="post" action="options.php">
             <?php settings_fields('aiohm_kb_settings'); ?>
             <div class="aiohm-settings-section">
-                <h2><?php _e('Knowledge Base Actions', 'aiohm-kb-assistant'); ?></h2>
+                <h2><?php esc_html_e('Knowledge Base Actions', 'aiohm-kb-assistant'); ?></h2>
                 <div class="actions-grid-wrapper">
 
                     <div class="action-box">
-                        <h3><?php _e('Export Knowledge Base', 'aiohm-kb-assistant'); ?></h3>
-                        <p class="description"><?php _e('Create a complete JSON backup of your public knowledge base entries.', 'aiohm-kb-assistant'); ?></p>
-                        <button type="button" class="button button-primary button-hero" id="export-kb-btn"><span class="dashicons dashicons-download"></span> <?php _e('Export KB', 'aiohm-kb-assistant'); ?></button>
+                        <h3><?php esc_html_e('Export Knowledge Base', 'aiohm-kb-assistant'); ?></h3>
+                        <p class="description"><?php esc_html_e('Create a complete JSON backup of your public knowledge base entries.', 'aiohm-kb-assistant'); ?></p>
+                        <button type="button" class="button button-primary button-hero" id="export-kb-btn"><span class="dashicons dashicons-download"></span> <?php esc_html_e('Export KB', 'aiohm-kb-assistant'); ?></button>
                     </div>
 
                     <div class="action-box">
-                        <h3><?php _e('Restore Knowledge Base', 'aiohm-kb-assistant'); ?></h3>
-                        <p class="description"><?php _e('Overwrite all existing public knowledge base entries from a previously saved JSON file.', 'aiohm-kb-assistant'); ?></p>
+                        <h3><?php esc_html_e('Restore Knowledge Base', 'aiohm-kb-assistant'); ?></h3>
+                        <p class="description"><?php esc_html_e('Overwrite all existing public knowledge base entries from a previously saved JSON file.', 'aiohm-kb-assistant'); ?></p>
                         <div class="restore-controls">
                             <div class="file-input-group">
                                 <input type="file" id="restore-kb-file" accept=".json" style="display: none;">
-                                <label for="restore-kb-file" class="button button-secondary"><span class="dashicons dashicons-upload"></span> <?php _e('Choose File...', 'aiohm-kb-assistant'); ?></label>
+                                <label for="restore-kb-file" class="button button-secondary"><span class="dashicons dashicons-upload"></span> <?php esc_html_e('Choose File...', 'aiohm-kb-assistant'); ?></label>
                                 <span id="restore-file-name" class="file-name-display"></span>
                             </div>
-                            <button type="button" class="button button-primary button-hero" id="restore-kb-btn" disabled><?php _e('Restore KB', 'aiohm-kb-assistant'); ?></button>
+                            <button type="button" class="button button-primary button-hero" id="restore-kb-btn" disabled><?php esc_html_e('Restore KB', 'aiohm-kb-assistant'); ?></button>
                         </div>
                     </div>
 
                     <div class="action-box reset-action">
-                        <h3><?php _e('Reset Knowledge Base', 'aiohm-kb-assistant'); ?></h3>
-                        <p class="description" style="color: #dc3545;"><strong><?php _e('Warning: This will permanently delete ALL knowledge base entries (public & private). This cannot be undone.', 'aiohm-kb-assistant'); ?></strong></p>
-                        <button type="button" class="button button-danger button-hero" id="reset-kb-btn"><span class="dashicons dashicons-trash"></span> <?php _e('Reset Entire KB', 'aiohm-kb-assistant'); ?></button>
+                        <h3><?php esc_html_e('Reset Knowledge Base', 'aiohm-kb-assistant'); ?></h3>
+                        <p class="description" style="color: #dc3545;"><strong><?php esc_html_e('Warning: This will permanently delete ALL knowledge base entries (public & private). This cannot be undone.', 'aiohm-kb-assistant'); ?></strong></p>
+                        <button type="button" class="button button-danger button-hero" id="reset-kb-btn"><span class="dashicons dashicons-trash"></span> <?php esc_html_e('Reset Entire KB', 'aiohm-kb-assistant'); ?></button>
                     </div>
                 </div>
             </div>
@@ -666,7 +666,7 @@ include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/header.php';
 
 <script>
 jQuery(document).ready(function($) {
-    const nonce = '<?php echo wp_create_nonce("aiohm_admin_nonce"); ?>';
+    const nonce = '<?php echo esc_js(wp_create_nonce("aiohm_admin_nonce")); ?>';
 
     // Function to display admin notices - moved to bottom for consolidation
 

@@ -11,8 +11,8 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
 ?>
 
 <div class="wrap aiohm-settings-page">
-    <h1><?php _e('AIOHM Settings', 'aiohm-kb-assistant'); ?></h1>
-    <p class="page-description"><?php _e('Configure API keys, AI assistants, and content scanning schedules.', 'aiohm-kb-assistant'); ?></p>
+    <h1><?php esc_html_e('AIOHM Settings', 'aiohm-kb-assistant'); ?></h1>
+    <p class="page-description"><?php esc_html_e('Configure API keys, AI assistants, and content scanning schedules.', 'aiohm-kb-assistant'); ?></p>
     
     <div id="aiohm-admin-notice" class="notice is-dismissible" style="display:none; margin-top: 10px;" tabindex="-1" role="alert" aria-live="polite"><p></p></div>
 
@@ -20,112 +20,118 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
         <?php settings_fields('aiohm_kb_settings'); ?>
 
         <div class="aiohm-settings-section">
-            <h2><?php _e('API Keys & Service Connections', 'aiohm-kb-assistant'); ?></h2>
+            <h2><?php esc_html_e('API Keys & Service Connections', 'aiohm-kb-assistant'); ?></h2>
             <table class="form-table">
                  <tr>
-                    <th scope="row"><label for="default_ai_provider"><?php _e('Default AI Provider', 'aiohm-kb-assistant'); ?></label></th>
+                    <th scope="row"><label for="default_ai_provider"><?php esc_html_e('Default AI Provider', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
                         <select id="default_ai_provider" name="aiohm_kb_settings[default_ai_provider]">
                             <option value="openai" <?php selected($settings['default_ai_provider'] ?? 'openai', 'openai'); ?>>OpenAI</option>
                             <option value="gemini" <?php selected($settings['default_ai_provider'] ?? '', 'gemini'); ?>>Gemini</option>
                             <option value="claude" <?php selected($settings['default_ai_provider'] ?? '', 'claude'); ?>>Claude</option>
                         </select>
-                        <p class="description"><?php _e('Select the default AI provider to use for generating responses.', 'aiohm-kb-assistant'); ?></p>
+                        <p class="description"><?php esc_html_e('Select the default AI provider to use for generating responses.', 'aiohm-kb-assistant'); ?></p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="openai_api_key"><?php _e('OpenAI API Key', 'aiohm-kb-assistant'); ?></label></th>
+                    <th scope="row"><label for="openai_api_key"><?php esc_html_e('OpenAI API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
                         <div class="aiohm-api-key-wrapper">
                             <input type="password" id="openai_api_key" name="aiohm_kb_settings[openai_api_key]" value="<?php echo esc_attr($settings['openai_api_key'] ?? ''); ?>" class="regular-text">
                             <button type="button" class="button button-secondary aiohm-show-hide-key" data-target="openai_api_key"><span class="dashicons dashicons-visibility"></span></button>
-                            <button type="button" class="button button-secondary aiohm-test-api-key" data-target="openai_api_key" data-type="openai"><?php _e('Test API', 'aiohm-kb-assistant'); ?></button>
+                            <button type="button" class="button button-secondary aiohm-test-api-key" data-target="openai_api_key" data-type="openai"><?php esc_html_e('Test API', 'aiohm-kb-assistant'); ?></button>
                         </div>
-                        <p class="description"><?php printf(__('You can get your OpenAI API key from the <a href="%s" target="_blank">OpenAI API keys page</a>.', 'aiohm-kb-assistant'), 'https://platform.openai.com/account/api-keys'); ?></p>
+                        <p class="description"><?php 
+                            // translators: %s is the URL to the OpenAI API keys page
+                            printf(esc_html__('You can get your OpenAI API key from the <a href="%s" target="_blank">OpenAI API keys page</a>.', 'aiohm-kb-assistant'), 'https://platform.openai.com/account/api-keys'); ?></p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="gemini_api_key"><?php _e('Gemini API Key', 'aiohm-kb-assistant'); ?></label></th>
+                    <th scope="row"><label for="gemini_api_key"><?php esc_html_e('Gemini API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
                         <div class="aiohm-api-key-wrapper">
                             <input type="password" id="gemini_api_key" name="aiohm_kb_settings[gemini_api_key]" value="<?php echo esc_attr($settings['gemini_api_key'] ?? ''); ?>" class="regular-text">
                             <button type="button" class="button button-secondary aiohm-show-hide-key" data-target="gemini_api_key"><span class="dashicons dashicons-visibility"></span></button>
-                            <button type="button" class="button button-secondary aiohm-test-api-key" data-target="gemini_api_key" data-type="gemini"><?php _e('Test API', 'aiohm-kb-assistant'); ?></button>
+                            <button type="button" class="button button-secondary aiohm-test-api-key" data-target="gemini_api_key" data-type="gemini"><?php esc_html_e('Test API', 'aiohm-kb-assistant'); ?></button>
                         </div>
-                        <p class="description"><?php printf(__('You can get your Gemini API key from the <a href="%s" target="_blank">Google AI Studio</a>.', 'aiohm-kb-assistant'), 'https://aistudio.google.com/app/apikey'); ?></p>
+                        <p class="description"><?php 
+                            // translators: %s is the URL to the Google AI Studio API keys page
+                            printf(esc_html__('You can get your Gemini API key from the <a href="%s" target="_blank">Google AI Studio</a>.', 'aiohm-kb-assistant'), 'https://aistudio.google.com/app/apikey'); ?></p>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="claude_api_key"><?php _e('Claude API Key', 'aiohm-kb-assistant'); ?></label></th>
+                    <th scope="row"><label for="claude_api_key"><?php esc_html_e('Claude API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
                         <div class="aiohm-api-key-wrapper">
                             <input type="password" id="claude_api_key" name="aiohm_kb_settings[claude_api_key]" value="<?php echo esc_attr($settings['claude_api_key'] ?? ''); ?>" class="regular-text">
                             <button type="button" class="button button-secondary aiohm-show-hide-key" data-target="claude_api_key"><span class="dashicons dashicons-visibility"></span></button>
-                            <button type="button" class="button button-secondary aiohm-test-api-key" data-target="claude_api_key" data-type="claude"><?php _e('Test API', 'aiohm-kb-assistant'); ?></button>
+                            <button type="button" class="button button-secondary aiohm-test-api-key" data-target="claude_api_key" data-type="claude"><?php esc_html_e('Test API', 'aiohm-kb-assistant'); ?></button>
                         </div>
-                        <p class="description"><?php printf(__('You can get your Claude API key from your <a href="%s" target="_blank">Anthropic Account Settings</a>.', 'aiohm-kb-assistant'), 'https://console.anthropic.com/account/keys'); ?></p>
+                        <p class="description"><?php 
+                            // translators: %s is the URL to the Anthropic Account Settings page
+                            printf(esc_html__('You can get your Claude API key from your <a href="%s" target="_blank">Anthropic Account Settings</a>.', 'aiohm-kb-assistant'), 'https://console.anthropic.com/account/keys'); ?></p>
                     </td>
                 </tr>
                  <tr>
-                    <th scope="row"><label for="private_llm_api_key"><?php _e('Private LLM API Key', 'aiohm-kb-assistant'); ?></label></th>
+                    <th scope="row"><label for="private_llm_api_key"><?php esc_html_e('Private LLM API Key', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
                         <div class="aiohm-api-key-wrapper">
                             <input type="password" id="private_llm_api_key" name="aiohm_kb_settings[private_llm_api_key]" value="" class="regular-text" disabled>
                         </div>
-                        <p class="description"><?php _e('This is reserved for future use by AIOHM Private members.', 'aiohm-kb-assistant'); ?></p>
+                        <p class="description"><?php esc_html_e('This is reserved for future use by AIOHM Private members.', 'aiohm-kb-assistant'); ?></p>
                     </td>
                 </tr>
             </table>
         </div>
 
         <div class="aiohm-settings-section aiohm-usage-overview">
-            <h2><?php _e('AI Usage Overview', 'aiohm-kb-assistant'); ?></h2>
+            <h2><?php esc_html_e('AI Usage Overview', 'aiohm-kb-assistant'); ?></h2>
             <div class="aiohm-usage-stats-grid">
                 <div class="usage-stat-card">
                     <div class="stat-icon">📊</div>
                     <div class="stat-content">
-                        <h3><?php _e('Total Tokens (30 Days)', 'aiohm-kb-assistant'); ?></h3>
+                        <h3><?php esc_html_e('Total Tokens (30 Days)', 'aiohm-kb-assistant'); ?></h3>
                         <div class="stat-value" id="total-tokens-30d">-</div>
-                        <div class="stat-subtext"><?php _e('All providers combined', 'aiohm-kb-assistant'); ?></div>
+                        <div class="stat-subtext"><?php esc_html_e('All providers combined', 'aiohm-kb-assistant'); ?></div>
                     </div>
                 </div>
                 
                 <div class="usage-stat-card">
                     <div class="stat-icon">🔥</div>
                     <div class="stat-content">
-                        <h3><?php _e('Today\'s Usage', 'aiohm-kb-assistant'); ?></h3>
+                        <h3><?php esc_html_e('Today\'s Usage', 'aiohm-kb-assistant'); ?></h3>
                         <div class="stat-value" id="tokens-today">-</div>
-                        <div class="stat-subtext"><?php _e('Current day total', 'aiohm-kb-assistant'); ?></div>
+                        <div class="stat-subtext"><?php esc_html_e('Current day total', 'aiohm-kb-assistant'); ?></div>
                     </div>
                 </div>
                 
                 <div class="usage-stat-card">
                     <div class="stat-icon">💰</div>
                     <div class="stat-content">
-                        <h3><?php _e('Estimated Cost', 'aiohm-kb-assistant'); ?></h3>
+                        <h3><?php esc_html_e('Estimated Cost', 'aiohm-kb-assistant'); ?></h3>
                         <div class="stat-value" id="estimated-cost">-</div>
-                        <div class="stat-subtext"><?php _e('Last 30 days (USD)', 'aiohm-kb-assistant'); ?></div>
+                        <div class="stat-subtext"><?php esc_html_e('Last 30 days (USD)', 'aiohm-kb-assistant'); ?></div>
                     </div>
                 </div>
                 
                 <div class="usage-stat-card">
                     <div class="stat-icon">⚡</div>
                     <div class="stat-content">
-                        <h3><?php _e('Active Provider', 'aiohm-kb-assistant'); ?></h3>
+                        <h3><?php esc_html_e('Active Provider', 'aiohm-kb-assistant'); ?></h3>
                         <div class="stat-value" id="active-provider"><?php echo esc_html(ucfirst($settings['default_ai_provider'] ?? 'OpenAI')); ?></div>
-                        <div class="stat-subtext"><?php _e('Primary AI service', 'aiohm-kb-assistant'); ?></div>
+                        <div class="stat-subtext"><?php esc_html_e('Primary AI service', 'aiohm-kb-assistant'); ?></div>
                     </div>
                 </div>
             </div>
             
             <div class="aiohm-usage-breakdown">
-                <h3><?php _e('Usage Breakdown by Provider', 'aiohm-kb-assistant'); ?></h3>
+                <h3><?php esc_html_e('Usage Breakdown by Provider', 'aiohm-kb-assistant'); ?></h3>
                 <div class="usage-breakdown-table">
                     <div class="breakdown-header">
-                        <span><?php _e('Provider', 'aiohm-kb-assistant'); ?></span>
-                        <span><?php _e('Tokens (30d)', 'aiohm-kb-assistant'); ?></span>
-                        <span><?php _e('Requests', 'aiohm-kb-assistant'); ?></span>
-                        <span><?php _e('Est. Cost', 'aiohm-kb-assistant'); ?></span>
+                        <span><?php esc_html_e('Provider', 'aiohm-kb-assistant'); ?></span>
+                        <span><?php esc_html_e('Tokens (30d)', 'aiohm-kb-assistant'); ?></span>
+                        <span><?php esc_html_e('Requests', 'aiohm-kb-assistant'); ?></span>
+                        <span><?php esc_html_e('Est. Cost', 'aiohm-kb-assistant'); ?></span>
                     </div>
                     <div class="breakdown-row" data-provider="openai">
                         <span class="provider-name">
@@ -157,7 +163,7 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
                 </div>
                 <button type="button" id="refresh-usage-stats" class="button button-secondary">
                     <span class="dashicons dashicons-update"></span>
-                    <?php _e('Refresh Stats', 'aiohm-kb-assistant'); ?>
+                    <?php esc_html_e('Refresh Stats', 'aiohm-kb-assistant'); ?>
                 </button>
             </div>
         </div>
@@ -167,35 +173,35 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
                 <div class="aiohm-settings-locked-overlay">
                     <div class="lock-content">
                         <div class="lock-icon">🔒</div>
-                        <h2><?php _e('Unlock Advanced Settings', 'aiohm-kb-assistant'); ?></h2>
-                        <p><?php _e('These settings require an AIOHM Club or Private membership to configure. Please ensure your AIOHM App Email is configured correctly on the License page, and you have an active Club/Private membership.', 'aiohm-kb-assistant'); ?></p>
-                        <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-license&tab=club')); ?>" class="button button-primary"><?php _e('Explore Memberships', 'aiohm-kb-assistant'); ?></a>
+                        <h2><?php esc_html_e('Unlock Advanced Settings', 'aiohm-kb-assistant'); ?></h2>
+                        <p><?php esc_html_e('These settings require an AIOHM Club or Private membership to configure. Please ensure your AIOHM App Email is configured correctly on the License page, and you have an active Club/Private membership.', 'aiohm-kb-assistant'); ?></p>
+                        <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-license&tab=club')); ?>" class="button button-primary"><?php esc_html_e('Explore Memberships', 'aiohm-kb-assistant'); ?></a>
                     </div>
                 </div>
             <?php endif; ?>
 
             <div class="aiohm-settings-section">
-                <h2><?php _e('Q&A Chatbot Settings (Public)', 'aiohm-kb-assistant'); ?></h2>
+                <h2><?php esc_html_e('Q&A Chatbot Settings (Public)', 'aiohm-kb-assistant'); ?></h2>
                 <table class="form-table">
-                    <tr><th scope="row"><?php _e('Enable Q&A Chatbot', 'aiohm-kb-assistant'); ?></th>
-                        <td><label><input type="checkbox" name="aiohm_kb_settings[chat_enabled]" value="1" <?php checked($settings['chat_enabled'] ?? false); disabled(!$can_access_settings); ?> /> <?php _e('Enable the `[aiohm_chat]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
-                    <tr><th scope="row"><?php _e('Enable Search Shortcode', 'aiohm-kb-assistant'); ?></th>
-                        <td><label><input type="checkbox" name="aiohm_kb_settings[enable_search_shortcode]" value="1" <?php checked($settings['enable_search_shortcode'] ?? false); disabled(!$can_access_settings); ?> /> <?php _e('Enable the `[aiohm_search]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
+                    <tr><th scope="row"><?php esc_html_e('Enable Q&A Chatbot', 'aiohm-kb-assistant'); ?></th>
+                        <td><label><input type="checkbox" name="aiohm_kb_settings[chat_enabled]" value="1" <?php checked($settings['chat_enabled'] ?? false); disabled(!$can_access_settings); ?> /> <?php esc_html_e('Enable the `[aiohm_chat]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
+                    <tr><th scope="row"><?php esc_html_e('Enable Search Shortcode', 'aiohm-kb-assistant'); ?></th>
+                        <td><label><input type="checkbox" name="aiohm_kb_settings[enable_search_shortcode]" value="1" <?php checked($settings['enable_search_shortcode'] ?? false); disabled(!$can_access_settings); ?> /> <?php esc_html_e('Enable the `[aiohm_search]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
                 </table>
             </div>
 
             <div class="aiohm-settings-section">
-                <h2><?php _e('Private Brand Assistant (Admin-Only)', 'aiohm-kb-assistant'); ?></h2>
+                <h2><?php esc_html_e('Private Brand Assistant (Admin-Only)', 'aiohm-kb-assistant'); ?></h2>
                 <table class="form-table">
-                    <tr><th scope="row"><?php _e('Enable Private Assistant', 'aiohm-kb-assistant'); ?></th>
-                        <td><label><input type="checkbox" name="aiohm_kb_settings[enable_private_assistant]" value="1" <?php checked($settings['enable_private_assistant'] ?? false); disabled(!$can_access_settings); ?> /> <?php _e('Enable the `[aiohm_private_assistant]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
+                    <tr><th scope="row"><?php esc_html_e('Enable Private Assistant', 'aiohm-kb-assistant'); ?></th>
+                        <td><label><input type="checkbox" name="aiohm_kb_settings[enable_private_assistant]" value="1" <?php checked($settings['enable_private_assistant'] ?? false); disabled(!$can_access_settings); ?> /> <?php esc_html_e('Enable the `[aiohm_private_assistant]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
                 </table>
             </div>
             
             <div class="aiohm-settings-section">
-                <h2><?php _e('Scheduled Content Scan', 'aiohm-kb-assistant'); ?></h2>
+                <h2><?php esc_html_e('Scheduled Content Scan', 'aiohm-kb-assistant'); ?></h2>
                 <table class="form-table">
-                    <tr><th scope="row"><label for="scan_schedule"><?php _e('Scan Frequency', 'aiohm-kb-assistant'); ?></label></th>
+                    <tr><th scope="row"><label for="scan_schedule"><?php esc_html_e('Scan Frequency', 'aiohm-kb-assistant'); ?></label></th>
                         <td><select id="scan_schedule" name="aiohm_kb_settings[scan_schedule]" <?php disabled(!$can_access_settings); ?>><option value="none" <?php selected($settings['scan_schedule'] ?? 'none', 'none'); ?>>None</option><option value="daily" <?php selected($settings['scan_schedule'], 'daily'); ?>>Once Daily</option><option value="weekly" <?php selected($settings['scan_schedule'], 'weekly'); ?>>Once Weekly</option><option value="monthly" <?php selected($settings['scan_schedule'], 'monthly'); ?>>Once Monthly</option></select></td></tr>
                 </table>
             </div>
@@ -491,7 +497,7 @@ jQuery(document).ready(function($){
 
         $.post(ajaxurl, {
             action: 'aiohm_check_api_key',
-            nonce: '<?php echo wp_create_nonce("aiohm_admin_nonce"); ?>',
+            nonce: '<?php echo esc_js(wp_create_nonce("aiohm_admin_nonce")); ?>',
             api_key: apiKey,
             key_type: keyType
         })
@@ -514,7 +520,7 @@ jQuery(document).ready(function($){
     function loadUsageStats() {
         $.post(ajaxurl, {
             action: 'aiohm_get_usage_stats',
-            nonce: '<?php echo wp_create_nonce("aiohm_admin_nonce"); ?>'
+            nonce: '<?php echo esc_js(wp_create_nonce("aiohm_admin_nonce")); ?>'
         })
         .done(function(response) {
             if (response.success && response.data) {

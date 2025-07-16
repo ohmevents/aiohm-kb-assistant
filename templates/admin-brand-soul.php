@@ -58,8 +58,8 @@ foreach ($brand_soul_questions as $section) {
 ?>
 
 <div class="wrap aiohm-brand-soul-page">
-    <h1><?php _e('Your Brand Core Questionnaire', 'aiohm-kb-assistant'); ?></h1>
-    <p class="page-description"><?php _e('Answer these questions to define the core of your brand. Your answers will help shape your AI assistant\'s voice and knowledge.', 'aiohm-kb-assistant'); ?></p>
+    <h1><?php esc_html_e('Your Brand Core Questionnaire', 'aiohm-kb-assistant'); ?></h1>
+    <p class="page-description"><?php esc_html_e('Answer these questions to define the core of your brand. Your answers will help shape your AI assistant\'s voice and knowledge.', 'aiohm-kb-assistant'); ?></p>
 
     <div id="aiohm-admin-notice" class="notice is-dismissible" style="display:none; margin-top: 10px;" tabindex="-1" role="alert" aria-live="polite"><p></p></div>
 
@@ -67,9 +67,9 @@ foreach ($brand_soul_questions as $section) {
         <div class="aiohm-content-locked">
             <div class="lock-content">
                 <div class="lock-icon">🔒</div>
-                <h2><?php _e('Unlock Your AI Brand Core', 'aiohm-kb-assistant'); ?></h2>
-                <p><?php _e('This questionnaire is a key feature for AIOHM Tribe members. Please connect your free Tribe account to begin defining your brand\'s soul.', 'aiohm-kb-assistant'); ?></p>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-license')); ?>" class="button button-primary"><?php _e('Connect Your Account', 'aiohm-kb-assistant'); ?></a>
+                <h2><?php esc_html_e('Unlock Your AI Brand Core', 'aiohm-kb-assistant'); ?></h2>
+                <p><?php esc_html_e('This questionnaire is a key feature for AIOHM Tribe members. Please connect your free Tribe account to begin defining your brand\'s soul.', 'aiohm-kb-assistant'); ?></p>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-license')); ?>" class="button button-primary"><?php esc_html_e('Connect Your Account', 'aiohm-kb-assistant'); ?></a>
             </div>
         </div>
     <?php else: ?>
@@ -81,9 +81,9 @@ foreach ($brand_soul_questions as $section) {
                     foreach ($brand_soul_questions as $section_title => $questions) {
                         echo "<div class='nav-section'>";
                         echo "<h4>" . esc_html($section_title) . "</h4>";
-                        echo "<ol start='" . ($question_index_for_nav + 1) . "'>";
+                        echo "<ol start='" . esc_attr($question_index_for_nav + 1) . "'>";
                         foreach ($questions as $key => $question_text) {
-                            echo "<li><a href='#' class='nav-question-link' data-index='{$question_index_for_nav}'>" . esc_html($question_text) . "</a></li>";
+                            echo "<li><a href='#' class='nav-question-link' data-index='" . esc_attr($question_index_for_nav) . "'>" . esc_html($question_text) . "</a></li>";
                             $question_index_for_nav++;
                         }
                         echo "</ol>";
@@ -91,9 +91,9 @@ foreach ($brand_soul_questions as $section) {
                     }
                     ?>
                      <div class="nav-section-final">
-                        <a href="#" class='nav-question-link' data-index="<?php echo $total_questions; ?>" class="final-actions-link">
+                        <a href="#" class='nav-question-link' data-index="<?php echo esc_attr($total_questions); ?>" class="final-actions-link">
                             <span class="dashicons dashicons-download"></span>
-                            <?php _e('Save & Export', 'aiohm-kb-assistant'); ?>
+                            <?php esc_html_e('Save & Export', 'aiohm-kb-assistant'); ?>
                         </a>
                     </div>
                 </nav>
@@ -114,15 +114,15 @@ foreach ($brand_soul_questions as $section) {
                         foreach ($brand_soul_questions as $section_title => $questions) {
                             foreach ($questions as $key => $question_text) {
                                 $is_active = ($question_index === 0) ? 'active' : '';
-                                echo "<div class='aiohm-question-slide {$is_active}' data-index='{$question_index}'>";
+                                echo "<div class='aiohm-question-slide " . esc_attr($is_active) . "' data-index='" . esc_attr($question_index) . "'>";
                                 echo "<p class='question-text'>" . esc_html($question_text) . "</p>";
-                                echo "<textarea name='answers[{$key}]' placeholder='Type your answer here...' rows='5'>" . esc_textarea($brand_soul_answers[$key] ?? '') . "</textarea>";
+                                echo "<textarea name='answers[" . esc_attr($key) . "]' placeholder='Type your answer here...' rows='5'>" . esc_textarea($brand_soul_answers[$key] ?? '') . "</textarea>";
                                 echo "</div>";
                                 $question_index++;
                             }
                         }
                         
-                        echo "<div class='aiohm-question-slide' data-index='{$question_index}'>";
+                        echo "<div class='aiohm-question-slide' data-index='" . esc_attr($question_index) . "'>";
                         echo "<h2 class='question-section-title'>All Done!</h2>";
                         echo "<p class='question-text'>You've completed your Brand Soul questionnaire. You can now save your work, add it to your private knowledge base for your AI to use, or download a PDF copy.</p>";
                         echo "<div class='aiohm-final-actions'></div>";
@@ -131,9 +131,9 @@ foreach ($brand_soul_questions as $section) {
                     </div>
 
                     <div class="aiohm-navigation">
-                        <button type="button" id="prev-btn" class="button button-secondary" style="display: none;"><?php _e('Previous', 'aiohm-kb-assistant'); ?></button>
-                        <button type="button" id="save-progress-btn" class="button button-secondary"><?php _e('Save Progress', 'aiohm-kb-assistant'); ?></button>
-                        <button type="button" id="next-btn" class="button button-primary"><?php _e('Next', 'aiohm-kb-assistant'); ?></button>
+                        <button type="button" id="prev-btn" class="button button-secondary" style="display: none;"><?php esc_html_e('Previous', 'aiohm-kb-assistant'); ?></button>
+                        <button type="button" id="save-progress-btn" class="button button-secondary"><?php esc_html_e('Save Progress', 'aiohm-kb-assistant'); ?></button>
+                        <button type="button" id="next-btn" class="button button-primary"><?php esc_html_e('Next', 'aiohm-kb-assistant'); ?></button>
                     </div>
                 </form>
             </div>
@@ -255,9 +255,9 @@ foreach ($brand_soul_questions as $section) {
 
             if (currentQuestionIndex === totalQuestions) {
                 const finalActionsHtml = `
-                    <button type="button" id="save-brand-soul" class="button button-primary"><?php _e('Save My Answers', 'aiohm-kb-assistant'); ?></button>
-                    <button type="button" id="add-to-kb" class="button button-secondary"><?php _e('Add to My Knowledge Base', 'aiohm-kb-assistant'); ?></button>
-                    <a href="<?php echo esc_url(add_query_arg(['action' => 'download_brand_soul_pdf', 'nonce' => wp_create_nonce('download_brand_soul_pdf')])); ?>" id="download-pdf" class="button button-secondary" target="_blank"><?php _e('Download PDF', 'aiohm-kb-assistant'); ?></a>
+                    <button type="button" id="save-brand-soul" class="button button-primary"><?php esc_html_e('Save My Answers', 'aiohm-kb-assistant'); ?></button>
+                    <button type="button" id="add-to-kb" class="button button-secondary"><?php esc_html_e('Add to My Knowledge Base', 'aiohm-kb-assistant'); ?></button>
+                    <a href="<?php echo esc_url(add_query_arg(['action' => 'download_brand_soul_pdf', 'nonce' => wp_create_nonce('download_brand_soul_pdf')])); ?>" id="download-pdf" class="button button-secondary" target="_blank"><?php esc_html_e('Download PDF', 'aiohm-kb-assistant'); ?></a>
                 `;
                 $('.aiohm-final-actions').html(finalActionsHtml);
             } else {

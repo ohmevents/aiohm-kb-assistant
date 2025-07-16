@@ -41,7 +41,7 @@ class AIOHM_KB_Uploads_Crawler {
                 $stats['by_type'][$ext]['pending']++;
             }
         }
-        AIOHM_KB_Assistant::log('Finished get_stats. Stats: ' . print_r($stats, true));
+        AIOHM_KB_Assistant::log('Finished get_stats.');
         return $stats;
     }
 

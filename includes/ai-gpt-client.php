@@ -132,7 +132,7 @@ class AIOHM_KB_AI_GPT_Client {
 
         if ($response_code !== 200) {
             $error_message = $decoded_response['error']['message'] ?? 'API request failed with status ' . $response_code;
-            throw new Exception("API Error ({$response_code}): {$error_message}");
+            throw new Exception('API Error (' . intval($response_code) . '): ' . $error_message);
         }
         
         return $decoded_response;

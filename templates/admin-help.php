@@ -10,53 +10,53 @@ if (!defined('ABSPATH')) {
 ?>
 
 <div class="wrap aiohm-help-page">
-    <h1><?php _e('Your AIOHM Journey', 'aiohm-kb-assistant'); ?></h1>
-    <p class="page-description"><?php _e('From initial setup to a fully realized AI assistant, this is your path to bringing your brand\'s soul to life.', 'aiohm-kb-assistant'); ?></p>
+    <h1><?php esc_html_e('Your AIOHM Journey', 'aiohm-kb-assistant'); ?></h1>
+    <p class="page-description"><?php esc_html_e('From initial setup to a fully realized AI assistant, this is your path to bringing your brand\'s soul to life.', 'aiohm-kb-assistant'); ?></p>
 
     <div class="aiohm-journey-grid">
 
         <div class="aiohm-journey-card">
             <div class="aiohm-card-icon"><span class="dashicons dashicons-admin-settings"></span></div>
-            <h3><?php _e('Phase 1: Foundation & Onboarding', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('Establish the connection between your website and the AIOHM ecosystem. This is the starting point for every user.', 'aiohm-kb-assistant'); ?></p>
+            <h3><?php esc_html_e('Phase 1: Foundation & Onboarding', 'aiohm-kb-assistant'); ?></h3>
+            <p><?php esc_html_e('Establish the connection between your website and the AIOHM ecosystem. This is the starting point for every user.', 'aiohm-kb-assistant'); ?></p>
             <ul class="feature-list">
                 <li><strong>Connect Your Accounts:</strong> Link your free AIOHM Tribe account and your preferred AI provider (OpenAI, etc.) on the settings pages.</li>
                 <li><strong>Unlock Core Features:</strong> Connecting your Tribe account is the key to unlocking the AI Brand Core questionnaire.</li>
             </ul>
-            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-settings')); ?>" class="button button-secondary"><?php _e('Go to Settings', 'aiohm-kb-assistant'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-settings')); ?>" class="button button-secondary"><?php esc_html_e('Go to Settings', 'aiohm-kb-assistant'); ?></a>
         </div>
 
         <div class="aiohm-journey-card">
             <div class="aiohm-card-icon"><span class="dashicons dashicons-edit-page"></span></div>
-            <h3><?php _e('Phase 2: Defining Your Brand\'s Voice', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('This is the most important phase for creating an AI that is truly yours. Teach the AI your "why" and how you wish to sound.', 'aiohm-kb-assistant'); ?></p>
+            <h3><?php esc_html_e('Phase 2: Defining Your Brand\'s Voice', 'aiohm-kb-assistant'); ?></h3>
+            <p><?php esc_html_e('This is the most important phase for creating an AI that is truly yours. Teach the AI your "why" and how you wish to sound.', 'aiohm-kb-assistant'); ?></p>
             <ul class="feature-list">
                 <li><strong>AI Brand Core:</strong> Use the guided questionnaire to define your brand\'s values, mission, and unique voice.</li>
                 <li><strong>Add to Private KB:</strong> Save your answers to your private knowledge base, making them available to your personal Brand Assistant.</li>
             </ul>
-            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-brand-soul')); ?>" class="button button-secondary"><?php _e('Define Your Brand Core', 'aiohm-kb-assistant'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-brand-soul')); ?>" class="button button-secondary"><?php esc_html_e('Define Your Brand Core', 'aiohm-kb-assistant'); ?></a>
         </div>
 
         <div class="aiohm-journey-card">
             <div class="aiohm-card-icon"><span class="dashicons dashicons-database-add"></span></div>
-            <h3><?php _e('Phase 3: Building the Knowledge Base', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('With your brand\'s voice defined, you can now teach the AI what to talk about by feeding it your content.', 'aiohm-kb-assistant'); ?></p>
+            <h3><?php esc_html_e('Phase 3: Building the Knowledge Base', 'aiohm-kb-assistant'); ?></h3>
+            <p><?php esc_html_e('With your brand\'s voice defined, you can now teach the AI what to talk about by feeding it your content.', 'aiohm-kb-assistant'); ?></p>
             <ul class="feature-list">
                 <li><strong>Scan Content:</strong> Automatically scan your posts, pages, and media files to add them to the AI's knowledge.</li>
                 <li><strong>Manage Knowledge:</strong> Review, edit, and manage all learned content. Toggle visibility between public (for chatbots) and private (for your eyes only).</li>
             </ul>
-            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-scan-content')); ?>" class="button button-secondary"><?php _e('Manage Knowledge Base', 'aiohm-kb-assistant'); ?></a>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-scan-content')); ?>" class="button button-secondary"><?php esc_html_e('Manage Knowledge Base', 'aiohm-kb-assistant'); ?></a>
         </div>
 
         <div class="aiohm-journey-card">
             <div class="aiohm-card-icon"><span class="dashicons dashicons-format-chat"></span></div>
-            <h3><?php _e('Phase 4: Deployment & Interaction', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('Deploy your soulful AI assistant on your site for your users (or yourself) to interact with. (Requires AIOHM Club)', 'aiohm-kb-assistant'); ?></p>
+            <h3><?php esc_html_e('Phase 4: Deployment & Interaction', 'aiohm-kb-assistant'); ?></h3>
+            <p><?php esc_html_e('Deploy your soulful AI assistant on your site for your users (or yourself) to interact with. (Requires AIOHM Club)', 'aiohm-kb-assistant'); ?></p>
             <ul class="feature-list">
                 <li><strong>Q&A Chatbot:</strong> Use the `[aiohm_chat]` shortcode to deploy a public-facing chatbot that answers questions based on your public knowledge base.</li>
                 <li><strong>AI Brand Assistant:</strong> Use a private assistant that accesses your Brand Core answers to help you brainstorm and create content in your authentic voice.</li>
             </ul>
-            <a href="https://www.aiohm.app/club" target="_blank" class="button button-primary"><?php _e('Explore Club Features', 'aiohm-kb-assistant'); ?></a>
+            <a href="https://www.aiohm.app/club" target="_blank" class="button button-primary"><?php esc_html_e('Explore Club Features', 'aiohm-kb-assistant'); ?></a>
         </div>
     </div>
 
@@ -67,27 +67,27 @@ if (!defined('ABSPATH')) {
             <div class="aiohm-card-icon-small">
                 <span class="dashicons dashicons-heart"></span>
             </div>
-            <h3><?php _e('Support with Heart', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('Feeling stuck or unsure? Our team honors your vision and is here to help—gently and clearly.', 'aiohm-kb-assistant'); ?></p>
-            <a href="https://www.aiohm.app/contact/" target="_blank" class="button button-primary"><?php _e('→ Reach Out to Support', 'aiohm-kb-assistant'); ?></a>
+            <h3><?php esc_html_e('Support with Heart', 'aiohm-kb-assistant'); ?></h3>
+            <p><?php esc_html_e('Feeling stuck or unsure? Our team honors your vision and is here to help—gently and clearly.', 'aiohm-kb-assistant'); ?></p>
+            <a href="https://www.aiohm.app/contact/" target="_blank" class="button button-primary"><?php esc_html_e('→ Reach Out to Support', 'aiohm-kb-assistant'); ?></a>
         </div>
 
         <div class="aiohm-help-card">
             <div class="aiohm-card-icon-small">
                 <span class="dashicons dashicons-media-document"></span>
             </div>
-            <h3><?php _e('Documentation', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('Detailed documentation to help you understand the functionality of each feature.', 'aiohm-kb-assistant'); ?></p>
-            <a href="https://aiohm.app/docs" target="_blank" class="button button-secondary"><?php _e('Read Docs', 'aiohm-kb-assistant'); ?></a>
+            <h3><?php esc_html_e('Documentation', 'aiohm-kb-assistant'); ?></h3>
+            <p><?php esc_html_e('Detailed documentation to help you understand the functionality of each feature.', 'aiohm-kb-assistant'); ?></p>
+            <a href="https://aiohm.app/docs" target="_blank" class="button button-secondary"><?php esc_html_e('Read Docs', 'aiohm-kb-assistant'); ?></a>
         </div>
 
         <div class="aiohm-help-card">
             <div class="aiohm-card-icon-small">
                 <span class="dashicons dashicons-lightbulb"></span>
             </div>
-            <h3><?php _e('Request a Feature', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('Have any special feature in mind? Let us know through the feature request.', 'aiohm-kb-assistant'); ?></p>
-            <a href="https://www.aiohm.app/contact/" target="_blank" class="button button-secondary"><?php _e('Submit Request', 'aiohm-kb-assistant'); ?></a>
+            <h3><?php esc_html_e('Request a Feature', 'aiohm-kb-assistant'); ?></h3>
+            <p><?php esc_html_e('Have any special feature in mind? Let us know through the feature request.', 'aiohm-kb-assistant'); ?></p>
+            <a href="https://www.aiohm.app/contact/" target="_blank" class="button button-secondary"><?php esc_html_e('Submit Request', 'aiohm-kb-assistant'); ?></a>
         </div>
     </div>
 </div>

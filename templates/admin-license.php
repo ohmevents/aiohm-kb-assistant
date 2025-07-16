@@ -21,26 +21,32 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
 // --- End: Data Fetching and Status Checks ---
 ?>
 <div class="wrap aiohm-license-page">
-    <h1><?php _e('AIOHM Membership & Features', 'aiohm-kb-assistant'); ?></h1>
-    <p class="description"><?php _e('Connect your account to see the features available with your membership tier.', 'aiohm-kb-assistant'); ?></p>
+    <h1><?php esc_html_e('AIOHM Membership & Features', 'aiohm-kb-assistant'); ?></h1>
+    <p class="description"><?php esc_html_e('Connect your account to see the features available with your membership tier.', 'aiohm-kb-assistant'); ?></p>
 
     <div class="aiohm-feature-grid">
 
         <div class="aiohm-feature-box <?php echo $is_user_linked ? 'plan-active' : 'plan-inactive'; ?>">
-            <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="OHM Logo" class="ohm-logo-icon"></div>
-            <h3><?php _e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
+            <div class="box-icon"><?php
+                echo wp_kses_post(AIOHM_KB_Core_Init::render_image(
+                    AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png',
+                    esc_attr__('OHM Logo', 'aiohm-kb-assistant'),
+                    ['class' => 'ohm-logo-icon']
+                ));
+            ?></div>
+            <h3><?php esc_html_e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></h3>
             <?php if ($is_user_linked) : ?>
-                <h4 class="plan-price"><?php _e('Welcome to the Tribe!', 'aiohm-kb-assistant'); ?></h4>
+                <h4 class="plan-price"><?php esc_html_e('Welcome to the Tribe!', 'aiohm-kb-assistant'); ?></h4>
                 <div class="membership-info">
                     <p><strong>Name:</strong> <?php echo esc_html($display_name ?? 'N/A'); ?></p>
                     <p><strong>Email:</strong> <?php echo esc_html($user_email); ?></p>
                 </div>
-                <div class="plan-description"><p><?php _e('As a Tribe member, you can now use the core features of the AIOHM Assistant, including the Brand Soul questionnaire and knowledge base management.', 'aiohm-kb-assistant'); ?></p></div>
-                <a href="https://www.aiohm.app/members/" target="_blank" class="button button-secondary" style="margin-top: auto;"><?php _e('View Your Tribe Profile', 'aiohm-kb-assistant'); ?></a>
+                <div class="plan-description"><p><?php esc_html_e('As a Tribe member, you can now use the core features of the AIOHM Assistant, including the Brand Soul questionnaire and knowledge base management.', 'aiohm-kb-assistant'); ?></p></div>
+                <a href="https://www.aiohm.app/members/" target="_blank" class="button button-secondary" style="margin-top: auto;"><?php esc_html_e('View Your Tribe Profile', 'aiohm-kb-assistant'); ?></a>
             <?php else: ?>
-                <h4 class="plan-price"><?php _e('This free tier is where brand resonance begins.', 'aiohm-kb-assistant'); ?></h4>
-                <div class="plan-description"><p><?php _e('Root into your why. Begin with deep reflection and intentional alignment. Access your personal Brand Soul Map through our guided questionnaire and shape your AI with the truths that matter most to you.', 'aiohm-kb-assistant'); ?></p></div>
-                <a href="https://www.aiohm.app/register" target="_blank" class="button button-primary" style="margin-top: auto;">→ <?php _e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
+                <h4 class="plan-price"><?php esc_html_e('This free tier is where brand resonance begins.', 'aiohm-kb-assistant'); ?></h4>
+                <div class="plan-description"><p><?php esc_html_e('Root into your why. Begin with deep reflection and intentional alignment. Access your personal Brand Soul Map through our guided questionnaire and shape your AI with the truths that matter most to you.', 'aiohm-kb-assistant'); ?></p></div>
+                <a href="https://www.aiohm.app/register" target="_blank" class="button button-primary" style="margin-top: auto;">→ <?php esc_html_e('Join AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
             <?php endif; ?>
         </div>
 
@@ -48,7 +54,9 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
              <?php if ($is_user_linked) : ?>
                 <div class="box-icon">🔗</div>
                 <h3><?php echo esc_html($display_name ?? 'Account Connected'); ?></h3>
-                <p><?php printf(__('Your site is linked via the email: %s', 'aiohm-kb-assistant'), '<strong>' . esc_html($user_email) . '</strong>'); ?></p>
+                <p><?php 
+                    // translators: %s is the user's email address
+                    printf(esc_html__('Your site is linked via the email: %s', 'aiohm-kb-assistant'), '<strong>' . esc_html($user_email) . '</strong>'); ?></p>
                 <form method="post" action="options.php" class="aiohm-disconnect-form">
                     <?php settings_fields('aiohm_kb_settings'); ?>
                     <input type="hidden" name="aiohm_kb_settings[aiohm_app_email]" value="">
@@ -59,12 +67,12 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
                         } 
                     } 
                     ?>
-                    <button type="submit" class="button button-primary button-disconnect"><?php _e('Disconnect Account', 'aiohm-kb-assistant'); ?></button>
+                    <button type="submit" class="button button-primary button-disconnect"><?php esc_html_e('Disconnect Account', 'aiohm-kb-assistant'); ?></button>
                 </form>
              <?php else : ?>
                 <div class="box-icon">🔌</div>
-                <h3><?php _e('Connect Your Account', 'aiohm-kb-assistant'); ?></h3>
-                <p><?php _e('Enter your AIOHM Email below to link your site and unlock personal features.', 'aiohm-kb-assistant'); ?></p>
+                <h3><?php esc_html_e('Connect Your Account', 'aiohm-kb-assistant'); ?></h3>
+                <p><?php esc_html_e('Enter your AIOHM Email below to link your site and unlock personal features.', 'aiohm-kb-assistant'); ?></p>
                 <div class="aiohm-connect-form-wrapper">
                     <form method="post" action="options.php">
                         <?php settings_fields('aiohm_kb_settings'); ?>
@@ -76,27 +84,33 @@ if ($is_user_linked && class_exists('AIOHM_KB_PMP_Integration')) {
                             } 
                         } 
                         ?>
-                        <button type="submit" class="button button-secondary"><?php _e('Verify & Connect', 'aiohm-kb-assistant'); ?></button>
+                        <button type="submit" class="button button-secondary"><?php esc_html_e('Verify & Connect', 'aiohm-kb-assistant'); ?></button>
                     </form>
                 </div>
              <?php endif; ?>
         </div>
 
         <div class="aiohm-feature-box <?php echo $has_club_access ? 'plan-active' : 'plan-inactive'; ?>">
-            <div class="box-icon"><img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png'); ?>" alt="AIOHM Logo" class="ohm-logo-icon"></div>
-            <h3><?php _e('AIOHM Club', 'aiohm-kb-assistant'); ?></h3>
+            <div class="box-icon"><?php
+                echo wp_kses_post(AIOHM_KB_Core_Init::render_image(
+                    AIOHM_KB_PLUGIN_URL . 'assets/images/OHM-logo.png',
+                    esc_attr__('AIOHM Logo', 'aiohm-kb-assistant'),
+                    ['class' => 'ohm-logo-icon']
+                ));
+            ?></div>
+            <h3><?php esc_html_e('AIOHM Club', 'aiohm-kb-assistant'); ?></h3>
             <?php if ($has_club_access && $membership_details) : ?>
-                <h4 class="plan-price"><?php _e('You have unlocked Club features!', 'aiohm-kb-assistant'); ?></h4>
+                <h4 class="plan-price"><?php esc_html_e('You have unlocked Club features!', 'aiohm-kb-assistant'); ?></h4>
                 <div class="membership-info">
                     <p><strong>Level:</strong> <?php echo esc_html($membership_details['level_name']); ?></p>
                     <p><strong>Started:</strong> <?php echo esc_html($membership_details['start_date']); ?></p>
                     <p><strong>Expires:</strong> <?php echo esc_html($membership_details['end_date']); ?></p>
                 </div>
-                <a href="https://www.aiohm.app/club" target="_blank" class="button button-secondary" style="margin-top: auto;"><?php _e('Manage Membership', 'aiohm-kb-assistant'); ?></a>
+                <a href="https://www.aiohm.app/club" target="_blank" class="button button-secondary" style="margin-top: auto;"><?php esc_html_e('Manage Membership', 'aiohm-kb-assistant'); ?></a>
             <?php else: ?>
-                <h4 class="plan-price"><?php _e('1 euro per month for first 1000 members.', 'aiohm-kb-assistant'); ?></h4>
+                <h4 class="plan-price"><?php esc_html_e('1 euro per month for first 1000 members.', 'aiohm-kb-assistant'); ?></h4>
                 <div class="plan-description"><p>Club members gain exclusive access to Mirror Mode for Q&A chat-bot and Muse Mode for brand idea-rich, emotionally attuned content.</p></div>
-                <a href="https://www.aiohm.app/club/" target="_blank" class="button button-primary" style="margin-top: auto;">→ <?php _e('Join AIOHM Club', 'aiohm-kb-assistant'); ?></a>
+                <a href="https://www.aiohm.app/club/" target="_blank" class="button button-primary" style="margin-top: auto;">→ <?php esc_html_e('Join AIOHM Club', 'aiohm-kb-assistant'); ?></a>
             <?php endif; ?>
         </div>
     </div>

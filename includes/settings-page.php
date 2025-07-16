@@ -232,7 +232,7 @@ class AIOHM_KB_Settings_Page {
 
     public function render_brand_soul_page() {
         if (!current_user_can('read')) {
-            wp_die(__('You do not have sufficient permissions to access this page.'));
+            wp_die(esc_html__('You do not have sufficient permissions to access this page.', 'aiohm-kb-assistant'));
         }
         $this->include_header();
         include AIOHM_KB_PLUGIN_DIR . 'templates/admin-brand-soul.php';
@@ -241,7 +241,7 @@ class AIOHM_KB_Settings_Page {
 
     public function render_mirror_mode_page() {
         if (!class_exists('AIOHM_KB_PMP_Integration') || !AIOHM_KB_PMP_Integration::aiohm_user_has_club_access()) {
-            wp_die(__('You do not have sufficient permissions to access this page.', 'aiohm-kb-assistant'));
+            wp_die(esc_html__('You do not have sufficient permissions to access this page.', 'aiohm-kb-assistant'));
         }
         $this->include_header();
         include AIOHM_KB_PLUGIN_DIR . 'templates/admin-mirror-mode.php';
@@ -250,7 +250,7 @@ class AIOHM_KB_Settings_Page {
     
     public function render_muse_mode_page() {
         if (!current_user_can('read')) {
-             wp_die(__('You do not have sufficient permissions to access this page.', 'aiohm-kb-assistant'));
+             wp_die(esc_html__('You do not have sufficient permissions to access this page.', 'aiohm-kb-assistant'));
         }
         $this->include_header();
         include AIOHM_KB_PLUGIN_DIR . 'templates/admin-muse-mode.php';

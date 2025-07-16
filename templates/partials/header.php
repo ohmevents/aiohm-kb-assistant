@@ -10,7 +10,12 @@ $current_page = isset($_GET['page']) ? sanitize_key($_GET['page']) : '';
 <div class="aiohm-admin-header">
     <div class="aiohm-admin-header__logo">
         <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-dashboard')); ?>">
-            <img src="<?php echo esc_url(AIOHM_KB_PLUGIN_URL . 'assets/images/AIOHM-logo.png'); ?>" alt="AIOHM Logo">
+            <?php
+            echo wp_kses_post(AIOHM_KB_Core_Init::render_image(
+                AIOHM_KB_PLUGIN_URL . 'assets/images/AIOHM-logo.png',
+                esc_attr__('AIOHM Logo', 'aiohm-kb-assistant')
+            ));
+            ?>
         </a>
     </div>
     <div class="aiohm-admin-header__nav">

@@ -747,7 +747,7 @@ class AIOHM_KB_Core_Init {
             $user_message = sanitize_textarea_field($_POST['message']);
             $posted_settings = isset($_POST['settings']) ? $_POST['settings'] : [];
 
-            $system_message = $posted_settings['qa_system_message'] ?? 'You are a helpful assistant.';
+            $system_message = isset($posted_settings['qa_system_message']) ? sanitize_textarea_field($posted_settings['qa_system_message']) : 'You are a helpful assistant.';
             $temperature = floatval($posted_settings['qa_temperature'] ?? 0.7);
             
             $ai_client = new AIOHM_KB_AI_GPT_Client();
@@ -1040,6 +1040,13 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'No data provided for restore.']);
         }
         $json_data = stripslashes($_POST['json_data']);
+        
+        // Validate JSON data
+        json_decode($json_data);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            wp_send_json_error(['message' => 'Invalid JSON data provided.']);
+        }
+        
         try {
             $rag_engine = new AIOHM_KB_RAG_Engine();
             $count = $rag_engine->import_knowledge_base($json_data);
@@ -1070,7 +1077,8 @@ class AIOHM_KB_Core_Init {
         if (!wp_verify_nonce($_POST['nonce'], 'aiohm_brand_soul_nonce') || !current_user_can('read')) {
             wp_send_json_error(['message' => 'Security check failed.']);
         }
-        parse_str($_POST['data'], $form_data);
+        $raw_data = sanitize_textarea_field($_POST['data']);
+        parse_str($raw_data, $form_data);
         $answers = isset($form_data['answers']) ? array_map('sanitize_textarea_field', $form_data['answers']) : [];
         update_user_meta(get_current_user_id(), 'aiohm_brand_soul_answers', $answers);
         wp_send_json_success();
@@ -1080,7 +1088,8 @@ class AIOHM_KB_Core_Init {
         if (!wp_verify_nonce($_POST['nonce'], 'aiohm_brand_soul_nonce') || !current_user_can('read')) {
             wp_send_json_error(['message' => 'Security check failed.']);
         }
-        parse_str($_POST['data'], $form_data);
+        $raw_data = sanitize_textarea_field($_POST['data']);
+        parse_str($raw_data, $form_data);
         $answers = isset($form_data['answers']) ? array_map('sanitize_textarea_field', $form_data['answers']) : [];
         if (empty($answers)) {
             wp_send_json_error(['message' => 'No answers to add.']);
@@ -1170,14 +1179,6 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_save_mirror_mode_settings_ajax() {
-        // Force log this immediately
-        error_log('=== MIRROR MODE SAVE HANDLER CALLED AT ' . date('Y-m-d H:i:s') . ' ===');
-        error_log('POST data: ' . print_r($_POST, true));
-        error_log('Current user ID: ' . get_current_user_id());
-        error_log('User capabilities: ' . print_r(wp_get_current_user()->allcaps, true));
-        error_log('Action hook: ' . ($_POST['action'] ?? 'NO ACTION'));
-        error_log('Nonce field: ' . ($_POST['aiohm_mirror_mode_nonce_field'] ?? 'NO NONCE'));
-        
         if (!check_ajax_referer('aiohm_mirror_mode_nonce', 'aiohm_mirror_mode_nonce_field', false)) {
             error_log('NONCE CHECK FAILED');
             wp_send_json_error(['message' => 'Nonce verification failed.']);
@@ -1188,13 +1189,10 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'Insufficient permissions.']);
         }
         
-        error_log('Security checks passed');
-        
-        parse_str($_POST['form_data'], $form_data);
-        error_log('Parsed form data: ' . print_r($form_data, true));
+        $raw_form_data = sanitize_textarea_field($_POST['form_data']);
+        parse_str($raw_form_data, $form_data);
         
         $settings_input = $form_data['aiohm_kb_settings']['mirror_mode'] ?? [];
-        error_log('Settings input: ' . print_r($settings_input, true));
         
         if (empty($settings_input)) {
             error_log('SETTINGS INPUT IS EMPTY');
@@ -1219,28 +1217,11 @@ class AIOHM_KB_Core_Init {
         $settings['mirror_mode']['meeting_button_url'] = esc_url_raw($settings_input['meeting_button_url'] ?? '');
         $settings['mirror_mode']['ai_model'] = sanitize_text_field($settings_input['ai_model'] ?? 'gpt-3.5-turbo');
 
-        error_log('About to save settings: ' . print_r($settings['mirror_mode'], true));
-        
-        // Get current settings to compare
-        $current_settings = get_option('aiohm_kb_settings', []);
-        error_log('Current settings before save: ' . print_r($current_settings['mirror_mode'] ?? 'NOT FOUND', true));
-        
-        // Debug the current state before saving
-        error_log('==== BEFORE SAVE ====');
-        error_log('Current DB settings: ' . print_r(get_option('aiohm_kb_settings', []), true));
-        error_log('Settings to save: ' . print_r($settings, true));
-        
-        // Save the settings using WordPress API - don't use delete/add method
-        error_log('SAVING SETTINGS WITH update_option');
-        error_log('Settings array before save: ' . print_r($settings, true));
-        
-        // Force update even if the value hasn't changed
+        // Save the settings
         $result = update_option('aiohm_kb_settings', $settings, true);
-        error_log('update_option result: ' . ($result ? 'TRUE' : 'FALSE'));
         
         // If update_option returns false, try direct database update
         if (!$result) {
-            error_log('update_option failed, trying direct database update');
             global $wpdb;
             $option_name = 'aiohm_kb_settings';
             $option_value = serialize($settings);
@@ -1255,72 +1236,33 @@ class AIOHM_KB_Core_Init {
                 ),
                 array('%s', '%s', '%s')
             );
-            error_log('Direct database update result: ' . ($result ? 'SUCCESS' : 'FAILED'));
         }
         
         // Force clear all caches
         wp_cache_delete('aiohm_kb_settings', 'options');
         wp_cache_flush();
         
-        // Verify the settings were actually saved
-        $verify_settings = get_option('aiohm_kb_settings', []);
-        error_log('Settings after save verification: ' . print_r($verify_settings, true));
-        
-        if (isset($verify_settings['mirror_mode']) && 
-            isset($verify_settings['mirror_mode']['business_name']) &&
-            $verify_settings['mirror_mode']['business_name'] === $settings['mirror_mode']['business_name']) {
-            error_log('VERIFICATION SUCCESSFUL: Settings were saved correctly');
-        } else {
-            error_log('VERIFICATION FAILED: Settings may not have been saved');
-            error_log('Expected business_name: ' . $settings['mirror_mode']['business_name']);
-            error_log('Actual business_name: ' . ($verify_settings['mirror_mode']['business_name'] ?? 'NOT FOUND'));
-        }
-        
-        // Check what actually got saved using the plugin's method
-        error_log('==== AFTER SAVE ====');
-        $saved_settings = AIOHM_KB_Assistant::get_settings();
-        error_log('Saved DB settings: ' . print_r($saved_settings['mirror_mode'], true));
-        
-        // Verify the specific field we changed
-        if (isset($saved_settings['mirror_mode']['business_name'])) {
-            error_log('SUCCESS: Business name saved as: ' . $saved_settings['mirror_mode']['business_name']);
-        } else {
-            error_log('ERROR: mirror_mode[business_name] not found in saved settings');
-        }
-        
         wp_send_json_success(['message' => 'Mirror Mode settings saved successfully.']);
     }
     
     public static function monitor_settings_changes($old_value, $new_value) {
-        error_log('=== SETTINGS CHANGE DETECTED ===');
-        error_log('Old value has mirror_mode: ' . (isset($old_value['mirror_mode']) ? 'YES' : 'NO'));
-        error_log('New value has mirror_mode: ' . (isset($new_value['mirror_mode']) ? 'YES' : 'NO'));
-        error_log('Caller: ' . wp_debug_backtrace_summary());
-        
+        // Monitor for unintended setting removals
         if (isset($old_value['mirror_mode']) && !isset($new_value['mirror_mode'])) {
-            error_log('WARNING: Mirror mode settings were REMOVED!');
-            error_log('Full backtrace: ' . wp_debug_backtrace_summary());
+            AIOHM_KB_Assistant::log('Mirror mode settings were removed during save', 'warning');
         }
         
         if (isset($old_value['muse_mode']) && !isset($new_value['muse_mode'])) {
-            error_log('WARNING: Muse mode settings were REMOVED!');
-            error_log('Full backtrace: ' . wp_debug_backtrace_summary());
+            AIOHM_KB_Assistant::log('Muse mode settings were removed during save', 'warning');
         }
     }
     
     public static function monitor_settings_deletion($option_name) {
-        error_log('=== SETTINGS DELETION DETECTED ===');
-        error_log('Option name: ' . $option_name);
-        error_log('Caller: ' . wp_debug_backtrace_summary());
-        error_log('This might be causing the settings to disappear!');
+        if ($option_name === 'aiohm_kb_settings') {
+            AIOHM_KB_Assistant::log('AIOHM settings option was deleted', 'warning');
+        }
     }
 
     public static function handle_save_muse_mode_settings_ajax() {
-        error_log('=== MUSE MODE SAVE HANDLER CALLED ===');
-        error_log('POST data: ' . print_r($_POST, true));
-        error_log('Current user ID: ' . get_current_user_id());
-        error_log('User capabilities: ' . print_r(wp_get_current_user()->allcaps, true));
-        
         if (!check_ajax_referer('aiohm_muse_mode_nonce', 'aiohm_muse_mode_nonce_field', false)) {
             error_log('MUSE NONCE CHECK FAILED');
             wp_send_json_error(['message' => 'Nonce verification failed.']);
@@ -1330,14 +1272,11 @@ class AIOHM_KB_Core_Init {
             error_log('MUSE USER CAPABILITY CHECK FAILED');
             wp_send_json_error(['message' => 'Insufficient permissions.']);
         }
-        
-        error_log('Muse security checks passed');
 
-        parse_str($_POST['form_data'], $form_data);
-        error_log('Muse parsed form data: ' . print_r($form_data, true));
+        $raw_form_data = sanitize_textarea_field($_POST['form_data']);
+        parse_str($raw_form_data, $form_data);
         
         $muse_input = $form_data['aiohm_kb_settings']['muse_mode'] ?? [];
-        error_log('Muse settings input: ' . print_r($muse_input, true));
 
         if (empty($muse_input)) {
             error_log('MUSE SETTINGS INPUT IS EMPTY');
@@ -1359,28 +1298,11 @@ class AIOHM_KB_Core_Init {
         $settings['muse_mode']['start_fullscreen'] = isset($muse_input['start_fullscreen']) ? 1 : 0;
         $settings['muse_mode']['brand_archetype'] = sanitize_text_field($muse_input['brand_archetype'] ?? '');
 
-        error_log('About to save Muse settings: ' . print_r($settings['muse_mode'], true));
-        
-        // Get current settings to compare
-        $current_settings = get_option('aiohm_kb_settings', []);
-        error_log('Current Muse settings before save: ' . print_r($current_settings['muse_mode'] ?? 'NOT FOUND', true));
-        
-        // Debug the current state before saving
-        error_log('==== MUSE BEFORE SAVE ====');
-        error_log('Current DB settings: ' . print_r(get_option('aiohm_kb_settings', []), true));
-        error_log('Settings to save: ' . print_r($settings, true));
-        
-        // Save the settings using WordPress API - don't use delete/add method
-        error_log('MUSE SAVING SETTINGS WITH update_option');
-        error_log('Muse settings array before save: ' . print_r($settings, true));
-        
-        // Force update even if the value hasn't changed
+        // Save the settings
         $result = update_option('aiohm_kb_settings', $settings, true);
-        error_log('Muse update_option result: ' . ($result ? 'TRUE' : 'FALSE'));
         
         // If update_option returns false, try direct database update
         if (!$result) {
-            error_log('Muse update_option failed, trying direct database update');
             global $wpdb;
             $option_name = 'aiohm_kb_settings';
             $option_value = serialize($settings);
@@ -1395,38 +1317,11 @@ class AIOHM_KB_Core_Init {
                 ),
                 array('%s', '%s', '%s')
             );
-            error_log('Muse direct database update result: ' . ($result ? 'SUCCESS' : 'FAILED'));
         }
         
         // Force clear all caches
         wp_cache_delete('aiohm_kb_settings', 'options');
         wp_cache_flush();
-        
-        // Verify the settings were actually saved
-        $verify_settings = get_option('aiohm_kb_settings', []);
-        error_log('Muse settings after save verification: ' . print_r($verify_settings, true));
-        
-        if (isset($verify_settings['muse_mode']) && 
-            isset($verify_settings['muse_mode']['assistant_name']) &&
-            $verify_settings['muse_mode']['assistant_name'] === $settings['muse_mode']['assistant_name']) {
-            error_log('MUSE VERIFICATION SUCCESSFUL: Settings were saved correctly');
-        } else {
-            error_log('MUSE VERIFICATION FAILED: Settings may not have been saved');
-            error_log('Expected assistant_name: ' . $settings['muse_mode']['assistant_name']);
-            error_log('Actual assistant_name: ' . ($verify_settings['muse_mode']['assistant_name'] ?? 'NOT FOUND'));
-        }
-        
-        // Check what actually got saved using the plugin's method
-        error_log('==== MUSE AFTER SAVE ====');
-        $saved_settings = AIOHM_KB_Assistant::get_settings();
-        error_log('Muse saved DB settings: ' . print_r($saved_settings['muse_mode'], true));
-        
-        // Verify the specific field we changed
-        if (isset($saved_settings['muse_mode']['assistant_name'])) {
-            error_log('SUCCESS: Assistant name saved as: ' . $saved_settings['muse_mode']['assistant_name']);
-        } else {
-            error_log('ERROR: muse_mode[assistant_name] not found in saved settings');
-        }
         
         wp_send_json_success(['message' => 'Muse Mode settings saved successfully.']);
     }
@@ -2058,7 +1953,7 @@ class AIOHM_KB_Core_Init {
             
         } catch (Exception $e) {
             AIOHM_KB_Assistant::log('PDF Download Error: ' . $e->getMessage(), 'error');
-            wp_die('Error generating PDF: ' . $e->getMessage());
+            wp_die(esc_html('Error generating PDF: ' . $e->getMessage()));
         }
     }
 
@@ -2129,6 +2024,38 @@ class AIOHM_KB_Core_Init {
             AIOHM_KB_Assistant::log('Add to KB Error: ' . $e->getMessage(), 'error');
             wp_send_json_error(['message' => 'Error adding to KB: ' . $e->getMessage()]);
         }
+    }
+    
+    /**
+     * Helper function to render images in WordPress-compliant way
+     * Uses WordPress image functions when possible
+     * 
+     * @param string $url Image URL
+     * @param string $alt Alt text
+     * @param array $attributes Additional HTML attributes
+     * @return string HTML img tag
+     */
+    public static function render_image($url, $alt = '', $attributes = []) {
+        // Check if this is a WordPress attachment
+        $attachment_id = attachment_url_to_postid($url);
+        
+        if ($attachment_id) {
+            // Use WordPress function for attachments
+            $image_attributes = array_merge(['alt' => $alt], $attributes);
+            return wp_get_attachment_image($attachment_id, 'full', false, $image_attributes);
+        }
+        
+        // For external URLs, build the tag manually with proper escaping
+        $url = esc_url($url);
+        $alt = esc_attr($alt);
+        
+        $attr_string = '';
+        foreach ($attributes as $key => $value) {
+            $attr_string .= ' ' . esc_attr($key) . '="' . esc_attr($value) . '"';
+        }
+        
+        // Use wp_kses_post to ensure the HTML is safe
+        return wp_kses_post('<img src="' . $url . '" alt="' . $alt . '"' . $attr_string . ' />');
     }
 }
 

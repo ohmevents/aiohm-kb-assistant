@@ -45,7 +45,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
             
             <aside class="aiohm-pa-sidebar">
                 <div class="aiohm-pa-sidebar-header">
-                    <h3><?php echo $assistant_name; ?></h3>
+                    <h3><?php echo esc_html($assistant_name); ?></h3>
                 </div>
 
                 <nav class="aiohm-pa-menu">
@@ -73,7 +73,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                     <a href="<?php echo esc_url($settings_page_url); ?>" class="aiohm-footer-settings-link" title="Muse Mode Settings">
                         <span class="dashicons dashicons-admin-generic"></span>
                     </a>
-                    <span class="aiohm-footer-version">AIOHM v<?php echo AIOHM_KB_VERSION; ?></span>
+                    <span class="aiohm-footer-version">AIOHM v<?php echo esc_html(AIOHM_KB_VERSION); ?></span>
                 </div>
             </aside>
 
@@ -123,7 +123,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                     <div class="aiohm-welcome-screen" id="welcome-instructions">
                         <div class="aiohm-welcome-message-area">
                              <div class="message assistant">
-                                <p><strong><?php echo $assistant_name; ?>:</strong> <?php echo esc_html($atts['welcome_message']); ?></p>
+                                <p><strong><?php echo esc_html($assistant_name); ?>:</strong> <?php echo esc_html($atts['welcome_message']); ?></p>
                             </div>
                         </div>
                         <div class="aiohm-welcome-guide">

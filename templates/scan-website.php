@@ -9,58 +9,80 @@ $api_key_exists = !empty(AIOHM_KB_Assistant::get_settings()['openai_api_key']);
 $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['total'] ?? 0);
 ?>
 <div class="wrap aiohm-scan-page" id="aiohm-scan-page">
-    <h1><?php _e('Build Your Knowledge Base', 'aiohm-kb-assistant'); ?></h1>
-    <p class="page-description"><?php _e('Scan your website\'s posts, pages, and media library to add content to your AI\'s knowledge base.', 'aiohm-kb-assistant'); ?></p>
+    <h1><?php esc_html_e('Build Your Knowledge Base', 'aiohm-kb-assistant'); ?></h1>
+    <p class="page-description"><?php esc_html_e('Scan your website\'s posts, pages, and media library to add content to your AI\'s knowledge base.', 'aiohm-kb-assistant'); ?></p>
 
     <div id="aiohm-admin-notice" class="notice is-dismissible" style="display:none; margin-top: 10px;" tabindex="-1" role="alert" aria-live="polite"><p></p></div>
 
     <?php if (!$api_key_exists) : ?>
         <div class="notice notice-warning" style="padding: 15px; border-left-width: 4px;">
-            <h3 style="margin-top: 0;"><?php _e('Action Required: Add Your API Key', 'aiohm-kb-assistant'); ?></h3>
-            <p><?php _e('Content scanning is disabled because your OpenAI API key has not been configured. Please add your key to enable this feature.', 'aiohm-kb-assistant'); ?></p>
-            <a href="<?php echo admin_url('admin.php?page=aiohm-settings'); ?>" class="button button-primary"><?php _e('Go to Settings', 'aiohm-kb-assistant'); ?></a>
+            <h3 style="margin-top: 0;"><?php esc_html_e('Action Required: Add Your API Key', 'aiohm-kb-assistant'); ?></h3>
+            <p><?php esc_html_e('Content scanning is disabled because your OpenAI API key has not been configured. Please add your key to enable this feature.', 'aiohm-kb-assistant'); ?></p>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-settings')); ?>" class="button button-primary"><?php esc_html_e('Go to Settings', 'aiohm-kb-assistant'); ?></a>
         </div>
     <?php endif; ?>
 
     <div class="aiohm-scan-section-wrapper" style="margin-bottom: 20px;">
         <div class="aiohm-scan-section">
-            <h2><?php _e('Content Stats', 'aiohm-kb-assistant'); ?></h2>
-            <p><?php _e('An overview of all scannable content from your website and Media Library.', 'aiohm-kb-assistant'); ?></p>
+            <h2><?php esc_html_e('Content Stats', 'aiohm-kb-assistant'); ?></h2>
+            <p><?php esc_html_e('An overview of all scannable content from your website and Media Library.', 'aiohm-kb-assistant'); ?></p>
             
             <div class="aiohm-stats-boxes">
                 <div class="aiohm-stats-box">
                     <div class="stats-box-header">
-                        <h4><?php _e('Website Content Breakdown', 'aiohm-kb-assistant'); ?></h4>
+                        <h4><?php esc_html_e('Website Content Breakdown', 'aiohm-kb-assistant'); ?></h4>
                     </div>
                     <div class="stats-box-content">
                         <div class="stat-item total-stat">
-                            <strong><?php _e('Total Website Content:', 'aiohm-kb-assistant'); ?></strong>
+                            <strong><?php esc_html_e('Total Website Content:', 'aiohm-kb-assistant'); ?></strong>
                             <span class="stat-number"><?php echo esc_html($total_links); ?></span>
                             <span class="stat-label">(Posts + Pages)</span>
                         </div>
                         <div class="stat-item">
-                            <strong><?php _e('Posts:', 'aiohm-kb-assistant'); ?></strong>
-                            <span><?php printf(__('%d total, %d indexed, %d pending', 'aiohm-kb-assistant'), $site_stats['posts']['total'] ?? 0, $site_stats['posts']['indexed'] ?? 0, $site_stats['posts']['pending'] ?? 0); ?></span>
+                            <strong><?php esc_html_e('Posts:', 'aiohm-kb-assistant'); ?></strong>
+                            <span><?php 
+                                // translators: %1$d is total posts, %2$d is indexed posts, %3$d is pending posts
+                                printf(esc_html__('%1$d total, %2$d indexed, %3$d pending', 'aiohm-kb-assistant'), 
+                                    esc_html($site_stats['posts']['total'] ?? 0), 
+                                    esc_html($site_stats['posts']['indexed'] ?? 0), 
+                                    esc_html($site_stats['posts']['pending'] ?? 0)
+                                ); ?></span>
                         </div>
                         <div class="stat-item">
-                            <strong><?php _e('Pages:', 'aiohm-kb-assistant'); ?></strong>
-                            <span><?php printf(__('%d total, %d indexed, %d pending', 'aiohm-kb-assistant'), $site_stats['pages']['total'] ?? 0, $site_stats['pages']['indexed'] ?? 0, $site_stats['pages']['pending'] ?? 0); ?></span>
+                            <strong><?php esc_html_e('Pages:', 'aiohm-kb-assistant'); ?></strong>
+                            <span><?php 
+                                // translators: %1$d is total pages, %2$d is indexed pages, %3$d is pending pages
+                                printf(esc_html__('%1$d total, %2$d indexed, %3$d pending', 'aiohm-kb-assistant'), 
+                                    esc_html($site_stats['pages']['total'] ?? 0), 
+                                    esc_html($site_stats['pages']['indexed'] ?? 0), 
+                                    esc_html($site_stats['pages']['pending'] ?? 0)
+                                ); ?></span>
                         </div>
                     </div>
                 </div>
                 
                 <div class="aiohm-stats-box">
                     <div class="stats-box-header">
-                        <h4><?php _e('Media Library Breakdown', 'aiohm-kb-assistant'); ?></h4>
+                        <h4><?php esc_html_e('Media Library Breakdown', 'aiohm-kb-assistant'); ?></h4>
                     </div>
                     <div class="stats-box-content">
                         <div class="stat-item total-stat">
-                            <strong><?php _e('Total Media Files:', 'aiohm-kb-assistant'); ?></strong>
+                            <strong><?php esc_html_e('Total Media Files:', 'aiohm-kb-assistant'); ?></strong>
                             <span class="stat-number"><?php echo esc_html($uploads_stats['total_files'] ?? 0); ?></span>
                             <span class="stat-label">(Indexed: <?php echo esc_html($uploads_stats['indexed_files'] ?? 0); ?>, Pending: <?php echo esc_html($uploads_stats['pending_files'] ?? 0); ?>)</span>
                         </div>
                     </div>
-                    <?php if (!empty($uploads_stats['by_type'])) { foreach($uploads_stats['by_type'] as $type => $data) { $size_formatted = size_format($data['size'] ?? 0); echo '<div class="stat-item"><strong>' . esc_html(strtoupper($type)) . ' Files:</strong> <span>' . sprintf(__('%d total, %d indexed, %d pending (%s)', 'aiohm-kb-assistant'), $data['count'] ?? 0, $data['indexed'] ?? 0, $data['pending'] ?? 0, $size_formatted) . '</span></div>'; } } else { echo '<p>Supported files include .txt, .json, .csv, and .pdf from your Media Library.</p>'; } ?>
+                    <?php if (!empty($uploads_stats['by_type'])) { 
+                        foreach($uploads_stats['by_type'] as $type => $data) { 
+                            $size_formatted = size_format($data['size'] ?? 0); 
+                            echo '<div class="stat-item"><strong>' . esc_html(strtoupper($type)) . ' Files:</strong> <span>' . esc_html(
+                                // translators: %1$d is total files, %2$d is indexed files, %3$d is pending files, %4$s is file size
+                                sprintf(__('%1$d total, %2$d indexed, %3$d pending (%4$s)', 'aiohm-kb-assistant'), $data['count'] ?? 0, $data['indexed'] ?? 0, $data['pending'] ?? 0, $size_formatted)
+                            ) . '</span></div>'; 
+                        } 
+                    } else { 
+                        echo '<p>' . esc_html__('Supported files include .txt, .json, .csv, and .pdf from your Media Library.', 'aiohm-kb-assistant') . '</p>'; 
+                    } ?>
                 </div>
             </div>
         </div>
@@ -69,26 +91,26 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
     <div class="aiohm-scan-columns-wrapper">
         <div class="aiohm-scan-column">
             <div class="aiohm-scan-section">
-                <h2><?php _e('Website Content Scanner', 'aiohm-kb-assistant'); ?></h2>
-                <p><?php _e('Use the button to find or re-scan your posts and pages.', 'aiohm-kb-assistant'); ?></p>
-                <button type="button" class="button button-primary" id="scan-website-btn" <?php disabled(!$api_key_exists); ?>><?php _e('Re-Scan Posts & Pages', 'aiohm-kb-assistant'); ?></button>
+                <h2><?php esc_html_e('Website Content Scanner', 'aiohm-kb-assistant'); ?></h2>
+                <p><?php esc_html_e('Use the button to find or re-scan your posts and pages.', 'aiohm-kb-assistant'); ?></p>
+                <button type="button" class="button button-primary" id="scan-website-btn" <?php disabled(!$api_key_exists); ?>><?php esc_html_e('Re-Scan Posts & Pages', 'aiohm-kb-assistant'); ?></button>
                 <div id="pending-content-area" style="margin-top: 20px;">
-                    <h3><?php _e("Scan Results", 'aiohm-kb-assistant'); ?></h3>
+                    <h3><?php esc_html_e('Scan Results', 'aiohm-kb-assistant'); ?></h3>
                     <div id="scan-results-container"></div>
-                    <button type="button" class="button button-primary" id="add-selected-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected to KB', 'aiohm-kb-assistant'); ?></button>
+                    <button type="button" class="button button-primary" id="add-selected-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php esc_html_e('Add Selected to KB', 'aiohm-kb-assistant'); ?></button>
                     <div id="website-scan-progress" class="aiohm-scan-progress" style="display: none;"><div class="progress-info"><span class="progress-label">Processing...</span><span class="progress-percentage">0%</span></div><div class="progress-bar-wrapper"><div class="progress-bar-inner"></div></div></div>
                 </div>
             </div>
         </div>
         <div class="aiohm-scan-column">
             <div class="aiohm-scan-section">
-                <h2><?php _e('Upload Folder Scanner', 'aiohm-kb-assistant'); ?></h2>
-                <p><?php _e('Scan your <strong>WordPress Media Library</strong> for readable files like .txt, .json, .csv, and .pdf.', 'aiohm-kb-assistant'); ?></p>
-                <button type="button" class="button button-primary" id="scan-uploads-btn" <?php disabled(!$api_key_exists); ?>><?php _e('Find Uploads', 'aiohm-kb-assistant'); ?></button>
+                <h2><?php esc_html_e('Upload Folder Scanner', 'aiohm-kb-assistant'); ?></h2>
+                <p><?php esc_html_e('Scan your <strong>WordPress Media Library</strong> for readable files like .txt, .json, .csv, and .pdf.', 'aiohm-kb-assistant'); ?></p>
+                <button type="button" class="button button-primary" id="scan-uploads-btn" <?php disabled(!$api_key_exists); ?>><?php esc_html_e('Find Uploads', 'aiohm-kb-assistant'); ?></button>
                 <div id="pending-uploads-area" style="margin-top: 20px;">
-                    <h3><?php _e("Uploads Scan Results", 'aiohm-kb-assistant'); ?></h3>
+                    <h3><?php esc_html_e('Uploads Scan Results', 'aiohm-kb-assistant'); ?></h3>
                     <div id="scan-uploads-container"></div>
-                    <button type="button" class="button button-primary" id="add-uploads-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php _e('Add Selected to KB', 'aiohm-kb-assistant'); ?></button>
+                    <button type="button" class="button button-primary" id="add-uploads-to-kb-btn" style="margin-top: 15px;" <?php disabled(!$api_key_exists); ?>><?php esc_html_e('Add Selected to KB', 'aiohm-kb-assistant'); ?></button>
                 </div>
             </div>
         </div>
@@ -141,7 +163,7 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
 
 <script type="text/javascript">
 jQuery(document).ready(function($) {
-    const nonce = '<?php echo wp_create_nonce("aiohm_admin_nonce"); ?>';
+    const nonce = '<?php echo esc_js(wp_create_nonce("aiohm_admin_nonce")); ?>';
     let noticeTimer;
     
     // Enhanced admin notice function with accessibility features

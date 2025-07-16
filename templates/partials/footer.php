@@ -5,5 +5,5 @@
 if (!defined('ABSPATH')) exit;
 ?>
 </div><div class="aiohm-admin-footer">
-    <p>&copy; <?php echo date('Y'); ?> AIOHM. All Rights Reserved.</p>
+    <p>&copy; <?php echo esc_html(date('Y')); ?> AIOHM. All Rights Reserved.</p>
 </div>

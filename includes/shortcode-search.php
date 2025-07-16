@@ -86,6 +86,7 @@ class AIOHM_KB_Shortcode_Search {
             'strings' => array(
                 'no_results' => __('No results found for your search.', 'aiohm-kb-assistant'),
                 'error' => __('Search failed. Please try again.', 'aiohm-kb-assistant'),
+                // translators: %d is the number of search results found
                 'results_count' => __('Found %d result(s)', 'aiohm-kb-assistant'),
                 'searching' => __('Searching...', 'aiohm-kb-assistant')
             )

@@ -84,7 +84,11 @@ class AIOHM_KB_Shortcode_Chat {
         if (!empty($atts['welcome_message'])) {
             $output .= '<div class="aiohm-message aiohm-message-bot">';
             if (!empty($settings['ai_avatar'])) {
-                $output .= '<div class="aiohm-message-avatar"><img src="' . esc_url($settings['ai_avatar']) . '" alt="AI Avatar" style="width:100%; height:100%; border-radius:50%; object-fit: cover;"></div>';
+                $output .= '<div class="aiohm-message-avatar">' . AIOHM_KB_Core_Init::render_image(
+                    $settings['ai_avatar'],
+                    __('AI Avatar', 'aiohm-kb-assistant'),
+                    ['style' => 'width:100%; height:100%; border-radius:50%; object-fit: cover;']
+                ) . '</div>';
             }
             $output .= '<div class="aiohm-message-bubble"><div class="aiohm-message-content">' . esc_html($atts['welcome_message']) . '</div></div>';
             $output .= '</div>';
