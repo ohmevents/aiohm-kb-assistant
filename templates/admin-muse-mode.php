@@ -12,7 +12,30 @@ if (!defined('ABSPATH')) exit;
 // Fetch all settings and then get the specific part for Muse Mode
 $all_settings = AIOHM_KB_Assistant::get_settings();
 $settings = $all_settings['muse_mode'] ?? [];
-$global_settings = $all_settings; // for API keys
+$global_settings = $all_settings;
+
+// Debug: Show what settings are loaded
+if (isset($_GET['debug'])) {
+    // Force cache clear
+    wp_cache_delete('aiohm_kb_settings', 'options');
+    wp_cache_flush();
+    
+    // Direct database query
+    global $wpdb;
+    $db_result = $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'aiohm_kb_settings'));
+    $db_unserialized = $db_result ? unserialize($db_result) : [];
+    
+    echo '<div style="background: #fff; border: 1px solid #ccc; padding: 10px; margin: 10px 0;">';
+    echo '<h3>DEBUG: Muse Mode Settings Loaded</h3>';
+    echo '<pre>' . print_r($settings, true) . '</pre>';
+    echo '<h3>DEBUG: Raw Database Option (after cache clear)</h3>';
+    echo '<pre>' . print_r(get_option('aiohm_kb_settings', []), true) . '</pre>';
+    echo '<h3>DEBUG: Direct Database Query</h3>';
+    echo '<pre>' . print_r($db_unserialized, true) . '</pre>';
+    echo '<h3>DEBUG: All Settings Method</h3>';
+    echo '<pre>' . print_r(AIOHM_KB_Assistant::get_settings(), true) . '</pre>';
+    echo '</div>';
+}
 
 // --- START: Archetype Prompts ---
 $archetype_prompts = [

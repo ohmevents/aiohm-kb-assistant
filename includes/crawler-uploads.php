@@ -115,7 +115,14 @@ class AIOHM_KB_Uploads_Crawler {
                 AIOHM_KB_Assistant::log("Attempting to process file ID {$attachment_id} (Title: {$file_title}) for KB.");
                 $file_data = $this->process_file($file_path, $attachment_id);
                 if ($file_data && !empty(trim($file_data['content']))) {
-                    $this->rag_engine->add_entry($file_data['content'], $file_data['type'], $file_data['title'], $file_data['metadata']);
+                    $result = $this->rag_engine->add_entry($file_data['content'], $file_data['type'], $file_data['title'], $file_data['metadata']);
+                    
+                    // Check if the knowledge base addition was successful
+                    if (is_wp_error($result)) {
+                        throw new Exception('Failed to add to knowledge base: ' . $result->get_error_message());
+                    }
+                    
+                    // Only update meta if KB addition was successful
                     update_post_meta($attachment_id, '_aiohm_indexed', time());
                     clean_post_cache($attachment_id); // Clear cache for this specific post. This should also clear its post_meta cache.
                     AIOHM_KB_Assistant::log("Successfully processed and indexed attachment ID {$attachment_id}.");

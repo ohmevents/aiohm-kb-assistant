@@ -27,7 +27,8 @@ class AIOHM_KB_Shortcode_Private_Assistant {
         $assistant_name = !empty($muse_settings['assistant_name']) ? esc_html($muse_settings['assistant_name']) : 'Muse';
         $settings_page_url = admin_url('admin.php?page=aiohm-muse-mode');
 
-        wp_enqueue_style('aiohm-private-chat-style', AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-private-chat.css', [], AIOHM_KB_VERSION);
+        wp_enqueue_style('dashicons');
+        wp_enqueue_style('aiohm-private-chat-style', AIOHM_KB_PLUGIN_URL . 'assets/css/aiohm-private-chat.css', ['dashicons'], AIOHM_KB_VERSION);
         wp_enqueue_script('aiohm-private-chat-js', AIOHM_KB_PLUGIN_URL . 'assets/js/aiohm-private-chat.js', ['jquery'], AIOHM_KB_VERSION, true);
         
         wp_localize_script('aiohm-private-chat-js', 'aiohm_private_chat_params', [

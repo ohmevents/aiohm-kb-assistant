@@ -132,6 +132,7 @@ foreach ($brand_soul_questions as $section) {
 
                     <div class="aiohm-navigation">
                         <button type="button" id="prev-btn" class="button button-secondary" style="display: none;"><?php _e('Previous', 'aiohm-kb-assistant'); ?></button>
+                        <button type="button" id="save-progress-btn" class="button button-secondary"><?php _e('Save Progress', 'aiohm-kb-assistant'); ?></button>
                         <button type="button" id="next-btn" class="button button-primary"><?php _e('Next', 'aiohm-kb-assistant'); ?></button>
                     </div>
                 </form>
@@ -208,7 +209,10 @@ foreach ($brand_soul_questions as $section) {
     .question-text { font-size: 1.5em; line-height: 1.4; margin-bottom: 20px; color: var(--ohm-dark-accent); }
     .aiohm-question-slide textarea { width: 100%; min-height: 150px; padding: 15px; font-family: var(--ohm-font-secondary); font-size: 1.1em; border: 2px solid var(--ohm-light-bg); border-radius: 4px; transition: border-color 0.3s; }
     .aiohm-question-slide textarea:focus { border-color: var(--ohm-primary); outline: none; box-shadow: 0 0 0 2px var(--ohm-light-accent); }
-    .aiohm-navigation { display: flex; justify-content: flex-end; gap: 10px; padding-top: 20px; border-top: 1px solid var(--ohm-light-bg); }
+    .aiohm-navigation { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 20px; border-top: 1px solid var(--ohm-light-bg); }
+    .aiohm-navigation #prev-btn { margin-right: auto; }
+    .aiohm-navigation #save-progress-btn { order: 2; }
+    .aiohm-navigation #next-btn { order: 3; }
     .aiohm-navigation .button { font-size: 1.1em; padding: 8px 24px; height: auto; }
     .aiohm-final-actions { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 15px; }
     @media (max-width: 960px) { .aiohm-page-layout { flex-direction: column; } .aiohm-side-nav { flex: 0 0 auto; } }
@@ -294,6 +298,20 @@ foreach ($brand_soul_questions as $section) {
             }).done(response => {
                 showAdminNotice(response.success ? 'Your answers have been saved.' : 'Error: ' + (response.data.message || 'Could not save.'), response.success ? 'success' : 'error');
             }).fail(() => showAdminNotice('An unexpected server error occurred.', 'error')).always(() => $btn.prop('disabled', false).text('Save My Answers'));
+        });
+
+        // Save progress button for each question
+        $('.aiohm-form-container').on('click', '#save-progress-btn', function() {
+            const $btn = $(this);
+            const originalText = $btn.text();
+            $btn.prop('disabled', true).text('Saving...');
+            $.post(ajaxurl, {
+                action: 'aiohm_save_brand_soul',
+                nonce: $('#aiohm_brand_soul_nonce_field').val(),
+                data: $('#brand-soul-form').serialize()
+            }).done(response => {
+                showAdminNotice(response.success ? 'Progress saved successfully!' : 'Error: ' + (response.data.message || 'Could not save.'), response.success ? 'success' : 'error');
+            }).fail(() => showAdminNotice('An unexpected server error occurred.', 'error')).always(() => $btn.prop('disabled', false).text(originalText));
         });
 
         $('.aiohm-form-container').on('click', '#add-to-kb', function() {

@@ -11,6 +11,29 @@ $all_settings = AIOHM_KB_Assistant::get_settings();
 $settings = $all_settings['mirror_mode'] ?? [];
 $global_settings = $all_settings; // for API keys
 
+// Debug: Show what settings are loaded
+if (isset($_GET['debug'])) {
+    // Force cache clear
+    wp_cache_delete('aiohm_kb_settings', 'options');
+    wp_cache_flush();
+    
+    // Direct database query
+    global $wpdb;
+    $db_result = $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'aiohm_kb_settings'));
+    $db_unserialized = $db_result ? unserialize($db_result) : [];
+    
+    echo '<div style="background: #fff; border: 1px solid #ccc; padding: 10px; margin: 10px 0;">';
+    echo '<h3>DEBUG: Mirror Mode Settings Loaded</h3>';
+    echo '<pre>' . print_r($settings, true) . '</pre>';
+    echo '<h3>DEBUG: Raw Database Option (after cache clear)</h3>';
+    echo '<pre>' . print_r(get_option('aiohm_kb_settings', []), true) . '</pre>';
+    echo '<h3>DEBUG: Direct Database Query</h3>';
+    echo '<pre>' . print_r($db_unserialized, true) . '</pre>';
+    echo '<h3>DEBUG: All Settings Method</h3>';
+    echo '<pre>' . print_r(AIOHM_KB_Assistant::get_settings(), true) . '</pre>';
+    echo '</div>';
+}
+
 // Helper function for color contrast
 function aiohm_is_color_dark($hex) {
     if (empty($hex)) return false;
@@ -103,6 +126,12 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
                         <button type="button" class="button button-secondary" id="upload_ai_avatar_button">Upload</button>
                     </div>
                      <p class="description">Upload or enter the URL for the AI's avatar.</p>
+                </div>
+
+                <div class="aiohm-setting-block">
+                    <label for="welcome_message">Welcome Message</label>
+                    <textarea id="welcome_message" name="aiohm_kb_settings[mirror_mode][welcome_message]" rows="3" placeholder="Hey there! I'm your AI assistant..."><?php echo esc_textarea($settings['welcome_message'] ?? ''); ?></textarea>
+                    <p class="description">The first message visitors see when the chat loads.</p>
                 </div>
 
                 <div class="aiohm-setting-block">

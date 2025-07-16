@@ -43,6 +43,18 @@ class AIOHM_KB_PMP_Integration {
         $data = self::get_membership_data();
         return $data['has_club_access'] ?? false;
     }
+    
+    public static function aiohm_user_has_private_access() {
+        $data = self::get_membership_data();
+        $membership_details = $data['membership_details'] ?? null;
+        
+        // Check if user has membership ID 12 (Private membership)
+        if ($membership_details && isset($membership_details['membership_id'])) {
+            return (int)$membership_details['membership_id'] === 12;
+        }
+        
+        return false;
+    }
 
     public static function get_user_membership_details() {
         $data = self::get_membership_data();

@@ -50,30 +50,24 @@ class AIOHM_KB_Settings_Page {
             }
         }
         
-        // Fallback: Custom designed OHM-inspired icon
+        // Professional AI brain/knowledge icon
         if ($is_dark_theme) {
-            // White/light icon for dark themes
+            // Light icon for dark themes
             $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
-                <circle cx="10" cy="10" r="8.5" stroke="rgba(255,255,255,0.8)" stroke-width="0.8" fill="none"/>
-                <circle cx="10" cy="7" r="2" fill="rgba(255,255,255,0.9)"/>
-                <path d="M6 12c1.5-0.8 3-1.2 4-1.2s2.5 0.4 4 1.2" stroke="rgba(255,255,255,0.9)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
-                <path d="M7 14.5c1-0.5 2-0.8 3-0.8s2 0.3 3 0.8" stroke="rgba(255,255,255,0.7)" stroke-width="1" stroke-linecap="round" fill="none"/>
-                <circle cx="4.5" cy="10" r="0.8" fill="rgba(255,255,255,0.6)"/>
-                <circle cx="15.5" cy="10" r="0.8" fill="rgba(255,255,255,0.6)"/>
-                <circle cx="10" cy="4.5" r="0.8" fill="rgba(255,255,255,0.6)"/>
-                <circle cx="10" cy="15.5" r="0.8" fill="rgba(255,255,255,0.6)"/>
+                <path d="M10 2C6.686 2 4 4.686 4 8c0 1.5.5 2.9 1.3 4L10 18l4.7-6c.8-1.1 1.3-2.5 1.3-4 0-3.314-2.686-6-6-6z" fill="rgba(255,255,255,0.85)"/>
+                <circle cx="10" cy="7.5" r="1.5" fill="rgba(30,30,30,0.8)"/>
+                <circle cx="7.5" cy="6" r="0.7" fill="rgba(30,30,30,0.8)"/>
+                <circle cx="12.5" cy="6" r="0.7" fill="rgba(30,30,30,0.8)"/>
+                <path d="M8 9.5c.5.3 1.2.5 2 .5s1.5-.2 2-.5" stroke="rgba(30,30,30,0.8)" stroke-width="0.8" stroke-linecap="round"/>
             </svg>';
         } else {
-            // Dark/OHM green icon for light themes
+            // Dark icon for light themes
             $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
-                <circle cx="10" cy="10" r="8.5" stroke="#1f5014" stroke-width="0.8" fill="none"/>
-                <circle cx="10" cy="7" r="2" fill="#1f5014"/>
-                <path d="M6 12c1.5-0.8 3-1.2 4-1.2s2.5 0.4 4 1.2" stroke="#1f5014" stroke-width="1.2" stroke-linecap="round" fill="none"/>
-                <path d="M7 14.5c1-0.5 2-0.8 3-0.8s2 0.3 3 0.8" stroke="#457d58" stroke-width="1" stroke-linecap="round" fill="none"/>
-                <circle cx="4.5" cy="10" r="0.8" fill="#457d58"/>
-                <circle cx="15.5" cy="10" r="0.8" fill="#457d58"/>
-                <circle cx="10" cy="4.5" r="0.8" fill="#457d58"/>
-                <circle cx="10" cy="15.5" r="0.8" fill="#457d58"/>
+                <path d="M10 2C6.686 2 4 4.686 4 8c0 1.5.5 2.9 1.3 4L10 18l4.7-6c.8-1.1 1.3-2.5 1.3-4 0-3.314-2.686-6-6-6z" fill="#1f5014"/>
+                <circle cx="10" cy="7.5" r="1.5" fill="rgba(255,255,255,0.9)"/>
+                <circle cx="7.5" cy="6" r="0.7" fill="rgba(255,255,255,0.9)"/>
+                <circle cx="12.5" cy="6" r="0.7" fill="rgba(255,255,255,0.9)"/>
+                <path d="M8 9.5c.5.3 1.2.5 2 .5s1.5-.2 2-.5" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" stroke-linecap="round"/>
             </svg>';
         }
         
@@ -87,33 +81,24 @@ class AIOHM_KB_Settings_Page {
      * @return string Optimized SVG
      */
     private function optimize_logo_for_menu($svg_content, $is_dark_theme) {
-        // Create a simplified version of the OHM logo that works well at small sizes
-        $fill_color = $is_dark_theme ? '#ffffff' : '#1f5014';
-        $accent_color = $is_dark_theme ? 'rgba(255,255,255,0.7)' : '#457d58';
-        
-        // Simplified OHM logo based on the original complex design
-        $optimized_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
-            <g transform="translate(10,10)">
-                <!-- Central circle element -->
-                <circle cx="0" cy="0" r="7.5" stroke="' . $fill_color . '" stroke-width="0.6" fill="none" opacity="0.8"/>
-                
-                <!-- Inner mandala-inspired pattern -->
-                <circle cx="0" cy="-3" r="1.2" fill="' . $fill_color . '"/>
-                <circle cx="2.6" cy="1.5" r="1.2" fill="' . $fill_color . '"/>
-                <circle cx="-2.6" cy="1.5" r="1.2" fill="' . $fill_color . '"/>
-                
-                <!-- Outer energy points -->
-                <circle cx="0" cy="-6.5" r="0.6" fill="' . $accent_color . '"/>
-                <circle cx="4.6" cy="4.6" r="0.6" fill="' . $accent_color . '"/>
-                <circle cx="-4.6" cy="4.6" r="0.6" fill="' . $accent_color . '"/>
-                <circle cx="6.5" cy="0" r="0.6" fill="' . $accent_color . '"/>
-                <circle cx="-6.5" cy="0" r="0.6" fill="' . $accent_color . '"/>
-                
-                <!-- Center connecting lines -->
-                <path d="M-2,2 L2,2" stroke="' . $fill_color . '" stroke-width="0.8" opacity="0.9"/>
-                <path d="M0,-1.5 L0,0.5" stroke="' . $fill_color . '" stroke-width="0.8" opacity="0.9"/>
-            </g>
-        </svg>';
+        // Use our professional AI brain icon as the optimized version
+        if ($is_dark_theme) {
+            $optimized_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+                <path d="M10 2C6.686 2 4 4.686 4 8c0 1.5.5 2.9 1.3 4L10 18l4.7-6c.8-1.1 1.3-2.5 1.3-4 0-3.314-2.686-6-6-6z" fill="rgba(255,255,255,0.85)"/>
+                <circle cx="10" cy="7.5" r="1.5" fill="rgba(30,30,30,0.8)"/>
+                <circle cx="7.5" cy="6" r="0.7" fill="rgba(30,30,30,0.8)"/>
+                <circle cx="12.5" cy="6" r="0.7" fill="rgba(30,30,30,0.8)"/>
+                <path d="M8 9.5c.5.3 1.2.5 2 .5s1.5-.2 2-.5" stroke="rgba(30,30,30,0.8)" stroke-width="0.8" stroke-linecap="round"/>
+            </svg>';
+        } else {
+            $optimized_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+                <path d="M10 2C6.686 2 4 4.686 4 8c0 1.5.5 2.9 1.3 4L10 18l4.7-6c.8-1.1 1.3-2.5 1.3-4 0-3.314-2.686-6-6-6z" fill="#1f5014"/>
+                <circle cx="10" cy="7.5" r="1.5" fill="rgba(255,255,255,0.9)"/>
+                <circle cx="7.5" cy="6" r="0.7" fill="rgba(255,255,255,0.9)"/>
+                <circle cx="12.5" cy="6" r="0.7" fill="rgba(255,255,255,0.9)"/>
+                <path d="M8 9.5c.5.3 1.2.5 2 .5s1.5-.2 2-.5" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" stroke-linecap="round"/>
+            </svg>';
+        }
         
         return $optimized_svg;
     }

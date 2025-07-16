@@ -2,8 +2,8 @@
 /**
  * Plugin Name: AIOHM Knowledge Assistant
  * Plugin URI:  https://aiohm.app
- * Description: AI-powered knowledge assistant with chat functionality, conversation management, and smart content generation. Features include project-based conversations, AI-generated titles, PDF exports, and voice-to-text support.
- * Version:     1.1.11
+ * Description: Unlock soulful productivity with an AI-powered knowledge assistant for WordPress. With Mirror Mode for refining and Muse Mode for sparking ideas, AIOHM becomes your perfect creative partner — supporting your brand voice, not replacing it.
+ * Version:     1.2.0
  * Author:      OHM Events Agency
  * Author URI:  https://aiohm.app
  * Text Domain: aiohm-kb-assistant
@@ -19,7 +19,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('AIOHM_KB_VERSION', '1.1.11');
+define('AIOHM_KB_VERSION', '1.2.0');
 define('AIOHM_KB_PLUGIN_FILE', __FILE__);
 define('AIOHM_KB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AIOHM_KB_INCLUDES_DIR', AIOHM_KB_PLUGIN_DIR . 'includes/');
@@ -139,12 +139,38 @@ class AIOHM_KB_Assistant {
                 'ai_model' => 'gpt-4',
             ]
         ];
+        // Add debug logging
+        error_log('=== GET_SETTINGS DEBUG ===');
+        error_log('Getting option aiohm_kb_settings from database...');
+        
         $saved_settings = get_option('aiohm_kb_settings', []);
+        error_log('Raw saved settings from DB: ' . print_r($saved_settings, true));
         
         $settings = wp_parse_args($saved_settings, $default_settings);
-        $settings['mirror_mode'] = wp_parse_args($settings['mirror_mode'] ?? [], $default_settings['mirror_mode']);
-        $settings['muse_mode'] = wp_parse_args($settings['muse_mode'] ?? [], $default_settings['muse_mode']);
+        error_log('After wp_parse_args with defaults: ' . print_r($settings, true));
+        
+        // Fix: Don't override saved values with defaults
+        if (isset($saved_settings['mirror_mode'])) {
+            $settings['mirror_mode'] = wp_parse_args($saved_settings['mirror_mode'], $default_settings['mirror_mode']);
+        } else {
+            $settings['mirror_mode'] = $default_settings['mirror_mode'];
+        }
+        
+        if (isset($saved_settings['muse_mode'])) {
+            $settings['muse_mode'] = wp_parse_args($saved_settings['muse_mode'], $default_settings['muse_mode']);
+        } else {
+            $settings['muse_mode'] = $default_settings['muse_mode'];
+        }
+        
+        error_log('Final settings being returned: ' . print_r($settings, true));
+        error_log('=== END GET_SETTINGS DEBUG ===');
 
+        // Check if settings were unexpectedly cleared
+        if (empty($saved_settings['mirror_mode']) && empty($saved_settings['muse_mode'])) {
+            error_log('WARNING: Mirror/Muse mode settings are missing from database!');
+            error_log('This might indicate another process is clearing the settings.');
+        }
+        
         return $settings;
     }
 
@@ -236,7 +262,20 @@ class AIOHM_KB_Assistant {
 
     private function set_default_options() {
         if (get_option('aiohm_kb_settings') === false) {
-            add_option('aiohm_kb_settings', self::get_settings());
+            // Only set basic defaults, don't call get_settings() which includes defaults
+            $basic_defaults = [
+                'aiohm_app_email' => '',
+                'openai_api_key' => '',
+                'gemini_api_key' => '',
+                'claude_api_key' => '',
+                'default_ai_provider' => 'openai',
+                'chat_enabled' => true,
+                'show_floating_chat' => false,
+                'scan_schedule' => 'none',
+                'chunk_size' => 1000,
+                'chunk_overlap' => 200
+            ];
+            add_option('aiohm_kb_settings', $basic_defaults);
         }
     }
 

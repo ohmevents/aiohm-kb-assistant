@@ -16,6 +16,9 @@ $is_tribe_member_connected = !empty($settings['aiohm_app_email']);
 
 // Check Club access using the PMPro helper function
 $has_club_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
+
+// Check Private access (membership ID 12)
+$has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_private_access();
 ?>
 
 <div class="wrap aiohm-dashboard">
@@ -137,17 +140,17 @@ $has_club_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Inte
               <div class="container">
                 <h1 class="headline">AIOHM Private</h1>
                 <p class="intro">A private channel for your most sacred work. Built for creators, guides, and visionaries who need more than general AI tools—they need intimacy, integrity, and invisible support.</p>
-                <?php if (!$has_club_access) : // Private plan implies club access, so use club access check ?>
+                <?php if (!$has_private_access) : ?>
                     <div class="aiohm-settings-locked-overlay is-active">
                         <div class="lock-content">
                             <div class="lock-icon">🔒</div>
                             <h2><?php _e('Unlock Private Features', 'aiohm-kb-assistant'); ?></h2>
-                            <p><?php _e('Private features are available with an AIOHM Private membership.', 'aiohm-kb-assistant'); ?></p>
+                            <p><?php _e('Private features are available with an AIOHM Private membership (ID 12).', 'aiohm-kb-assistant'); ?></p>
                             <a href="https://www.aiohm.app/private" target="_blank" class="button button-primary"><?php _e('Explore Private', 'aiohm-kb-assistant'); ?></a>
                         </div>
                     </div>
                 <?php endif; ?>
-                <div class="benefits-grid <?php echo !$has_club_access ? 'is-locked' : ''; ?>">
+                <div class="benefits-grid <?php echo !$has_private_access ? 'is-locked' : ''; ?>">
                   <div class="benefit"><h3>🔐 Full Privacy & Confidentiality</h3><p>Your content never leaves your WordPress site. All AI responses are generated within your protected space.</p></div>
                   <div class="benefit"><h3>🧠 Personalized LLM Connection</h3><p>Connect to a private model endpoint so your AI assistant learns only from your truth, not the internet.</p></div>
                 </div>

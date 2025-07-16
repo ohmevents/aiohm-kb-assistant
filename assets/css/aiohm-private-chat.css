@@ -21,28 +21,162 @@
     --header-height: 60px;
 }
 
+/* Theme compatibility fallbacks */
+.aiohm-private-assistant-container {
+    --pa-bg-darkest: #1e2124;
+    --pa-bg-dark: #282b30;
+    --pa-bg-light: #36393f;
+    --pa-bg-lighter: #42464d;
+    --pa-text-primary: #ffffff;
+    --pa-text-secondary: #b9bbbe;
+    --pa-border-color: #4f545c;
+    --pa-brand-color: #1f5014;
+    --pa-brand-color-hover: #183e10;
+    --pa-highlight-color: #ffb923;
+    --pa-highlight-text-color: #1e1e1e;
+    --pa-success-color: #28a745;
+    --pa-error-color: #dc3545;
+    --header-height: 60px;
+}
+
 /* --- 2. Base Layout & Fullscreen Mode --- */
 .aiohm-private-assistant-container {
-    display: flex;
+    /* Reset theme interference */
+    all: initial;
+    
+    /* Core layout properties */
+    display: flex !important;
+    flex-direction: row !important;
     height: 85vh;
     min-height: 650px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-    background-color: var(--pa-bg-dark);
-    color: var(--pa-text-primary);
+    background-color: var(--pa-bg-dark) !important;
+    color: var(--pa-text-primary) !important;
     border-radius: 8px;
     overflow: hidden;
     position: relative;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
     transition: all 0.3s ease-in-out;
+    
+    /* Enhanced theme compatibility */
+    margin: 20px 0 !important;
+    max-width: 100%;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--pa-border-color) !important;
+    
+    /* Prevent WordPress theme interference */
+    line-height: 1.4 !important;
+    font-size: 14px !important;
+    font-weight: normal !important;
+    text-decoration: none !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    word-spacing: normal !important;
+    
+    /* Isolate from theme styles */
+    isolation: isolate;
+    contain: layout style;
 }
 
 .aiohm-private-assistant-container.fullscreen-mode {
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    min-height: 100vh; z-index: 99999; border-radius: 0; margin: 0;
+    position: fixed !important; 
+    top: 0 !important; 
+    left: 0 !important; 
+    width: 100vw !important; 
+    height: 100vh !important;
+    min-height: 100vh !important; 
+    max-height: 100vh !important;
+    z-index: 99999 !important; 
+    border-radius: 0 !important; 
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: hidden !important;
 }
 
-body.aiohm-fullscreen-body-no-scroll { overflow: hidden !important; }
+body.aiohm-fullscreen-body-no-scroll { 
+    overflow: hidden !important; 
+    margin: 0 !important;
+    padding: 0 !important;
+}
 body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
+body.aiohm-fullscreen-body-no-scroll #adminmenumain { display: none !important; }
+body.aiohm-fullscreen-body-no-scroll #wpfooter { display: none !important; }
+body.aiohm-fullscreen-body-no-scroll .update-nag { display: none !important; }
+html.aiohm-fullscreen-body-no-scroll {
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Targeted reset for common theme interference issues */
+.aiohm-private-assistant-container *,
+.aiohm-private-assistant-container *::before,
+.aiohm-private-assistant-container *::after {
+    box-sizing: border-box !important;
+    font-family: inherit !important;
+    line-height: inherit !important;
+    color: inherit !important;
+    text-decoration: none !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    word-spacing: normal !important;
+    text-shadow: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    float: none !important;
+    clear: none !important;
+    position: static !important;
+    z-index: auto !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    -webkit-text-size-adjust: 100% !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
+}
+
+/* Re-enable styles for specific elements that need them */
+.aiohm-private-assistant-container {
+    /* Re-apply container styles after reset */
+    display: flex !important;
+    flex-direction: row !important;
+    height: 85vh !important;
+    background-color: var(--pa-bg-dark) !important;
+    color: var(--pa-text-primary) !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+    transition: all 0.3s ease-in-out !important;
+    margin: 20px 0 !important;
+    max-width: 100% !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid var(--pa-border-color) !important;
+    isolation: isolate !important;
+}
+
+/* Fix dashicons font family override */
+.aiohm-private-assistant-container .dashicons,
+.aiohm-private-assistant-container .dashicons-before::before {
+    font-family: dashicons !important;
+    font-size: 20px !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    vertical-align: top !important;
+    text-align: center !important;
+    -webkit-transition: color 0.1s ease-in 0;
+    transition: color 0.1s ease-in 0;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: inline-block !important;
+}
 
 /* --- 3. Main Sidebar (Left) --- */
 #aiohm-app-container .aiohm-pa-sidebar {
@@ -98,19 +232,31 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     margin-bottom: 10px;
 }
 #aiohm-app-container .aiohm-pa-menu-header {
-    width: 100%; padding: 10px; background: none; border: none;
-    color: var(--pa-text-secondary); font-size: 14px; font-weight: bold;
+    width: 100%; padding: 8px; background: none; border: none;
+    color: var(--pa-text-secondary); font-size: 12px; font-weight: normal;
     text-align: left; cursor: pointer; display: flex; justify-content: space-between;
 }
 
 #aiohm-app-container .aiohm-pa-menu-content .aiohm-pa-list-item-wrapper {
     position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 26px;
 }
 
 #aiohm-app-container .aiohm-pa-menu-content .aiohm-pa-list-item {
-    display: block; padding: 10px 15px; color: var(--pa-text-secondary);
-    text-decoration: none; border-radius: 5px; margin: 2px 0;
-    white-space: nowrap; transition: background-color 0.2s ease, color 0.2s ease;
+    flex: 1;
+    display: block; 
+    padding: 6px 12px; 
+    color: var(--pa-text-secondary);
+    text-decoration: none; 
+    border-radius: 3px; 
+    margin: 1px 0;
+    white-space: nowrap; 
+    transition: background-color 0.2s ease, color 0.2s ease;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 #aiohm-app-container .aiohm-pa-menu-content .aiohm-pa-list-item:hover {
@@ -118,25 +264,30 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
 }
 
 #aiohm-app-container .aiohm-pa-menu-content .aiohm-pa-list-item.active {
-    background-color: var(--pa-highlight-color); color: var(--pa-highlight-text-color) !important;
-    font-weight: bold;
+    background-color: var(--pa-bg-lighter); color: var(--pa-text-primary) !important;
+    font-weight: normal;
 }
 
 #aiohm-app-container .delete-icon {
-    position: absolute;
-    top: 50%;
-    right: 10px;
-    transform: translateY(-50%);
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
     display: none;
     color: #ff5555;
     font-weight: bold;
-    font-size: 20px;
-    line-height: 1;
+    font-size: 12px;
+    line-height: 16px;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+    margin-left: 5px;
+    align-items: center;
+    justify-content: center;
 }
 
 #aiohm-app-container .aiohm-pa-list-item-wrapper:hover .delete-icon {
-    display: block;
+    display: flex;
 }
 
 #aiohm-app-container .aiohm-pa-sidebar-footer {
@@ -253,7 +404,7 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
 /* Admin Notice System for Private Chat */
 #aiohm-app-container .aiohm-admin-notice {
     margin: 0;
-    padding: 12px 20px;
+    padding: 12px 50px 12px 20px;
     border-left: 4px solid;
     background: var(--pa-bg-light);
     color: var(--pa-text-primary);
@@ -261,6 +412,9 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     position: relative;
     z-index: 1000;
     transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    min-height: 24px;
 }
 
 #aiohm-app-container .aiohm-admin-notice.notice-success {
@@ -287,17 +441,25 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     margin: 0;
     padding: 0;
     color: var(--pa-text-primary);
+    flex-grow: 1;
+    line-height: 1.4;
 }
 
 #aiohm-app-container .aiohm-notice-dismiss {
     position: absolute;
-    top: 12px;
+    top: 50%;
     right: 15px;
+    transform: translateY(-50%);
     cursor: pointer;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: bold;
     color: var(--pa-text-secondary);
     line-height: 1;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #aiohm-app-container .aiohm-notice-dismiss:hover {
@@ -667,7 +829,63 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
 }
 
 /* Responsive design for smaller screens */
+@media (max-width: 768px) {
+    .aiohm-private-assistant-container {
+        height: 90vh !important;
+        min-height: 500px !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        box-shadow: none !important;
+    }
+    
+    #aiohm-app-container .aiohm-pa-sidebar {
+        width: 250px !important;
+    }
+    
+    #aiohm-app-container.notes-open .aiohm-pa-notes-sidebar {
+        width: 280px !important;
+    }
+    
+    #aiohm-app-container .aiohm-welcome-screen {
+        flex-direction: column !important;
+        gap: 20px !important;
+        padding: 20px !important;
+    }
+    
+    #aiohm-app-container .aiohm-welcome-message-area,
+    #aiohm-app-container .aiohm-welcome-guide {
+        flex-basis: auto !important;
+        max-width: 100% !important;
+    }
+    
+    #aiohm-app-container .aiohm-pa-header-title {
+        font-size: 16px !important;
+    }
+    
+    #aiohm-app-container .conversation-panel {
+        padding: 15px !important;
+    }
+    
+    #aiohm-app-container .message {
+        max-width: 95% !important;
+    }
+}
+
 @media (max-width: 600px) {
+    .aiohm-private-assistant-container {
+        height: 95vh !important;
+        min-height: 450px !important;
+    }
+    
+    #aiohm-app-container .aiohm-pa-sidebar {
+        width: 200px !important;
+    }
+    
+    #aiohm-app-container:not(.sidebar-open) .aiohm-pa-sidebar {
+        width: 0 !important;
+    }
+    
     #aiohm-app-container .aiohm-create-project-card {
         padding: 30px 25px;
         margin: 20px 10px;
@@ -679,6 +897,89 @@ body.aiohm-fullscreen-body-no-scroll #wpadminbar { display: none !important; }
     
     #aiohm-app-container .aiohm-create-project-btn {
         flex: none;
+    }
+    
+    #aiohm-app-container .aiohm-pa-input-area-wrapper {
+        padding: 10px 15px !important;
+    }
+    
+    #aiohm-app-container #chat-input {
+        padding: 12px !important;
+        font-size: 14px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .aiohm-private-assistant-container {
+        height: 100vh !important;
+        min-height: 400px !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+    }
+    
+    #aiohm-app-container .aiohm-pa-sidebar {
+        width: 180px !important;
+    }
+    
+    #aiohm-app-container .aiohm-pa-sidebar-header,
+    #aiohm-app-container .aiohm-pa-notes-header {
+        padding: 0 15px !important;
+    }
+    
+    #aiohm-app-container .aiohm-pa-header {
+        padding: 0 15px !important;
+    }
+    
+    #aiohm-app-container .aiohm-pa-header-title {
+        font-size: 14px !important;
+        margin-left: 10px !important;
+    }
+    
+    #aiohm-app-container .conversation-panel {
+        padding: 10px !important;
+    }
+    
+    #aiohm-app-container .message {
+        max-width: 98% !important;
+        margin-bottom: 15px !important;
+    }
+    
+    #aiohm-app-container .message p {
+        padding: 10px 14px !important;
+        font-size: 14px !important;
+    }
+    
+    #aiohm-app-container .aiohm-instructions-list strong {
+        font-size: 14px !important;
+    }
+    
+    #aiohm-app-container .aiohm-instructions-list p {
+        font-size: 12px !important;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .aiohm-private-assistant-container {
+        --pa-bg-darkest: #000000 !important;
+        --pa-bg-dark: #1a1a1a !important;
+        --pa-bg-light: #2a2a2a !important;
+        --pa-bg-lighter: #3a3a3a !important;
+        --pa-text-primary: #ffffff !important;
+        --pa-text-secondary: #cccccc !important;
+        --pa-border-color: #666666 !important;
+        border: 2px solid var(--pa-border-color) !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .aiohm-private-assistant-container *,
+    .aiohm-private-assistant-container *::before,
+    .aiohm-private-assistant-container *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }
 

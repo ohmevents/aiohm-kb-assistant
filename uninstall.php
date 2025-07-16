@@ -24,7 +24,7 @@ delete_option('aiohm_kb_version');
 global $wpdb;
 
 $tables_to_drop = array(
-    $wpdb->prefix . 'aiohm_knowledge_base',
+    $wpdb->prefix . 'aiohm_vector_entries',
     $wpdb->prefix . 'aiohm_conversations',
     $wpdb->prefix . 'aiohm_messages',
     $wpdb->prefix . 'aiohm_projects',
@@ -41,6 +41,10 @@ wp_clear_scheduled_hook('aiohm_scheduled_scan');
 
 // Remove user meta data
 delete_metadata('user', 0, 'aiohm_user_settings', '', true);
+delete_metadata('user', 0, 'aiohm_brand_soul_answers', '', true);
+
+// Remove post meta data
+delete_metadata('post', 0, '_aiohm_indexed', '', true);
 
 // Clear any cached data
 wp_cache_flush();

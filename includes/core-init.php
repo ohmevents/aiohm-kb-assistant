@@ -124,6 +124,11 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_add_brand_soul_to_kb', array(__CLASS__, 'handle_add_brand_soul_to_kb_ajax'));
         add_action('admin_init', array(__CLASS__, 'handle_pdf_download'));
         add_action('wp_ajax_aiohm_save_mirror_mode_settings', array(__CLASS__, 'handle_save_mirror_mode_settings_ajax'));
+        add_action('wp_ajax_nopriv_aiohm_save_mirror_mode_settings', array(__CLASS__, 'handle_save_mirror_mode_settings_ajax'));
+        
+        // Add hook to monitor settings changes
+        add_action('update_option_aiohm_kb_settings', array(__CLASS__, 'monitor_settings_changes'), 10, 2);
+        add_action('delete_option_aiohm_kb_settings', array(__CLASS__, 'monitor_settings_deletion'), 10, 1);
         add_action('wp_ajax_aiohm_generate_mirror_mode_qa', array(__CLASS__, 'handle_generate_mirror_mode_qa_ajax'));
         add_action('wp_ajax_aiohm_test_mirror_mode_chat', array(__CLASS__, 'handle_test_mirror_mode_chat_ajax'));
         add_action('wp_ajax_aiohm_save_muse_mode_settings', array(__CLASS__, 'handle_save_muse_mode_settings_ajax'));
@@ -828,10 +833,65 @@ class AIOHM_KB_Core_Init {
                 case 'website_add':
                     $item_ids = isset($_POST['item_ids']) ? array_map('intval', $_POST['item_ids']) : [];
                     if (empty($item_ids)) throw new Exception('No item IDs provided.');
+                    
+                    // Check prerequisites
+                    $settings = AIOHM_KB_Assistant::get_settings();
+                    $api_key_exists = !empty($settings['openai_api_key']);
+                    
+                    if (!$api_key_exists) {
+                        throw new Exception('OpenAI API key is not configured. Please add your API key in settings.');
+                    }
+                    
                     $crawler = new AIOHM_KB_Site_Crawler();
                     $results = $crawler->add_items_to_kb($item_ids);
-                    $all_items = $crawler->find_all_content();
-                    wp_send_json_success(['processed_items' => $results, 'all_items' => $all_items]);
+                    
+                    // Categorize results
+                    $errors = array_filter($results, function($item) { return $item['status'] === 'error'; });
+                    $successes = array_filter($results, function($item) { return $item['status'] === 'success'; });
+                    $skipped = array_filter($results, function($item) { return $item['status'] === 'skipped'; });
+                    
+                    if (!empty($errors) && empty($successes)) {
+                        // All items failed
+                        $error_messages = array_column($errors, 'error_message');
+                        throw new Exception('All items failed to add: ' . implode(', ', $error_messages));
+                    } else if (!empty($errors)) {
+                        // Some items failed - return partial success with error details
+                        $all_items = $crawler->find_all_content();
+                        wp_send_json(['success' => false, 'data' => [
+                            'message' => 'Some items failed to add to knowledge base',
+                            'processed_items' => $results, 
+                            'all_items' => $all_items,
+                            'errors' => $errors,
+                            'successes' => $successes
+                        ]]);
+                    } else if (!empty($skipped) && empty($successes)) {
+                        // All items were skipped
+                        $skip_reasons = array_column($skipped, 'reason');
+                        $message = 'All items were skipped: ' . implode(', ', $skip_reasons);
+                        $all_items = $crawler->find_all_content();
+                        wp_send_json(['success' => false, 'data' => [
+                            'message' => $message,
+                            'processed_items' => $results, 
+                            'all_items' => $all_items,
+                            'skipped' => $skipped
+                        ]]);
+                    } else if (!empty($skipped)) {
+                        // Some items were skipped
+                        $all_items = $crawler->find_all_content();
+                        $skip_count = count($skipped);
+                        $success_count = count($successes);
+                        wp_send_json(['success' => true, 'data' => [
+                            'message' => "Processing complete: {$success_count} added, {$skip_count} skipped",
+                            'processed_items' => $results, 
+                            'all_items' => $all_items,
+                            'skipped' => $skipped,
+                            'successes' => $successes
+                        ]]);
+                    } else {
+                        // All items succeeded
+                        $all_items = $crawler->find_all_content();
+                        wp_send_json_success(['processed_items' => $results, 'all_items' => $all_items]);
+                    }
                     break;
                 case 'uploads_find':
                     $crawler = new AIOHM_KB_Uploads_Crawler();
@@ -843,14 +903,40 @@ class AIOHM_KB_Core_Init {
                     if (empty($item_ids)) throw new Exception('No item IDs provided.');
                     $crawler = new AIOHM_KB_Uploads_Crawler();
                     $results = $crawler->add_attachments_to_kb($item_ids);
-                    $updated_files_list = $crawler->find_all_supported_attachments();
-                    wp_send_json_success(['processed_items' => $results, 'items' => $updated_files_list]);
+                    
+                    // Check for any errors in the results
+                    $errors = array_filter($results, function($item) { return $item['status'] === 'error'; });
+                    $successes = array_filter($results, function($item) { return $item['status'] === 'success'; });
+                    
+                    if (!empty($errors) && empty($successes)) {
+                        // All items failed
+                        $error_messages = array_column($errors, 'error');
+                        throw new Exception('All items failed to add: ' . implode(', ', $error_messages));
+                    } else if (!empty($errors)) {
+                        // Some items failed - return partial success with error details
+                        $updated_files_list = $crawler->find_all_supported_attachments();
+                        wp_send_json(['success' => false, 'data' => [
+                            'message' => 'Some items failed to add to knowledge base',
+                            'processed_items' => $results, 
+                            'items' => $updated_files_list,
+                            'errors' => $errors,
+                            'successes' => $successes
+                        ]]);
+                    } else {
+                        // All items succeeded
+                        $updated_files_list = $crawler->find_all_supported_attachments();
+                        wp_send_json_success(['processed_items' => $results, 'items' => $updated_files_list]);
+                    }
                     break;
                 default:
                     throw new Exception('Invalid scan type specified.');
             }
         } catch (Exception $e) {
+            error_log('AIOHM KB Error: ' . $e->getMessage());
             wp_send_json_error(['message' => 'Scan failed: ' . $e->getMessage()]);
+        } catch (Error $e) {
+            error_log('AIOHM KB Fatal Error: ' . $e->getMessage());
+            wp_send_json_error(['message' => 'Fatal error: ' . $e->getMessage()]);
         }
     }
 
@@ -1084,17 +1170,20 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_save_mirror_mode_settings_ajax() {
-        error_log('=== MIRROR MODE SAVE HANDLER CALLED ===');
+        // Force log this immediately
+        error_log('=== MIRROR MODE SAVE HANDLER CALLED AT ' . date('Y-m-d H:i:s') . ' ===');
         error_log('POST data: ' . print_r($_POST, true));
         error_log('Current user ID: ' . get_current_user_id());
         error_log('User capabilities: ' . print_r(wp_get_current_user()->allcaps, true));
+        error_log('Action hook: ' . ($_POST['action'] ?? 'NO ACTION'));
+        error_log('Nonce field: ' . ($_POST['aiohm_mirror_mode_nonce_field'] ?? 'NO NONCE'));
         
         if (!check_ajax_referer('aiohm_mirror_mode_nonce', 'aiohm_mirror_mode_nonce_field', false)) {
             error_log('NONCE CHECK FAILED');
             wp_send_json_error(['message' => 'Nonce verification failed.']);
         }
         
-        if (!current_user_can('read')) {
+        if (!current_user_can('edit_posts')) {
             error_log('USER CAPABILITY CHECK FAILED');
             wp_send_json_error(['message' => 'Insufficient permissions.']);
         }
@@ -1112,7 +1201,8 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'No settings data received.']);
         }
         
-        $settings = AIOHM_KB_Assistant::get_settings();
+        // Get current settings from database (not the merged defaults)
+        $settings = get_option('aiohm_kb_settings', []);
         
         // Ensure mirror_mode structure exists
         if (!isset($settings['mirror_mode'])) {
@@ -1140,26 +1230,23 @@ class AIOHM_KB_Core_Init {
         error_log('Current DB settings: ' . print_r(get_option('aiohm_kb_settings', []), true));
         error_log('Settings to save: ' . print_r($settings, true));
         
-        // Force the save by using multiple methods
-        error_log('ATTEMPTING MULTIPLE SAVE METHODS');
+        // Save the settings using WordPress API - don't use delete/add method
+        error_log('SAVING SETTINGS WITH update_option');
+        error_log('Settings array before save: ' . print_r($settings, true));
         
-        // Method 1: Standard update_option
-        $result1 = update_option('aiohm_kb_settings', $settings);
-        error_log('Method 1 (update_option) result: ' . ($result1 ? 'TRUE' : 'FALSE'));
+        // Force update even if the value hasn't changed
+        $result = update_option('aiohm_kb_settings', $settings, true);
+        error_log('update_option result: ' . ($result ? 'TRUE' : 'FALSE'));
         
-        // Method 2: Delete then add
-        delete_option('aiohm_kb_settings');
-        $result2 = add_option('aiohm_kb_settings', $settings);
-        error_log('Method 2 (delete + add) result: ' . ($result2 ? 'TRUE' : 'FALSE'));
-        
-        // Method 3: Direct database update if all else fails
-        if (!$result1 && !$result2) {
+        // If update_option returns false, try direct database update
+        if (!$result) {
+            error_log('update_option failed, trying direct database update');
             global $wpdb;
             $option_name = 'aiohm_kb_settings';
             $option_value = serialize($settings);
             $autoload = 'yes';
             
-            $result3 = $wpdb->replace(
+            $result = $wpdb->replace(
                 $wpdb->options,
                 array(
                     'option_name' => $option_name,
@@ -1168,7 +1255,25 @@ class AIOHM_KB_Core_Init {
                 ),
                 array('%s', '%s', '%s')
             );
-            error_log('Method 3 (direct DB) result: ' . ($result3 ? 'TRUE' : 'FALSE'));
+            error_log('Direct database update result: ' . ($result ? 'SUCCESS' : 'FAILED'));
+        }
+        
+        // Force clear all caches
+        wp_cache_delete('aiohm_kb_settings', 'options');
+        wp_cache_flush();
+        
+        // Verify the settings were actually saved
+        $verify_settings = get_option('aiohm_kb_settings', []);
+        error_log('Settings after save verification: ' . print_r($verify_settings, true));
+        
+        if (isset($verify_settings['mirror_mode']) && 
+            isset($verify_settings['mirror_mode']['business_name']) &&
+            $verify_settings['mirror_mode']['business_name'] === $settings['mirror_mode']['business_name']) {
+            error_log('VERIFICATION SUCCESSFUL: Settings were saved correctly');
+        } else {
+            error_log('VERIFICATION FAILED: Settings may not have been saved');
+            error_log('Expected business_name: ' . $settings['mirror_mode']['business_name']);
+            error_log('Actual business_name: ' . ($verify_settings['mirror_mode']['business_name'] ?? 'NOT FOUND'));
         }
         
         // Check what actually got saved using the plugin's method
@@ -1185,6 +1290,30 @@ class AIOHM_KB_Core_Init {
         
         wp_send_json_success(['message' => 'Mirror Mode settings saved successfully.']);
     }
+    
+    public static function monitor_settings_changes($old_value, $new_value) {
+        error_log('=== SETTINGS CHANGE DETECTED ===');
+        error_log('Old value has mirror_mode: ' . (isset($old_value['mirror_mode']) ? 'YES' : 'NO'));
+        error_log('New value has mirror_mode: ' . (isset($new_value['mirror_mode']) ? 'YES' : 'NO'));
+        error_log('Caller: ' . wp_debug_backtrace_summary());
+        
+        if (isset($old_value['mirror_mode']) && !isset($new_value['mirror_mode'])) {
+            error_log('WARNING: Mirror mode settings were REMOVED!');
+            error_log('Full backtrace: ' . wp_debug_backtrace_summary());
+        }
+        
+        if (isset($old_value['muse_mode']) && !isset($new_value['muse_mode'])) {
+            error_log('WARNING: Muse mode settings were REMOVED!');
+            error_log('Full backtrace: ' . wp_debug_backtrace_summary());
+        }
+    }
+    
+    public static function monitor_settings_deletion($option_name) {
+        error_log('=== SETTINGS DELETION DETECTED ===');
+        error_log('Option name: ' . $option_name);
+        error_log('Caller: ' . wp_debug_backtrace_summary());
+        error_log('This might be causing the settings to disappear!');
+    }
 
     public static function handle_save_muse_mode_settings_ajax() {
         error_log('=== MUSE MODE SAVE HANDLER CALLED ===');
@@ -1197,7 +1326,7 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'Nonce verification failed.']);
         }
         
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can('edit_posts')) {
             error_log('MUSE USER CAPABILITY CHECK FAILED');
             wp_send_json_error(['message' => 'Insufficient permissions.']);
         }
@@ -1215,7 +1344,8 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'No settings data received.']);
         }
 
-        $settings = AIOHM_KB_Assistant::get_settings();
+        // Get current settings from database (not the merged defaults)
+        $settings = get_option('aiohm_kb_settings', []);
         
         // Ensure muse_mode structure exists
         if (!isset($settings['muse_mode'])) {
@@ -1227,6 +1357,7 @@ class AIOHM_KB_Core_Init {
         $settings['muse_mode']['ai_model'] = sanitize_text_field($muse_input['ai_model'] ?? 'gpt-4');
         $settings['muse_mode']['temperature'] = floatval($muse_input['temperature'] ?? 0.7);
         $settings['muse_mode']['start_fullscreen'] = isset($muse_input['start_fullscreen']) ? 1 : 0;
+        $settings['muse_mode']['brand_archetype'] = sanitize_text_field($muse_input['brand_archetype'] ?? '');
 
         error_log('About to save Muse settings: ' . print_r($settings['muse_mode'], true));
         
@@ -1239,26 +1370,23 @@ class AIOHM_KB_Core_Init {
         error_log('Current DB settings: ' . print_r(get_option('aiohm_kb_settings', []), true));
         error_log('Settings to save: ' . print_r($settings, true));
         
-        // Force the save by using multiple methods
-        error_log('MUSE ATTEMPTING MULTIPLE SAVE METHODS');
+        // Save the settings using WordPress API - don't use delete/add method
+        error_log('MUSE SAVING SETTINGS WITH update_option');
+        error_log('Muse settings array before save: ' . print_r($settings, true));
         
-        // Method 1: Standard update_option
-        $result1 = update_option('aiohm_kb_settings', $settings);
-        error_log('Muse Method 1 (update_option) result: ' . ($result1 ? 'TRUE' : 'FALSE'));
+        // Force update even if the value hasn't changed
+        $result = update_option('aiohm_kb_settings', $settings, true);
+        error_log('Muse update_option result: ' . ($result ? 'TRUE' : 'FALSE'));
         
-        // Method 2: Delete then add
-        delete_option('aiohm_kb_settings');
-        $result2 = add_option('aiohm_kb_settings', $settings);
-        error_log('Muse Method 2 (delete + add) result: ' . ($result2 ? 'TRUE' : 'FALSE'));
-        
-        // Method 3: Direct database update if all else fails
-        if (!$result1 && !$result2) {
+        // If update_option returns false, try direct database update
+        if (!$result) {
+            error_log('Muse update_option failed, trying direct database update');
             global $wpdb;
             $option_name = 'aiohm_kb_settings';
             $option_value = serialize($settings);
             $autoload = 'yes';
             
-            $result3 = $wpdb->replace(
+            $result = $wpdb->replace(
                 $wpdb->options,
                 array(
                     'option_name' => $option_name,
@@ -1267,7 +1395,25 @@ class AIOHM_KB_Core_Init {
                 ),
                 array('%s', '%s', '%s')
             );
-            error_log('Muse Method 3 (direct DB) result: ' . ($result3 ? 'TRUE' : 'FALSE'));
+            error_log('Muse direct database update result: ' . ($result ? 'SUCCESS' : 'FAILED'));
+        }
+        
+        // Force clear all caches
+        wp_cache_delete('aiohm_kb_settings', 'options');
+        wp_cache_flush();
+        
+        // Verify the settings were actually saved
+        $verify_settings = get_option('aiohm_kb_settings', []);
+        error_log('Muse settings after save verification: ' . print_r($verify_settings, true));
+        
+        if (isset($verify_settings['muse_mode']) && 
+            isset($verify_settings['muse_mode']['assistant_name']) &&
+            $verify_settings['muse_mode']['assistant_name'] === $settings['muse_mode']['assistant_name']) {
+            error_log('MUSE VERIFICATION SUCCESSFUL: Settings were saved correctly');
+        } else {
+            error_log('MUSE VERIFICATION FAILED: Settings may not have been saved');
+            error_log('Expected assistant_name: ' . $settings['muse_mode']['assistant_name']);
+            error_log('Actual assistant_name: ' . ($verify_settings['muse_mode']['assistant_name'] ?? 'NOT FOUND'));
         }
         
         // Check what actually got saved using the plugin's method

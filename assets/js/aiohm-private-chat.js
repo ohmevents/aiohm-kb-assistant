@@ -159,6 +159,7 @@ jQuery(document).ready(function($) {
         const shouldBeFullscreen = force !== null ? force : !appContainer.hasClass('fullscreen-mode');
         appContainer.toggleClass('fullscreen-mode', shouldBeFullscreen);
         $('body').toggleClass('aiohm-fullscreen-body-no-scroll', shouldBeFullscreen);
+        $('html').toggleClass('aiohm-fullscreen-body-no-scroll', shouldBeFullscreen);
         const icon = fullscreenBtn.find('.dashicons');
         if (shouldBeFullscreen) {
             fullscreenBtn.attr('title', 'Exit Fullscreen');
@@ -725,7 +726,9 @@ jQuery(document).ready(function($) {
     // ====================================================================
     
     function insertResearchPrompt() {
-        const researchPrompt = `Please act as a research analyst. I want you to meticulously analyze the content from the URL I provide below and then generate a structured report that answers the following questions:
+        const researchPrompt = `Please research the following URL and provide a summary of its key points: [PASTE URL HERE]
+
+After researching the URL, please provide a structured analysis covering:
 
 **1. Who:** Who are the key people, companies, or groups mentioned?
 
@@ -739,9 +742,7 @@ jQuery(document).ready(function($) {
 
 **6. How:** How did this happen or how does this work, based on the text?
 
-**7. Summary:** Finally, provide a concise, three-sentence summary of the entire article.
-
-Here is the URL: [PASTE URL HERE]`;
+**7. Summary:** Finally, provide a concise, three-sentence summary of the entire article.`;
 
         // Insert the prompt into the chat input
         chatInput.val(researchPrompt);

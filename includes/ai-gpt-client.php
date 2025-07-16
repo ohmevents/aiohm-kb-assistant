@@ -59,7 +59,17 @@ class AIOHM_KB_AI_GPT_Client {
             if (empty($this->gemini_api_key)) {
                 throw new Exception('Gemini API key is required for chat completions.');
             }
-            $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
+            
+            // Map UI model names to actual Gemini API model names
+            $gemini_model_map = [
+                'gemini-pro' => 'gemini-1.5-flash-latest',
+                'gemini-1.5-flash' => 'gemini-1.5-flash-latest',
+                'gemini-1.5-pro' => 'gemini-1.5-pro-latest'
+            ];
+            
+            $actual_model = $gemini_model_map[$model] ?? 'gemini-1.5-flash-latest';
+            $url = "https://generativelanguage.googleapis.com/v1beta/models/{$actual_model}:generateContent";
+            
             $data = [ 'contents' => [ [ 'parts' => [ ['text' => $system_message . "\n\n" . $user_message] ] ] ] ];
             $response = $this->make_http_request($url, json_encode($data), 'gemini');
             if (isset($response['candidates'][0]['content']['parts'][0]['text'])) {
@@ -142,7 +152,7 @@ class AIOHM_KB_AI_GPT_Client {
             return ['success' => false, 'error' => 'Gemini API key is missing.'];
         }
         try {
-            $this->get_chat_completion("Test prompt", "Say 'hello'.", 0.5, 'gemini-1.5-flash-latest');
+            $this->get_chat_completion("Test prompt", "Say 'hello'.", 0.5, 'gemini-pro');
             return ['success' => true];
         } catch (Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];

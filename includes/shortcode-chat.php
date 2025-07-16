@@ -16,10 +16,11 @@ class AIOHM_KB_Shortcode_Chat {
     }
 
     public static function render_chat_shortcode($atts) {
-        $settings = AIOHM_KB_Assistant::get_settings();
+        $all_settings = AIOHM_KB_Assistant::get_settings();
+        $settings = $all_settings['mirror_mode'] ?? [];
         $has_club_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
         
-        if (!($settings['chat_enabled'] ?? false) || !$has_club_access) {
+        if (!($all_settings['chat_enabled'] ?? false) || !$has_club_access) {
             $message = __('Chat is currently disabled.', 'aiohm-kb-assistant');
             if (!$has_club_access) {
                 $message = __('This chat feature requires an AIOHM Club membership.', 'aiohm-kb-assistant');
@@ -36,7 +37,7 @@ class AIOHM_KB_Shortcode_Chat {
             'theme' => 'ohm-green',
             'position' => 'inline',
             'show_branding' => 'true',
-            'welcome_message' => $settings['welcome_message'] ?? 'Hey there, beautiful soul - welcome to OHM Events Agency! I’m your AI Assistant, here to help you grow your event, boost your visibility, and bring your vision to life - with strategy, clarity, and heart. Ask me anything!',
+            'welcome_message' => $settings['welcome_message'] ?? 'Hey there! I am your AI assistant. I can help answer questions about our services and content. Ask me anything!',
             'max_height' => '600'
         ), $atts, 'aiohm_chat');
         
@@ -95,7 +96,10 @@ class AIOHM_KB_Shortcode_Chat {
         $output .= '<div class="aiohm-chat-input-wrapper">';
         $output .= '<textarea class="aiohm-chat-input" placeholder="' . esc_attr($atts['placeholder']) . '" rows="1" style="background-color: #ffffff; color: #333333;"></textarea>';
         $output .= '<button type="button" class="aiohm-chat-send-btn" disabled>';
-        $output .= '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>';
+        $output .= '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="aiohm-send-icon">';
+        $output .= '<path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a.498.498 0 0 1 0 .396l-2.843 7.627a.498.498 0 0 0 .683.627l16.571-8.5a.498.498 0 0 0 0-.904L3.714 3.048z"/>';
+        $output .= '<path d="m6 12 13-1"/>';
+        $output .= '</svg>';
         $output .= '</button>';
         $output .= '</div>';
         $output .= '</div>';
