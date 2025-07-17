@@ -178,6 +178,7 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_get_usage_stats', array(__CLASS__, 'handle_get_usage_stats_ajax'));
         add_action('wp_ajax_aiohm_download_conversation_pdf', array(__CLASS__, 'handle_download_conversation_pdf_ajax'));
         add_action('wp_ajax_aiohm_add_conversation_to_kb', array(__CLASS__, 'handle_add_conversation_to_kb_ajax'));
+        add_action('wp_ajax_aiohm_research_online', array(__CLASS__, 'handle_research_online_ajax'));
     }
     
     /**
@@ -578,7 +579,7 @@ class AIOHM_KB_Core_Init {
         }
     
         // FIX: Changed 'answer' to 'message' for permission error.
-        if (!current_user_can('administrator') && !current_user_can('ohm_brand_collaborator')) {
+        if (!current_user_can('read')) {
             wp_send_json_error(['message' => 'You do not have permission to use this feature.']);
         }
     
@@ -596,7 +597,8 @@ class AIOHM_KB_Core_Init {
             $settings = AIOHM_KB_Assistant::get_settings();
             $muse_settings = $settings['muse_mode'] ?? [];
     
-            $ai_client = new AIOHM_KB_AI_GPT_Client();
+            // Initialize AI client with current settings to support all providers
+            $ai_client = new AIOHM_KB_AI_GPT_Client($settings);
             $rag_engine = new AIOHM_KB_RAG_Engine();
             
             $context_data = $rag_engine->find_context_for_user($user_message, $user_id, 10);
@@ -2287,6 +2289,136 @@ class AIOHM_KB_Core_Init {
         } catch (Exception $e) {
             AIOHM_KB_Assistant::log('Add to KB Error: ' . $e->getMessage(), 'error');
             wp_send_json_error(['message' => 'Error adding to KB: ' . $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Handle research online functionality
+     */
+    public static function handle_research_online_ajax() {
+        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+        
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'You do not have permission to use this feature.']);
+        }
+        
+        try {
+            $url = isset($_POST['url']) ? esc_url_raw($_POST['url']) : '';
+            $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+            $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : null;
+            
+            if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL)) {
+                wp_send_json_error(['message' => 'Invalid URL provided.']);
+            }
+            
+            if (empty($project_id)) {
+                wp_send_json_error(['message' => 'Project ID is required.']);
+            }
+            
+            // Fetch the webpage content
+            $response = wp_remote_get($url, [
+                'timeout' => 15,
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (compatible; AIOHM-KB-Assistant/1.2.0; +https://aiohm.app)'
+                ]
+            ]);
+            
+            if (is_wp_error($response)) {
+                wp_send_json_error(['message' => 'Failed to fetch webpage: ' . $response->get_error_message()]);
+            }
+            
+            $content = wp_remote_retrieve_body($response);
+            if (empty($content)) {
+                wp_send_json_error(['message' => 'No content found at the provided URL.']);
+            }
+            
+            // Basic HTML content extraction
+            $dom = new DOMDocument();
+            libxml_use_internal_errors(true);
+            $dom->loadHTML($content);
+            libxml_clear_errors();
+            
+            // Remove script and style tags
+            $scripts = $dom->getElementsByTagName('script');
+            $styles = $dom->getElementsByTagName('style');
+            
+            for ($i = $scripts->length - 1; $i >= 0; $i--) {
+                $scripts->item($i)->parentNode->removeChild($scripts->item($i));
+            }
+            
+            for ($i = $styles->length - 1; $i >= 0; $i--) {
+                $styles->item($i)->parentNode->removeChild($styles->item($i));
+            }
+            
+            // Extract text content
+            $textContent = strip_tags($dom->textContent);
+            $textContent = preg_replace('/\s+/', ' ', $textContent);
+            $textContent = trim($textContent);
+            
+            // Limit content length
+            if (strlen($textContent) > 5000) {
+                $textContent = substr($textContent, 0, 5000) . '...';
+            }
+            
+            if (empty($textContent)) {
+                wp_send_json_error(['message' => 'No readable content found at the provided URL.']);
+            }
+            
+            // Get page title
+            $titleNodes = $dom->getElementsByTagName('title');
+            $pageTitle = $titleNodes->length > 0 ? $titleNodes->item(0)->textContent : 'Untitled Page';
+            
+            // Use AI to analyze the content
+            $settings = AIOHM_KB_Assistant::get_settings();
+            $ai_client = new AIOHM_KB_AI_GPT_Client($settings);
+            
+            $research_prompt = "Please analyze the following webpage content and provide a comprehensive summary:\n\n" .
+                              "**Page Title:** {$pageTitle}\n" .
+                              "**URL:** {$url}\n\n" .
+                              "**Content:**\n{$textContent}\n\n" .
+                              "Please provide a structured analysis covering:\n" .
+                              "1. **Main Topic:** What is this page about?\n" .
+                              "2. **Key Points:** What are the most important points mentioned?\n" .
+                              "3. **People/Organizations:** Who are the key people or organizations mentioned?\n" .
+                              "4. **Summary:** Provide a concise 3-sentence summary of the entire content.";
+            
+            $analysis = $ai_client->get_chat_completion(
+                "You are a web content analyst. Provide clear, structured analysis of webpage content.",
+                $research_prompt,
+                0.3,
+                $settings['muse_mode']['ai_model'] ?? 'gpt-3.5-turbo'
+            );
+            
+            // Save to conversation if conversation_id exists
+            if ($conversation_id) {
+                global $wpdb;
+                $user_id = get_current_user_id();
+                
+                // Save AI analysis as assistant message
+                $wpdb->insert(
+                    $wpdb->prefix . 'aiohm_messages',
+                    [
+                        'conversation_id' => $conversation_id,
+                        'user_id' => $user_id,
+                        'sender' => 'assistant',
+                        'content' => $analysis,
+                        'created_at' => current_time('mysql')
+                    ]
+                );
+            }
+            
+            wp_send_json_success([
+                'content' => $analysis,
+                'conversation_id' => $conversation_id,
+                'url' => $url,
+                'title' => $pageTitle
+            ]);
+            
+        } catch (Exception $e) {
+            AIOHM_KB_Assistant::log('Research Online Error: ' . $e->getMessage(), 'error');
+            wp_send_json_error(['message' => 'Error researching website: ' . $e->getMessage()]);
         }
     }
     
