@@ -14,6 +14,9 @@ $all_settings = AIOHM_KB_Assistant::get_settings();
 $settings = $all_settings['muse_mode'] ?? [];
 $global_settings = $all_settings;
 
+// Check if user has private access for Ollama
+$has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_private_access();
+
 
 // --- START: Archetype Prompts ---
 $archetype_prompts = [
@@ -92,6 +95,9 @@ $brand_archetypes = [
         <?php if (!empty($global_settings['claude_api_key'])): ?>
             <option value="claude-3-sonnet" <?php selected($settings['ai_model'] ?? '', 'claude-3-sonnet'); ?>>Anthropic: Claude 3 Sonnet</option>
         <?php endif; ?>
+        <?php if ($has_private_access && !empty($global_settings['private_llm_server_url'])): ?>
+            <option value="ollama" <?php selected($settings['ai_model'] ?? '', 'ollama'); ?>>Ollama: <?php echo esc_html($global_settings['private_llm_model'] ?? 'Private Server'); ?></option>
+        <?php endif; ?>
     </select>
 </div>
 
@@ -118,7 +124,7 @@ $brand_archetypes = [
         
         <div class="aiohm-test-column">
             <h3><?php esc_html_e('Test Your Muse Assistant', 'aiohm-kb-assistant'); ?></h3>
-            <p class="description"><?php esc_html_e('Test your assistant here. For the full experience, use the shortcode: <code>[aiohm_private_assistant]</code> on a new page', 'aiohm-kb-assistant'); ?></p>
+            <p class="description"><?php esc_html_e('Test your assistant here. For the full experience, use the shortcode: ', 'aiohm-kb-assistant'); ?><code>[aiohm_private_assistant]</code> on a new page</p>
             <div id="aiohm-test-chat" class="aiohm-chat-container">
                 <div class="aiohm-chat-header">
                     <div class="aiohm-chat-title-preview"><?php echo esc_html($settings['assistant_name'] ?? 'Muse'); ?></div>

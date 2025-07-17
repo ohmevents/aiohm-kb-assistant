@@ -118,6 +118,8 @@ class AIOHM_KB_Assistant {
             'openai_api_key'   => '',
             'gemini_api_key' => '',
             'claude_api_key' => '',
+            'private_llm_server_url' => '',
+            'private_llm_model' => 'llama2',
             'default_ai_provider' => 'openai',
             'chat_enabled'     => true,
             'show_floating_chat' => false,

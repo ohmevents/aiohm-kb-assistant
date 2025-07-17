@@ -81,42 +81,51 @@ class AIOHM_KB_Settings_Page {
      * @return string Optimized SVG
      */
     private function optimize_logo_for_menu($svg_content, $is_dark_theme) {
-        // Use our professional AI brain icon as the optimized version
-        if ($is_dark_theme) {
-            $optimized_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
-                <path d="M10 2C6.686 2 4 4.686 4 8c0 1.5.5 2.9 1.3 4L10 18l4.7-6c.8-1.1 1.3-2.5 1.3-4 0-3.314-2.686-6-6-6z" fill="rgba(255,255,255,0.85)"/>
-                <circle cx="10" cy="7.5" r="1.5" fill="rgba(30,30,30,0.8)"/>
-                <circle cx="7.5" cy="6" r="0.7" fill="rgba(30,30,30,0.8)"/>
-                <circle cx="12.5" cy="6" r="0.7" fill="rgba(30,30,30,0.8)"/>
-                <path d="M8 9.5c.5.3 1.2.5 2 .5s1.5-.2 2-.5" stroke="rgba(30,30,30,0.8)" stroke-width="0.8" stroke-linecap="round"/>
-            </svg>';
-        } else {
-            $optimized_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
-                <path d="M10 2C6.686 2 4 4.686 4 8c0 1.5.5 2.9 1.3 4L10 18l4.7-6c.8-1.1 1.3-2.5 1.3-4 0-3.314-2.686-6-6-6z" fill="#1f5014"/>
-                <circle cx="10" cy="7.5" r="1.5" fill="rgba(255,255,255,0.9)"/>
-                <circle cx="7.5" cy="6" r="0.7" fill="rgba(255,255,255,0.9)"/>
-                <circle cx="12.5" cy="6" r="0.7" fill="rgba(255,255,255,0.9)"/>
-                <path d="M8 9.5c.5.3 1.2.5 2 .5s1.5-.2 2-.5" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" stroke-linecap="round"/>
-            </svg>';
-        }
+        // Create a simplified version of the actual OHM mandala logo for the menu
+        $fill_color = $is_dark_theme ? 'rgba(255,255,255,0.85)' : '#000000';
+        $stroke_color = $is_dark_theme ? 'rgba(255,255,255,0.85)' : '#000000';
+        
+        $optimized_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+            <!-- Central circle -->
+            <circle cx="10" cy="10" r="2.5" fill="white" stroke="' . $stroke_color . '" stroke-width="0.6"/>
+            
+            <!-- 8 simplified petal shapes -->
+            <path d="M10 7.5 Q8.5 5 10 3.5 Q11.5 5 10 7.5" fill="' . $fill_color . '" stroke="' . $stroke_color . '" stroke-width="0.3"/>
+            <path d="M12.5 10 Q15 8.5 16.5 10 Q15 11.5 12.5 10" fill="' . $fill_color . '" stroke="' . $stroke_color . '" stroke-width="0.3"/>
+            <path d="M10 12.5 Q11.5 15 10 16.5 Q8.5 15 10 12.5" fill="' . $fill_color . '" stroke="' . $stroke_color . '" stroke-width="0.3"/>
+            <path d="M7.5 10 Q5 11.5 3.5 10 Q5 8.5 7.5 10" fill="' . $fill_color . '" stroke="' . $stroke_color . '" stroke-width="0.3"/>
+            <path d="M11.8 8.2 Q14.5 5.5 16.2 7.2 Q14.5 9.9 11.8 8.2" fill="' . $fill_color . '" stroke="' . $stroke_color . '" stroke-width="0.3"/>
+            <path d="M11.8 11.8 Q14.5 14.5 12.8 16.2 Q10.1 14.5 11.8 11.8" fill="' . $fill_color . '" stroke="' . $stroke_color . '" stroke-width="0.3"/>
+            <path d="M8.2 11.8 Q5.5 14.5 3.8 12.8 Q5.5 10.1 8.2 11.8" fill="' . $fill_color . '" stroke="' . $stroke_color . '" stroke-width="0.3"/>
+            <path d="M8.2 8.2 Q5.5 5.5 7.2 3.8 Q9.9 5.5 8.2 8.2" fill="' . $fill_color . '" stroke="' . $stroke_color . '" stroke-width="0.3"/>
+            
+            <!-- Small dots at the tips -->
+            <circle cx="10" cy="3" r="0.6" fill="' . $fill_color . '"/>
+            <circle cx="17" cy="10" r="0.6" fill="' . $fill_color . '"/>
+            <circle cx="10" cy="17" r="0.6" fill="' . $fill_color . '"/>
+            <circle cx="3" cy="10" r="0.6" fill="' . $fill_color . '"/>
+            <circle cx="14.5" cy="5.5" r="0.6" fill="' . $fill_color . '"/>
+            <circle cx="14.5" cy="14.5" r="0.6" fill="' . $fill_color . '"/>
+            <circle cx="5.5" cy="14.5" r="0.6" fill="' . $fill_color . '"/>
+            <circle cx="5.5" cy="5.5" r="0.6" fill="' . $fill_color . '"/>
+        </svg>';
         
         return $optimized_svg;
     }
 
     public function register_admin_pages() {
         // Main Menu Page - using dynamic SVG icon
-        add_menu_page('AIOHM Assistant', 'AIOHM', 'manage_options', 'aiohm-dashboard', array($this, 'render_dashboard_page'), $this->get_menu_icon(), 60);
+        add_menu_page('AIOHM Assistant', 'AIOHM', 'manage_options', 'aiohm-dashboard', array($this, 'render_dashboard_page'), $this->get_menu_icon(), 2);
 
         // Submenu Pages
         add_submenu_page('aiohm-dashboard', 'Dashboard', 'Dashboard', 'manage_options', 'aiohm-dashboard', array($this, 'render_dashboard_page'));
+        // Settings Section - moved to second position
+        add_submenu_page('aiohm-dashboard', 'AIOHM Settings', 'Settings', 'manage_options', 'aiohm-settings', array($this, 'render_form_settings_page'));
         add_submenu_page('aiohm-dashboard', 'AI Brand Core', 'AI Brand Core', 'read', 'aiohm-brand-soul', array($this, 'render_brand_soul_page'));
         
         // Knowledge Base Section
         add_submenu_page('aiohm-dashboard', 'Scan Content', 'Scan Content', 'manage_options', 'aiohm-scan-content', array($this, 'render_scan_page'));
         add_submenu_page('aiohm-dashboard', 'Manage Knowledge Base', 'Manage KB', 'manage_options', 'aiohm-manage-kb', array($this, 'render_manage_kb_page'));
-
-        // Settings Section
-        add_submenu_page('aiohm-dashboard', 'AIOHM Settings', 'Settings', 'manage_options', 'aiohm-settings', array($this, 'render_form_settings_page'));
         
         // Conditionally add Mirror and Muse modes if user has access
         if (class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access()) {
@@ -169,7 +178,7 @@ class AIOHM_KB_Settings_Page {
                 $localized_data['saveAction'] = 'aiohm_save_mirror_mode_settings';
                 $localized_data['testChatAction'] = 'aiohm_test_mirror_mode_chat';
                 $localized_data['nonceFieldId'] = 'aiohm_mirror_mode_nonce_field';
-                $localized_data['defaultPrompt'] = "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\n---\n\n**Core Instructions:**\n\n1.  **Primary Directive:** Your primary goal is to answer the user's question by grounding your response in the **context provided below**. This context is your main source of truth.\n\n2.  **Tone & Personality:**\n    * Speak with emotional clarity, not robotic formality.\n    * Sound like a thoughtful assistant, not a sales rep.\n    * Be concise, but not curt — useful, but never cold.\n    * Your purpose is to express with presence, not persuasion.\n\n3.  **Formatting Rules:**\n    * Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n    * Never end your response with a question like “Do you need help with anything else?”\n\n4.  **Fallback Response (Crucial):**\n    * If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don’t want to guess here. This might need a human’s wisdom. You can connect with the person behind this site on the contact page. They’ll know exactly how to help.\"\n\n---\n\n**Primary Context for Answering the User's Question:**\n{context}";
+                $localized_data['defaultPrompt'] = "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\nCore Instructions:\n\n1. Primary Directive: Your primary goal is to answer the user's question by grounding your response in the context provided below. This context is your main source of truth.\n\n2. Tone & Personality:\n   - Speak with emotional clarity, not robotic formality.\n   - Sound like a thoughtful assistant, not a sales rep.\n   - Be concise, but not curt — useful, but never cold.\n   - Your purpose is to express with presence, not persuasion.\n\n3. Formatting Rules:\n   - Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n   - Never end your response with a question like \"Do you need help with anything else?\"\n\n4. Fallback Response (Crucial):\n   - If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don't want to guess here. This might need a human's wisdom. You can connect with the person behind this site on the contact page. They'll know exactly how to help.\"\n\nPrimary Context for Answering the User's Question:\n{context}";
             }
 
             if ($hook === $muse_mode_hook) {
@@ -278,7 +287,7 @@ class AIOHM_KB_Settings_Page {
         $sanitized = $old_settings;
 
         // Sanitize API keys and other text fields
-        $text_fields = ['aiohm_app_email', 'openai_api_key', 'gemini_api_key', 'claude_api_key'];
+        $text_fields = ['aiohm_app_email', 'openai_api_key', 'gemini_api_key', 'claude_api_key', 'private_llm_server_url', 'private_llm_model'];
         foreach($text_fields as $field) {
             if (isset($input[$field])) {
                 $sanitized[$field] = sanitize_text_field(trim($input[$field]));
@@ -298,6 +307,33 @@ class AIOHM_KB_Settings_Page {
         $checkboxes = ['chat_enabled', 'show_floating_chat', 'enable_private_assistant', 'enable_search_shortcode'];
         foreach ($checkboxes as $checkbox) {
             $sanitized[$checkbox] = isset($input[$checkbox]) ? true : false;
+        }
+        
+        // Handle nested Mirror Mode settings
+        if (isset($input['mirror_mode'])) {
+            $mirror_mode = $input['mirror_mode'];
+            
+            // Sanitize text fields
+            $mirror_text_fields = ['business_name', 'qa_system_message', 'ai_model', 'qa_temperature', 'primary_color', 'background_color', 'text_color', 'ai_avatar', 'welcome_message'];
+            foreach($mirror_text_fields as $field) {
+                if (isset($mirror_mode[$field])) {
+                    $sanitized['mirror_mode'][$field] = sanitize_text_field(trim($mirror_mode[$field]));
+                }
+            }
+            
+            // Sanitize URL with proper validation
+            if (isset($mirror_mode['meeting_button_url'])) {
+                $url = trim($mirror_mode['meeting_button_url']);
+                if (!empty($url)) {
+                    // Add protocol if missing
+                    if (!preg_match('/^https?:\/\//', $url)) {
+                        $url = 'https://' . $url;
+                    }
+                    $sanitized['mirror_mode']['meeting_button_url'] = esc_url_raw($url);
+                } else {
+                    $sanitized['mirror_mode']['meeting_button_url'] = '';
+                }
+            }
         }
         
         return $sanitized;

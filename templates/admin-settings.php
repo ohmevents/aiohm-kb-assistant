@@ -7,6 +7,7 @@ if (!defined('ABSPATH')) exit;
 // --- Start: Data Fetching and Status Checks ---
 $settings = wp_parse_args(AIOHM_KB_Assistant::get_settings(), []);
 $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_club_access();
+$has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_private_access();
 // --- End: Data Fetching and Status Checks ---
 ?>
 
@@ -29,6 +30,7 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
                             <option value="openai" <?php selected($settings['default_ai_provider'] ?? 'openai', 'openai'); ?>>OpenAI</option>
                             <option value="gemini" <?php selected($settings['default_ai_provider'] ?? '', 'gemini'); ?>>Gemini</option>
                             <option value="claude" <?php selected($settings['default_ai_provider'] ?? '', 'claude'); ?>>Claude</option>
+                            <option value="ollama" <?php selected($settings['default_ai_provider'] ?? '', 'ollama'); ?>>Ollama Server</option>
                         </select>
                         <p class="description"><?php esc_html_e('Select the default AI provider to use for generating responses.', 'aiohm-kb-assistant'); ?></p>
                     </td>
@@ -43,7 +45,18 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
                         </div>
                         <p class="description"><?php 
                             // translators: %s is the URL to the OpenAI API keys page
-                            printf(esc_html__('You can get your OpenAI API key from the <a href="%s" target="_blank">OpenAI API keys page</a>.', 'aiohm-kb-assistant'), 'https://platform.openai.com/account/api-keys'); ?></p>
+                            printf(
+                                wp_kses(
+                                    __('You can get your OpenAI API key from the <a href="%s" target="_blank">OpenAI API keys page</a>.', 'aiohm-kb-assistant'),
+                                    array(
+                                        'a' => array(
+                                            'href' => array(),
+                                            'target' => array()
+                                        )
+                                    )
+                                ),
+                                esc_url('https://platform.openai.com/account/api-keys')
+                            ); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -56,7 +69,18 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
                         </div>
                         <p class="description"><?php 
                             // translators: %s is the URL to the Google AI Studio API keys page
-                            printf(esc_html__('You can get your Gemini API key from the <a href="%s" target="_blank">Google AI Studio</a>.', 'aiohm-kb-assistant'), 'https://aistudio.google.com/app/apikey'); ?></p>
+                            printf(
+                                wp_kses(
+                                    __('You can get your Gemini API key from the <a href="%s" target="_blank">Google AI Studio</a>.', 'aiohm-kb-assistant'),
+                                    array(
+                                        'a' => array(
+                                            'href' => array(),
+                                            'target' => array()
+                                        )
+                                    )
+                                ),
+                                esc_url('https://aistudio.google.com/app/apikey')
+                            ); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -69,18 +93,49 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
                         </div>
                         <p class="description"><?php 
                             // translators: %s is the URL to the Anthropic Account Settings page
-                            printf(esc_html__('You can get your Claude API key from your <a href="%s" target="_blank">Anthropic Account Settings</a>.', 'aiohm-kb-assistant'), 'https://console.anthropic.com/account/keys'); ?></p>
+                            printf(
+                                wp_kses(
+                                    __('You can get your Claude API key from your <a href="%s" target="_blank">Anthropic Account Settings</a>.', 'aiohm-kb-assistant'),
+                                    array(
+                                        'a' => array(
+                                            'href' => array(),
+                                            'target' => array()
+                                        )
+                                    )
+                                ),
+                                esc_url('https://console.anthropic.com/account/keys')
+                            ); ?></p>
                     </td>
                 </tr>
-                 <tr>
-                    <th scope="row"><label for="private_llm_api_key"><?php esc_html_e('Private LLM API Key', 'aiohm-kb-assistant'); ?></label></th>
+                <?php if ($has_private_access) : ?>
+                <tr>
+                    <th scope="row"><label for="private_llm_server_url"><?php esc_html_e('Private LLM Server URL', 'aiohm-kb-assistant'); ?></label></th>
+                    <td>
+                        <input type="url" id="private_llm_server_url" name="aiohm_kb_settings[private_llm_server_url]" value="<?php echo esc_attr($settings['private_llm_server_url'] ?? ''); ?>" class="regular-text" placeholder="http://your-server.com:8080">
+                        <p class="description"><?php esc_html_e('Enter your Ollama server URL (e.g., http://155.138.222.3:8080)', 'aiohm-kb-assistant'); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="private_llm_model"><?php esc_html_e('Private LLM Model', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
                         <div class="aiohm-api-key-wrapper">
-                            <input type="password" id="private_llm_api_key" name="aiohm_kb_settings[private_llm_api_key]" value="" class="regular-text" disabled>
+                            <input type="text" id="private_llm_model" name="aiohm_kb_settings[private_llm_model]" value="<?php echo esc_attr($settings['private_llm_model'] ?? 'llama2'); ?>" class="regular-text" placeholder="llama2">
+                            <button type="button" class="button button-secondary aiohm-test-api-key" data-target="private_llm_server_url" data-type="ollama"><?php esc_html_e('Test Server', 'aiohm-kb-assistant'); ?></button>
                         </div>
-                        <p class="description"><?php esc_html_e('This is reserved for future use by AIOHM Private members.', 'aiohm-kb-assistant'); ?></p>
+                        <p class="description"><?php esc_html_e('Enter the model name to use on your Ollama server (e.g., llama2, mistral, codellama)', 'aiohm-kb-assistant'); ?></p>
                     </td>
                 </tr>
+                <?php else : ?>
+                <tr>
+                    <th scope="row"><label for="private_llm_api_key"><?php esc_html_e('Private LLM Server', 'aiohm-kb-assistant'); ?></label></th>
+                    <td>
+                        <div class="aiohm-api-key-wrapper">
+                            <input type="text" id="private_llm_api_key" name="aiohm_kb_settings[private_llm_api_key]" value="" class="regular-text" disabled placeholder="Requires Private Membership">
+                        </div>
+                        <p class="description"><?php esc_html_e('Configure your private Ollama server. Available for AIOHM Private members only.', 'aiohm-kb-assistant'); ?></p>
+                    </td>
+                </tr>
+                <?php endif; ?>
             </table>
         </div>
 
@@ -168,6 +223,14 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
             </div>
         </div>
 
+        <div class="aiohm-settings-section">
+            <h2><?php esc_html_e('Free Features', 'aiohm-kb-assistant'); ?></h2>
+            <table class="form-table">
+                <tr><th scope="row"><?php esc_html_e('Enable Search Shortcode', 'aiohm-kb-assistant'); ?></th>
+                    <td><label><input type="checkbox" name="aiohm_kb_settings[enable_search_shortcode]" value="1" <?php checked($settings['enable_search_shortcode'] ?? false); ?> /> <?php esc_html_e('Enable the `[aiohm_search]` shortcode for knowledge base search.', 'aiohm-kb-assistant'); ?></label></td></tr>
+            </table>
+        </div>
+
         <div class="aiohm-premium-settings-wrapper <?php if (!$can_access_settings) echo 'is-locked'; ?>">
             <?php if (!$can_access_settings) : ?>
                 <div class="aiohm-settings-locked-overlay">
@@ -185,8 +248,6 @@ $can_access_settings = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_
                 <table class="form-table">
                     <tr><th scope="row"><?php esc_html_e('Enable Q&A Chatbot', 'aiohm-kb-assistant'); ?></th>
                         <td><label><input type="checkbox" name="aiohm_kb_settings[chat_enabled]" value="1" <?php checked($settings['chat_enabled'] ?? false); disabled(!$can_access_settings); ?> /> <?php esc_html_e('Enable the `[aiohm_chat]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
-                    <tr><th scope="row"><?php esc_html_e('Enable Search Shortcode', 'aiohm-kb-assistant'); ?></th>
-                        <td><label><input type="checkbox" name="aiohm_kb_settings[enable_search_shortcode]" value="1" <?php checked($settings['enable_search_shortcode'] ?? false); disabled(!$can_access_settings); ?> /> <?php esc_html_e('Enable the `[aiohm_search]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
                 </table>
             </div>
 
@@ -485,22 +546,39 @@ jQuery(document).ready(function($){
         const $btn = $(this);
         const targetId = $btn.data('target');
         const keyType = $btn.data('type');
-        const apiKey = $('#' + targetId).val();
         const originalText = $btn.text();
 
-        if (!apiKey) {
-            showAdminNotice('Please enter an API key before testing.', 'warning');
-            return;
+        let postData = {
+            action: 'aiohm_check_api_key',
+            nonce: '<?php echo esc_js(wp_create_nonce("aiohm_admin_nonce")); ?>',
+            key_type: keyType
+        };
+
+        if (keyType === 'ollama') {
+            const serverUrl = $('#private_llm_server_url').val();
+            const model = $('#private_llm_model').val();
+            
+            if (!serverUrl) {
+                showAdminNotice('Please enter a server URL before testing.', 'warning');
+                return;
+            }
+            
+            postData.server_url = serverUrl;
+            postData.model = model;
+        } else {
+            const apiKey = $('#' + targetId).val();
+            
+            if (!apiKey) {
+                showAdminNotice('Please enter an API key before testing.', 'warning');
+                return;
+            }
+            
+            postData.api_key = apiKey;
         }
 
         $btn.prop('disabled', true).html('<span class="spinner is-active" style="float:none; margin-top:0; vertical-align:middle;"></span>');
 
-        $.post(ajaxurl, {
-            action: 'aiohm_check_api_key',
-            nonce: '<?php echo esc_js(wp_create_nonce("aiohm_admin_nonce")); ?>',
-            api_key: apiKey,
-            key_type: keyType
-        })
+        $.post(ajaxurl, postData)
         .done(function(response) {
             if (response.success) {
                 showAdminNotice(response.data.message, 'success');

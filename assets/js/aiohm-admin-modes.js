@@ -230,16 +230,13 @@ jQuery(document).ready(function($) {
         $btn.prop('disabled', true).text('Saving...');
         
         const formData = $('#' + config.formId).serialize();
-        const nonceValue = $('#' + config.nonceFieldId).val();
         
         console.log('Save button clicked for:', config.mode);
         console.log('Form data:', formData);
-        console.log('Nonce value:', nonceValue);
         console.log('Action:', config.saveAction);
         
         $.post(config.ajax_url, {
             action: config.saveAction,
-            [config.nonceFieldId]: nonceValue,
             form_data: formData
         }).done(response => {
             console.log('Response:', response);

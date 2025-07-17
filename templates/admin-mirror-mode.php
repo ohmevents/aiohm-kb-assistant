@@ -11,6 +11,9 @@ $all_settings = AIOHM_KB_Assistant::get_settings();
 $settings = $all_settings['mirror_mode'] ?? [];
 $global_settings = $all_settings; // for API keys
 
+// Check if user has private access for Ollama
+$has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_Integration::aiohm_user_has_private_access();
+
 
 // Helper function for color contrast
 function aiohm_is_color_dark($hex) {
@@ -27,7 +30,7 @@ function aiohm_is_color_dark($hex) {
     return $luminance < 0.5;
 }
 
-$default_prompt = "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\n---\n\n**Core Instructions:**\n\n1.  **Primary Directive:** Your primary goal is to answer the user's question by grounding your response in the **context provided below**. This context is your main source of truth.\n\n2.  **Tone & Personality:**\n    * Speak with emotional clarity, not robotic formality.\n    * Sound like a thoughtful assistant, not a sales rep.\n    * Be concise, but not curt — useful, but never cold.\n    * Your purpose is to express with presence, not persuasion.\n\n3.  **Formatting Rules:**\n    * Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n    * Never end your response with a question like “Do you need help with anything else?”\n\n4.  **Fallback Response (Crucial):**\n    * If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don’t want to guess here. This might need a human’s wisdom. You can connect with the person behind this site on the contact page. They’ll know exactly how to help.\"\n\n---\n\n**Primary Context for Answering the User's Question:**\n{context}";
+$default_prompt = "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\nCore Instructions:\n\n1. Primary Directive: Your primary goal is to answer the user's question by grounding your response in the context provided below. This context is your main source of truth.\n\n2. Tone & Personality:\n   - Speak with emotional clarity, not robotic formality.\n   - Sound like a thoughtful assistant, not a sales rep.\n   - Be concise, but not curt — useful, but never cold.\n   - Your purpose is to express with presence, not persuasion.\n\n3. Formatting Rules:\n   - Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n   - Never end your response with a question like \"Do you need help with anything else?\"\n\n4. Fallback Response (Crucial):\n   - If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don't want to guess here. This might need a human's wisdom. You can connect with the person behind this site on the contact page. They'll know exactly how to help.\"\n\nPrimary Context for Answering the User's Question:\n{context}";
 $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_system_message'] : $default_prompt;
 
 ?>
@@ -71,6 +74,9 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
                         <?php endif; ?>
                         <?php if (!empty($global_settings['claude_api_key'])): ?>
                             <option value="claude-3-sonnet" <?php selected($settings['ai_model'] ?? '', 'claude-3-sonnet'); ?>>Anthropic: Claude 3 Sonnet</option>
+                        <?php endif; ?>
+                        <?php if ($has_private_access && !empty($global_settings['private_llm_server_url'])): ?>
+                            <option value="ollama" <?php selected($settings['ai_model'] ?? '', 'ollama'); ?>>Ollama: <?php echo esc_html($global_settings['private_llm_model'] ?? 'Private Server'); ?></option>
                         <?php endif; ?>
                     </select>
                      <p class="description">Select the model to power the chat. Models are available based on the API keys you've provided in the main settings.</p>
@@ -126,7 +132,7 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
         
         <div class="aiohm-test-column">
             <h3><?php esc_html_e('Test Your Q&A Assistant', 'aiohm-kb-assistant'); ?></h3>
-            <p class="description"><?php esc_html_e('Test your assistant here. To display this on your website, use the shortcode: <code>[aiohm_chat]</code>', 'aiohm-kb-assistant'); ?></p>
+            <p class="description"><?php esc_html_e('Test your assistant here. To display this on your website, use the shortcode: ', 'aiohm-kb-assistant'); ?><code>[aiohm_chat]</code></p>
             <div id="aiohm-test-chat" class="aiohm-chat-container">
                 <div class="aiohm-chat-header">
                     <div class="aiohm-chat-title-preview"><?php echo esc_html($settings['business_name'] ?? 'Live Preview'); ?></div>

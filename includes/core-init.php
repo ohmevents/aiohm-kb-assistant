@@ -770,6 +770,7 @@ class AIOHM_KB_Core_Init {
         
         try {
             $rag_engine = new AIOHM_KB_RAG_Engine();
+            // Use find_relevant_context to ensure only public content (user_id = 0) is shown in test
             $results = $rag_engine->find_relevant_context($query, $max_results);
             
             $filtered_results = [];
@@ -820,7 +821,9 @@ class AIOHM_KB_Core_Init {
             $system_message = isset($posted_settings['qa_system_message']) ? sanitize_textarea_field($posted_settings['qa_system_message']) : 'You are a helpful assistant.';
             $temperature = floatval($posted_settings['qa_temperature'] ?? 0.7);
             
-            $ai_client = new AIOHM_KB_AI_GPT_Client();
+            // Initialize AI client with current settings to support Ollama
+            $current_settings = AIOHM_KB_Assistant::get_settings();
+            $ai_client = new AIOHM_KB_AI_GPT_Client($current_settings);
             $rag_engine = new AIOHM_KB_RAG_Engine();
             
             $context_data = $rag_engine->find_relevant_context($user_message, 5);
@@ -865,7 +868,9 @@ class AIOHM_KB_Core_Init {
             $temperature = floatval($posted_settings['temperature'] ?? 0.7);
             $model = sanitize_text_field($posted_settings['ai_model'] ?? 'gpt-4');
     
-            $ai_client = new AIOHM_KB_AI_GPT_Client();
+            // Initialize AI client with current settings to support Ollama
+            $current_settings = AIOHM_KB_Assistant::get_settings();
+            $ai_client = new AIOHM_KB_AI_GPT_Client($current_settings);
             $rag_engine = new AIOHM_KB_RAG_Engine();
             
             $context_data = $rag_engine->find_context_for_user($user_message, $user_id, 10);
@@ -1022,7 +1027,9 @@ class AIOHM_KB_Core_Init {
         }
         $api_key = isset($_POST['api_key']) ? sanitize_text_field(wp_unslash($_POST['api_key'])) : '';
         $key_type = isset($_POST['key_type']) ? sanitize_key($_POST['key_type']) : '';
-        if (empty($api_key)) {
+        
+        // For Ollama, we don't need an API key, we need server_url
+        if ($key_type !== 'ollama' && empty($api_key)) {
             wp_send_json_error(['message' => 'API Key / Email cannot be empty.']);
         }
         try {
@@ -1062,6 +1069,26 @@ class AIOHM_KB_Core_Init {
                         wp_send_json_success(['message' => 'Claude connection successful!']);
                     } else {
                         wp_send_json_error(['message' => 'Claude connection failed: ' . ($result['error'] ?? 'Unknown error.')]);
+                    }
+                    break;
+                case 'ollama':
+                    $server_url = sanitize_text_field(wp_unslash($_POST['server_url'] ?? ''));
+                    $model = sanitize_text_field(wp_unslash($_POST['model'] ?? 'llama2'));
+                    
+                    if (empty($server_url)) {
+                        wp_send_json_error(['message' => 'Ollama server URL is required.']);
+                        break;
+                    }
+                    
+                    $ai_client = new AIOHM_KB_AI_GPT_Client([
+                        'private_llm_server_url' => $server_url,
+                        'private_llm_model' => $model
+                    ]);
+                    $result = $ai_client->test_ollama_api_connection();
+                    if ($result['success']) {
+                        wp_send_json_success(['message' => 'Ollama server connection successful!']);
+                    } else {
+                        wp_send_json_error(['message' => 'Ollama server connection failed: ' . ($result['error'] ?? 'Unknown error.')]);
                     }
                     break;
                 default:
@@ -1256,32 +1283,43 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_save_mirror_mode_settings_ajax() {
-        if (!check_ajax_referer('aiohm_mirror_mode_nonce', 'aiohm_mirror_mode_nonce_field', false)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('NONCE CHECK FAILED');
-            }
-            wp_send_json_error(['message' => 'Nonce verification failed.']);
-        }
-        
         if (!current_user_can('edit_posts')) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('USER CAPABILITY CHECK FAILED');
-            }
             wp_send_json_error(['message' => 'Insufficient permissions.']);
         }
         
-        $raw_form_data = isset($_POST['form_data']) ? sanitize_textarea_field(wp_unslash($_POST['form_data'])) : '';
+        $raw_form_data = isset($_POST['form_data']) ? wp_unslash($_POST['form_data']) : '';
         parse_str($raw_form_data, $form_data);
         
-        $settings_input = $form_data['aiohm_kb_settings']['mirror_mode'] ?? [];
+        // Debug logging
+        error_log('Mirror Mode Save - Raw form data: ' . $raw_form_data);
+        error_log('Mirror Mode Save - Parsed form data: ' . print_r($form_data, true));
+        error_log('Mirror Mode Save - Form data keys: ' . implode(', ', array_keys($form_data)));
+        
+        // Check nonce from parsed form data
+        $nonce_value = $form_data['aiohm_mirror_mode_nonce_field'] ?? '';
+        if (!wp_verify_nonce($nonce_value, 'aiohm_mirror_mode_nonce')) {
+            wp_send_json_error(['message' => 'Nonce verification failed.']);
+        }
+        
+        // Handle the form data - check for both normal and malformed keys
+        $settings_input = [];
+        
+        // First check for properly structured data
+        if (isset($form_data['aiohm_kb_settings']['mirror_mode'])) {
+            $settings_input = $form_data['aiohm_kb_settings']['mirror_mode'];
+        } else {
+            // Fallback: Handle malformed array keys from form serialization
+            foreach ($form_data as $key => $value) {
+                if (strpos($key, 'aiohm_kb_settingsmirror_mode') === 0) {
+                    $field_name = str_replace('aiohm_kb_settingsmirror_mode', '', $key);
+                    $settings_input[$field_name] = $value;
+                }
+            }
+        }
+        
+        error_log('Mirror Mode Save - Settings input: ' . print_r($settings_input, true));
         
         if (empty($settings_input)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('SETTINGS INPUT IS EMPTY');
-            }
             wp_send_json_error(['message' => 'No settings data received.']);
         }
         
@@ -1293,18 +1331,57 @@ class AIOHM_KB_Core_Init {
             $settings['mirror_mode'] = [];
         }
         
-        $settings['mirror_mode']['business_name'] = sanitize_text_field($settings_input['business_name'] ?? '');
-        $settings['mirror_mode']['qa_system_message'] = sanitize_textarea_field($settings_input['qa_system_message'] ?? '');
+        $settings['mirror_mode']['business_name'] = sanitize_text_field(trim($settings_input['business_name'] ?? ''));
+        // Handle system message with proper formatting preservation
+        $qa_system_message = trim($settings_input['qa_system_message'] ?? '');
+        
+        // If the message looks corrupted or is the default, restore it
+        if (empty($qa_system_message) || 
+            strpos($qa_system_message, 'y_of_week%') !== false || 
+            strpos($qa_system_message, 'Core Instructions: 1.') !== false) {
+            
+            // Restore the clean default template
+            $qa_system_message = "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\nCore Instructions:\n\n1. Primary Directive: Your primary goal is to answer the user's question by grounding your response in the context provided below. This context is your main source of truth.\n\n2. Tone & Personality:\n   - Speak with emotional clarity, not robotic formality.\n   - Sound like a thoughtful assistant, not a sales rep.\n   - Be concise, but not curt — useful, but never cold.\n   - Your purpose is to express with presence, not persuasion.\n\n3. Formatting Rules:\n   - Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n   - Never end your response with a question like \"Do you need help with anything else?\"\n\n4. Fallback Response (Crucial):\n   - If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don't want to guess here. This might need a human's wisdom. You can connect with the person behind this site on the contact page. They'll know exactly how to help.\"\n\nPrimary Context for Answering the User's Question:\n{context}";
+        } else {
+            // Clean up HTML entities and preserve basic formatting
+            $qa_system_message = html_entity_decode($qa_system_message, ENT_QUOTES, 'UTF-8');
+        }
+        
+        $settings['mirror_mode']['qa_system_message'] = $qa_system_message;
         $settings['mirror_mode']['qa_temperature'] = floatval($settings_input['qa_temperature'] ?? 0.7);
         $settings['mirror_mode']['primary_color'] = sanitize_hex_color($settings_input['primary_color'] ?? '#1f5014');
         $settings['mirror_mode']['background_color'] = sanitize_hex_color($settings_input['background_color'] ?? '#f0f4f8');
         $settings['mirror_mode']['text_color'] = sanitize_hex_color($settings_input['text_color'] ?? '#ffffff');
         $settings['mirror_mode']['ai_avatar'] = esc_url_raw($settings_input['ai_avatar'] ?? '');
-        $settings['mirror_mode']['meeting_button_url'] = esc_url_raw($settings_input['meeting_button_url'] ?? '');
+        $settings['mirror_mode']['welcome_message'] = wp_kses_post(trim($settings_input['welcome_message'] ?? ''));
         $settings['mirror_mode']['ai_model'] = sanitize_text_field($settings_input['ai_model'] ?? 'gpt-3.5-turbo');
+        
+        // Handle URL sanitization with proper validation
+        $meeting_url = trim($settings_input['meeting_button_url'] ?? '');
+        if (!empty($meeting_url)) {
+            // Fix common URL issues
+            $meeting_url = str_replace('httpsohm.com', 'https://ohm.com', $meeting_url);
+            $meeting_url = str_replace('httpohm.com', 'http://ohm.com', $meeting_url);
+            
+            // Add protocol if missing
+            if (!preg_match('/^https?:\/\//', $meeting_url)) {
+                $meeting_url = 'https://' . $meeting_url;
+            }
+            $settings['mirror_mode']['meeting_button_url'] = esc_url_raw($meeting_url);
+        } else {
+            $settings['mirror_mode']['meeting_button_url'] = '';
+        }
 
+        // Debug logging before save
+        error_log('Mirror Mode Save - Settings before save: ' . print_r($settings, true));
+        
         // Save the settings
         $result = update_option('aiohm_kb_settings', $settings, true);
+        
+        // Debug logging after save
+        error_log('Mirror Mode Save - Update result: ' . var_export($result, true));
+        $saved_settings = get_option('aiohm_kb_settings', []);
+        error_log('Mirror Mode Save - Settings after save: ' . print_r($saved_settings, true));
         
         // If update_option returns false, try direct database update
         if (!$result) {
@@ -1323,6 +1400,8 @@ class AIOHM_KB_Core_Init {
                 ),
                 array('%s', '%s', '%s')
             );
+            
+            error_log('Mirror Mode Save - Direct DB update result: ' . var_export($result, true));
         }
         
         // Force clear all caches
@@ -1350,14 +1429,6 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_save_muse_mode_settings_ajax() {
-        if (!check_ajax_referer('aiohm_muse_mode_nonce', 'aiohm_muse_mode_nonce_field', false)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('MUSE NONCE CHECK FAILED');
-            }
-            wp_send_json_error(['message' => 'Nonce verification failed.']);
-        }
-        
         if (!current_user_can('edit_posts')) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
@@ -1366,15 +1437,44 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'Insufficient permissions.']);
         }
 
-        $raw_form_data = isset($_POST['form_data']) ? sanitize_textarea_field(wp_unslash($_POST['form_data'])) : '';
+        $raw_form_data = isset($_POST['form_data']) ? wp_unslash($_POST['form_data']) : '';
         parse_str($raw_form_data, $form_data);
         
-        $muse_input = $form_data['aiohm_kb_settings']['muse_mode'] ?? [];
+        // Debug logging
+        error_log('Muse Mode Save - Raw form data: ' . $raw_form_data);
+        error_log('Muse Mode Save - Parsed form data: ' . print_r($form_data, true));
+        
+        // Check nonce from parsed form data
+        $nonce_value = $form_data['aiohm_muse_mode_nonce_field'] ?? '';
+        if (!wp_verify_nonce($nonce_value, 'aiohm_muse_mode_nonce')) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('MUSE NONCE CHECK FAILED: ' . $nonce_value);
+            }
+            wp_send_json_error(['message' => 'Nonce verification failed.']);
+        }
+        
+        // Handle the form data - check for both normal and malformed keys
+        $muse_input = [];
+        
+        // First check for properly structured data
+        if (isset($form_data['aiohm_kb_settings']['muse_mode'])) {
+            $muse_input = $form_data['aiohm_kb_settings']['muse_mode'];
+        } else {
+            // Fallback: Handle malformed array keys from form serialization
+            foreach ($form_data as $key => $value) {
+                if (strpos($key, 'aiohm_kb_settingsmuse_mode') === 0) {
+                    $field_name = str_replace('aiohm_kb_settingsmuse_mode', '', $key);
+                    $muse_input[$field_name] = $value;
+                }
+            }
+        }
 
         if (empty($muse_input)) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
                 error_log('MUSE SETTINGS INPUT IS EMPTY');
+                error_log('FORM DATA: ' . print_r($form_data, true));
             }
             wp_send_json_error(['message' => 'No settings data received.']);
         }
@@ -1430,14 +1530,36 @@ class AIOHM_KB_Core_Init {
         try {
             $rag_engine = new AIOHM_KB_RAG_Engine();
             $ai_client = new AIOHM_KB_AI_GPT_Client();
+            $settings = AIOHM_KB_Assistant::get_settings();
+            $default_provider = $settings['default_ai_provider'] ?? 'openai';
+            
             $random_chunk = $rag_engine->get_random_chunk();
             if (!$random_chunk) {
                 throw new Exception("Your knowledge base is empty. Please scan some content first.");
             }
+            
+            // Determine the model to use based on the default provider
+            $model = 'gpt-3.5-turbo'; // Default fallback
+            switch ($default_provider) {
+                case 'gemini':
+                    $model = 'gemini-pro';
+                    break;
+                case 'claude':
+                    $model = 'claude-3-sonnet';
+                    break;
+                case 'ollama':
+                    $model = 'ollama';
+                    break;
+                case 'openai':
+                default:
+                    $model = 'gpt-3.5-turbo';
+                    break;
+            }
+            
             $question_prompt = "Based on the following text, what is a likely user question? Only return the question itself, without any preamble.\n\nCONTEXT:\n" . $random_chunk;
-            $question = $ai_client->get_chat_completion($question_prompt, "", 0.7);
+            $question = $ai_client->get_chat_completion($question_prompt, "", 0.7, $model);
             $answer_prompt = "You are a helpful assistant. Answer the following question based on the provided context.\n\nCONTEXT:\n{$random_chunk}\n\nQUESTION:\n{$question}";
-            $answer = $ai_client->get_chat_completion($answer_prompt, "", 0.2);
+            $answer = $ai_client->get_chat_completion($answer_prompt, "", 0.2, $model);
             wp_send_json_success(['qa_pair' => ['question' => trim(str_replace('"', '', $question)), 'answer' => trim($answer)]]);
         } catch (Exception $e) {
             wp_send_json_error(['message' => 'Failed to generate Q&A pair: ' . $e->getMessage()]);
