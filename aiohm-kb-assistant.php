@@ -112,6 +112,47 @@ class AIOHM_KB_Assistant {
         flush_rewrite_rules();
     }
     
+    /**
+     * Encrypt API key for secure storage
+     * @param string $api_key The API key to encrypt
+     * @return string The encrypted API key
+     */
+    public static function encrypt_api_key($api_key) {
+        if (empty($api_key)) {
+            return '';
+        }
+        
+        // Use WordPress auth constants for encryption key
+        $key = wp_hash(SECURE_AUTH_KEY . LOGGED_IN_KEY);
+        $iv = wp_generate_password(16, false);
+        $encrypted = openssl_encrypt($api_key, 'AES-256-CBC', $key, 0, $iv);
+        
+        return base64_encode($iv . $encrypted);
+    }
+    
+    /**
+     * Decrypt API key for use
+     * @param string $encrypted_key The encrypted API key
+     * @return string The decrypted API key
+     */
+    public static function decrypt_api_key($encrypted_key) {
+        if (empty($encrypted_key)) {
+            return '';
+        }
+        
+        $data = base64_decode($encrypted_key);
+        if ($data === false) {
+            return '';
+        }
+        
+        $key = wp_hash(SECURE_AUTH_KEY . LOGGED_IN_KEY);
+        $iv = substr($data, 0, 16);
+        $encrypted = substr($data, 16);
+        
+        $decrypted = openssl_decrypt($encrypted, 'AES-256-CBC', $key, 0, $iv);
+        return $decrypted !== false ? $decrypted : '';
+    }
+    
     public static function get_settings() {
         $default_settings = [
             'aiohm_app_email' => '',
@@ -157,6 +198,17 @@ class AIOHM_KB_Assistant {
             $settings['muse_mode'] = $default_settings['muse_mode'];
         }
         
+        
+        // Decrypt API keys for use
+        $api_keys = ['openai_api_key', 'gemini_api_key', 'claude_api_key'];
+        foreach ($api_keys as $key) {
+            if (!empty($settings[$key])) {
+                $decrypted = self::decrypt_api_key($settings[$key]);
+                if (!empty($decrypted)) {
+                    $settings[$key] = $decrypted;
+                }
+            }
+        }
         
         return $settings;
     }

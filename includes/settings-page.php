@@ -286,8 +286,22 @@ class AIOHM_KB_Settings_Page {
         $old_settings = get_option('aiohm_kb_settings', []);
         $sanitized = $old_settings;
 
-        // Sanitize API keys and other text fields
-        $text_fields = ['aiohm_app_email', 'openai_api_key', 'gemini_api_key', 'claude_api_key', 'private_llm_server_url', 'private_llm_model'];
+        // Sanitize API keys and encrypt them for storage
+        $api_keys = ['openai_api_key', 'gemini_api_key', 'claude_api_key'];
+        foreach($api_keys as $field) {
+            if (isset($input[$field])) {
+                $sanitized_key = sanitize_text_field(trim($input[$field]));
+                // Only encrypt if not empty and different from existing
+                if (!empty($sanitized_key) && $sanitized_key !== $old_settings[$field]) {
+                    $sanitized[$field] = AIOHM_KB_Assistant::encrypt_api_key($sanitized_key);
+                } elseif (empty($sanitized_key)) {
+                    $sanitized[$field] = '';
+                }
+            }
+        }
+        
+        // Sanitize other text fields
+        $text_fields = ['aiohm_app_email', 'private_llm_server_url', 'private_llm_model'];
         foreach($text_fields as $field) {
             if (isset($input[$field])) {
                 $sanitized[$field] = sanitize_text_field(trim($input[$field]));

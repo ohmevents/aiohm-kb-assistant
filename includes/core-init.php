@@ -1289,13 +1289,8 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'Insufficient permissions.']);
         }
         
-        $raw_form_data = isset($_POST['form_data']) ? wp_unslash($_POST['form_data']) : '';
+        $raw_form_data = isset($_POST['form_data']) ? sanitize_text_field(wp_unslash($_POST['form_data'])) : '';
         parse_str($raw_form_data, $form_data);
-        
-        // Debug logging
-        error_log('Mirror Mode Save - Raw form data: ' . $raw_form_data);
-        error_log('Mirror Mode Save - Parsed form data: ' . print_r($form_data, true));
-        error_log('Mirror Mode Save - Form data keys: ' . implode(', ', array_keys($form_data)));
         
         // Check nonce from parsed form data
         $nonce_value = $form_data['aiohm_mirror_mode_nonce_field'] ?? '';
@@ -1319,7 +1314,6 @@ class AIOHM_KB_Core_Init {
             }
         }
         
-        error_log('Mirror Mode Save - Settings input: ' . print_r($settings_input, true));
         
         if (empty($settings_input)) {
             wp_send_json_error(['message' => 'No settings data received.']);
@@ -1374,16 +1368,8 @@ class AIOHM_KB_Core_Init {
             $settings['mirror_mode']['meeting_button_url'] = '';
         }
 
-        // Debug logging before save
-        error_log('Mirror Mode Save - Settings before save: ' . print_r($settings, true));
-        
         // Save the settings
         $result = update_option('aiohm_kb_settings', $settings, true);
-        
-        // Debug logging after save
-        error_log('Mirror Mode Save - Update result: ' . var_export($result, true));
-        $saved_settings = get_option('aiohm_kb_settings', []);
-        error_log('Mirror Mode Save - Settings after save: ' . print_r($saved_settings, true));
         
         // If update_option returns false, try direct database update
         if (!$result) {
@@ -1403,7 +1389,6 @@ class AIOHM_KB_Core_Init {
                 array('%s', '%s', '%s')
             );
             
-            error_log('Mirror Mode Save - Direct DB update result: ' . var_export($result, true));
         }
         
         // Force clear all caches
@@ -1439,12 +1424,8 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'Insufficient permissions.']);
         }
 
-        $raw_form_data = isset($_POST['form_data']) ? wp_unslash($_POST['form_data']) : '';
+        $raw_form_data = isset($_POST['form_data']) ? sanitize_text_field(wp_unslash($_POST['form_data'])) : '';
         parse_str($raw_form_data, $form_data);
-        
-        // Debug logging
-        error_log('Muse Mode Save - Raw form data: ' . $raw_form_data);
-        error_log('Muse Mode Save - Parsed form data: ' . print_r($form_data, true));
         
         // Check nonce from parsed form data
         $nonce_value = $form_data['aiohm_muse_mode_nonce_field'] ?? '';
@@ -1473,11 +1454,6 @@ class AIOHM_KB_Core_Init {
         }
 
         if (empty($muse_input)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('MUSE SETTINGS INPUT IS EMPTY');
-                error_log('FORM DATA: ' . print_r($form_data, true));
-            }
             wp_send_json_error(['message' => 'No settings data received.']);
         }
 
@@ -2270,15 +2246,19 @@ class AIOHM_KB_Core_Init {
             }
             
             // Add to knowledge base
-            $vectorizer = new AIOHM_KB_Vectorizer();
-            $result = $vectorizer->add_entry([
-                'title' => 'Conversation: ' . $conversation->title,
-                'content' => $content,
+            $rag_engine = new AIOHM_KB_RAG_Engine();
+            $metadata = [
                 'scope' => 'private',
-                'user_id' => $user_id,
                 'source_type' => 'conversation',
                 'source_id' => $conversation_id
-            ]);
+            ];
+            $result = $rag_engine->add_entry(
+                $content,
+                'conversation',
+                'Conversation: ' . $conversation->title,
+                $metadata,
+                $user_id
+            );
             
             if ($result) {
                 wp_send_json_success(['message' => 'Conversation added to knowledge base successfully.']);
@@ -2305,7 +2285,7 @@ class AIOHM_KB_Core_Init {
         }
         
         try {
-            $url = isset($_POST['url']) ? esc_url_raw($_POST['url']) : '';
+            $url = isset($_POST['url']) ? esc_url_raw(wp_unslash($_POST['url'])) : '';
             $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
             $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : null;
             
@@ -2353,7 +2333,7 @@ class AIOHM_KB_Core_Init {
             }
             
             // Extract text content
-            $textContent = strip_tags($dom->textContent);
+            $textContent = wp_strip_all_tags($dom->textContent);
             $textContent = preg_replace('/\s+/', ' ', $textContent);
             $textContent = trim($textContent);
             
@@ -2397,6 +2377,7 @@ class AIOHM_KB_Core_Init {
                 $user_id = get_current_user_id();
                 
                 // Save AI analysis as assistant message
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct insert required for message storage
                 $wpdb->insert(
                     $wpdb->prefix . 'aiohm_messages',
                     [

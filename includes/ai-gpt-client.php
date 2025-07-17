@@ -27,6 +27,51 @@ class AIOHM_KB_AI_GPT_Client {
         $this->ollama_model = $this->settings['private_llm_model'] ?? 'llama2';
     }
     
+    /**
+     * Check if API key is properly configured for the given provider
+     * @param string $provider The AI provider (openai, gemini, claude, ollama)
+     * @return bool True if API key is configured
+     */
+    public function is_api_key_configured($provider) {
+        switch ($provider) {
+            case 'openai':
+                return !empty($this->openai_api_key);
+            case 'gemini':
+                return !empty($this->gemini_api_key);
+            case 'claude':
+                return !empty($this->claude_api_key);
+            case 'ollama':
+                return !empty($this->ollama_server_url);
+            default:
+                return false;
+        }
+    }
+    
+    /**
+     * Check rate limit for API calls
+     * @param string $provider The AI provider
+     * @return bool True if within rate limit
+     */
+    private function check_rate_limit($provider) {
+        $user_id = get_current_user_id();
+        $transient_key = "aiohm_rate_limit_{$provider}_{$user_id}";
+        
+        $current_count = get_transient($transient_key);
+        $max_requests = 100; // Max requests per hour
+        
+        if ($current_count === false) {
+            set_transient($transient_key, 1, HOUR_IN_SECONDS);
+            return true;
+        }
+        
+        if ($current_count >= $max_requests) {
+            return false;
+        }
+        
+        set_transient($transient_key, $current_count + 1, HOUR_IN_SECONDS);
+        return true;
+    }
+    
     private function sanitize_text_for_json($text) {
         if (is_string($text)) {
             return mb_convert_encoding($text, 'UTF-8', 'UTF-8');
@@ -269,9 +314,6 @@ class AIOHM_KB_AI_GPT_Client {
         } else {
             $url = $base_url . '/completion';
         }
-        error_log('Ollama Chat - URL being used: ' . $url);
-        error_log('Ollama Chat - Server URL: ' . $this->ollama_server_url);
-        error_log('Ollama Chat - Model: ' . $this->ollama_model);
         $prompt = $system_message . "\n\n" . $user_message;
         
         $data = [
@@ -410,19 +452,14 @@ class AIOHM_KB_AI_GPT_Client {
             ];
             
             $body = json_encode($data);
-            error_log('Ollama Test - URL: ' . $url);
-            error_log('Ollama Test - Request body: ' . $body);
-            
             $response = $this->make_http_request($url, $body, 'ollama');
-            error_log('Ollama Test - Response: ' . print_r($response, true));
             
             if (isset($response['content'])) {
                 return ['success' => true];
             } else {
-                return ['success' => false, 'error' => 'No content in response: ' . print_r($response, true)];
+                return ['success' => false, 'error' => 'No content in response'];
             }
         } catch (Exception $e) {
-            error_log('Ollama Test - Exception: ' . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }

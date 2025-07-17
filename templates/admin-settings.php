@@ -44,9 +44,9 @@ $has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_I
                             <button type="button" class="button button-secondary aiohm-test-api-key" data-target="openai_api_key" data-type="openai"><?php esc_html_e('Test API', 'aiohm-kb-assistant'); ?></button>
                         </div>
                         <p class="description"><?php 
-                            // translators: %s is the URL to the OpenAI API keys page
                             printf(
                                 wp_kses(
+                                    // translators: %s is the URL to the OpenAI API keys page
                                     __('You can get your OpenAI API key from the <a href="%s" target="_blank">OpenAI API keys page</a>.', 'aiohm-kb-assistant'),
                                     array(
                                         'a' => array(
@@ -68,9 +68,9 @@ $has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_I
                             <button type="button" class="button button-secondary aiohm-test-api-key" data-target="gemini_api_key" data-type="gemini"><?php esc_html_e('Test API', 'aiohm-kb-assistant'); ?></button>
                         </div>
                         <p class="description"><?php 
-                            // translators: %s is the URL to the Google AI Studio API keys page
                             printf(
                                 wp_kses(
+                                    // translators: %s is the URL to the Google AI Studio API keys page
                                     __('You can get your Gemini API key from the <a href="%s" target="_blank">Google AI Studio</a>.', 'aiohm-kb-assistant'),
                                     array(
                                         'a' => array(
@@ -92,9 +92,9 @@ $has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_I
                             <button type="button" class="button button-secondary aiohm-test-api-key" data-target="claude_api_key" data-type="claude"><?php esc_html_e('Test API', 'aiohm-kb-assistant'); ?></button>
                         </div>
                         <p class="description"><?php 
-                            // translators: %s is the URL to the Anthropic Account Settings page
                             printf(
                                 wp_kses(
+                                    // translators: %s is the URL to the Anthropic Account Settings page
                                     __('You can get your Claude API key from your <a href="%s" target="_blank">Anthropic Account Settings</a>.', 'aiohm-kb-assistant'),
                                     array(
                                         'a' => array(
