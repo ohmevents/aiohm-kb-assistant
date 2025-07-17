@@ -40,7 +40,7 @@ if (class_exists('FPDF') && !class_exists('AIOHM_Enhanced_PDF')) {
             }
             
             $sender_name = ($sender === 'user') ? 'You' : 'Assistant';
-            $header = $sender_name . ' - ' . date('M j, Y g:i A', strtotime($timestamp));
+            $header = $sender_name . ' - ' . gmdate('M j, Y g:i A', strtotime($timestamp));
             $this->Cell(0, 8, $header, 0, 1, 'L', true);
             
             // Message content
@@ -49,7 +49,7 @@ if (class_exists('FPDF') && !class_exists('AIOHM_Enhanced_PDF')) {
             $this->SetFillColor(255, 255, 255);
             
             // Clean and format content
-            $content = strip_tags($content);
+            $content = wp_strip_all_tags($content);
             $content = html_entity_decode($content, ENT_QUOTES, 'UTF-8');
             
             // Handle long lines by wrapping text properly

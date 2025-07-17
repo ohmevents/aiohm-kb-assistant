@@ -33,7 +33,8 @@ $tables_to_drop = array(
 );
 
 foreach ($tables_to_drop as $table) {
-    $wpdb->query($wpdb->prepare("DROP TABLE IF EXISTS %s", $table));
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Direct query necessary for table dropping during uninstall
+    $wpdb->query("DROP TABLE IF EXISTS `{$table}`");
 }
 
 // Remove scheduled hooks

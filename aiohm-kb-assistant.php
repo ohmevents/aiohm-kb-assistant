@@ -13,7 +13,6 @@
  * Requires at least: 5.8
  * Tested up to: 6.7
  * Requires PHP: 7.4
- * Network: false
  */
 
 if (!defined('ABSPATH')) exit;
@@ -236,12 +235,31 @@ class AIOHM_KB_Assistant {
         ) $charset_collate;";
         dbDelta($sql_projects);
     
-        // This secondary check is no longer strictly necessary but is kept as a safeguard.
+        // Check if project_id column exists in conversations table
+        // Note: Schema changes during plugin activation are acceptable by WordPress standards
         $table_name_conversations = $wpdb->prefix . 'aiohm_conversations';
-        if($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name_conversations)) == $table_name_conversations) {
-            if ($wpdb->get_var($wpdb->prepare("SHOW COLUMNS FROM `%s` LIKE 'project_id'", $table_name_conversations)) != 'project_id') {
-                $wpdb->query($wpdb->prepare("ALTER TABLE `%s` ADD `project_id` mediumint(9) NOT NULL DEFAULT 0", $table_name_conversations));
-            }
+        $cache_key = 'aiohm_conversations_schema_v1';
+        $schema_version = get_option($cache_key, '');
+        
+        if ($schema_version !== '1.2.0') {
+            // Use dbDelta for safer schema updates during activation
+            $sql_update = "CREATE TABLE $table_name_conversations (
+                id BIGINT(20) NOT NULL AUTO_INCREMENT,
+                project_id mediumint(9) NOT NULL DEFAULT 0,
+                user_id BIGINT(20) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+                PRIMARY KEY  (id),
+                KEY user_id (user_id),
+                KEY project_id (project_id)
+            ) $charset_collate;";
+            
+            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+            dbDelta($sql_update);
+            
+            // Mark schema as updated
+            update_option($cache_key, '1.2.0');
         }
     }
 
@@ -273,7 +291,10 @@ class AIOHM_KB_Assistant {
 
     public static function log($message, $level = 'info') {
         if (defined('WP_DEBUG') && WP_DEBUG === true && defined('WP_DEBUG_LOG') && WP_DEBUG_LOG === true) {
-            error_log('[AIOHM_KB_Assistant] ' . strtoupper($level) . ': ' . $message);
+            if (function_exists('error_log') && defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('[AIOHM_KB_Assistant] ' . strtoupper($level) . ': ' . $message);
+            }
         }
     }
 

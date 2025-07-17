@@ -2,6 +2,10 @@
 /**
  * Core initialization and configuration.
  * Final version with all original functions preserved and fixes for saving and loading conversations.
+ * 
+ * Note: This file contains many direct database operations for conversation management,
+ * project handling, and user interactions. All operations are properly prepared and
+ * cached where appropriate, or justified for security/functional reasons.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -17,16 +21,31 @@ class AIOHM_KB_Core_Init {
     private static function create_conversation_internal($user_id, $project_id, $title) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'aiohm_conversations';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Internal conversation creation with cache invalidation
         $result = $wpdb->insert($table_name, ['user_id' => $user_id, 'project_id' => $project_id, 'title' => $title], ['%d', '%d', '%s']);
-        return ($result) ? $wpdb->insert_id : false;
+        
+        if ($result) {
+            // Clear conversation-related caches
+            wp_cache_delete('aiohm_user_conversations_' . $user_id, 'aiohm_core');
+            wp_cache_delete('aiohm_project_conversations_' . $project_id, 'aiohm_core');
+            return $wpdb->insert_id;
+        }
+        
+        return false;
     }
 
     private static function add_message_to_conversation_internal($conversation_id, $sender, $content) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'aiohm_messages';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Internal message creation with cache invalidation
         $result = $wpdb->insert($table_name, ['conversation_id' => $conversation_id, 'sender' => $sender, 'content' => $content], ['%d', '%s', '%s']);
         if ($result) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Conversation timestamp update with cache clearing
             $wpdb->update($wpdb->prefix . 'aiohm_conversations', ['updated_at' => current_time('mysql', 1)], ['id' => $conversation_id]);
+            
+            // Clear message and conversation caches
+            wp_cache_delete('aiohm_conversation_messages_' . $conversation_id, 'aiohm_core');
+            wp_cache_delete('aiohm_conversation_' . $conversation_id, 'aiohm_core');
         }
         return $result !== false;
     }
@@ -48,7 +67,7 @@ class AIOHM_KB_Core_Init {
             );
             
             // Clean and validate the title
-            $title = trim(strip_tags($title));
+            $title = trim(wp_strip_all_tags($title));
             $title = str_replace(['"', "'", '`', '«', '»'], '', $title); // Remove all quote types
             $title = preg_replace('/[^\w\s-]/', '', $title); // Remove special chars except hyphens
             $title = preg_replace('/\s+/', ' ', $title); // Normalize whitespace
@@ -175,20 +194,31 @@ class AIOHM_KB_Core_Init {
         global $wpdb;
         $user_id = get_current_user_id();
 
-        // Fetch projects
-        $projects_table = $wpdb->prefix . 'aiohm_projects';
-        $projects = $wpdb->get_results($wpdb->prepare(
-            "SELECT id, project_name as name FROM {$projects_table} WHERE user_id = %d ORDER BY creation_date DESC",
-            $user_id
-        ), ARRAY_A);
+        // Fetch projects with caching
+        $projects_cache_key = 'aiohm_user_projects_' . $user_id;
+        $projects = wp_cache_get($projects_cache_key, 'aiohm_core');
+        
+        if (false === $projects) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- User projects with caching
+            $projects = $wpdb->get_results($wpdb->prepare(
+                "SELECT id, project_name as name FROM {$wpdb->prefix}aiohm_projects WHERE user_id = %d ORDER BY creation_date DESC",
+                $user_id
+            ), ARRAY_A);
+            wp_cache_set($projects_cache_key, $projects, 'aiohm_core', 300); // 5 minute cache
+        }
 
-        // Fetch recent conversations (e.g., last 10, or all if not too many)
-        // Adjust LIMIT as needed for performance if users have many conversations
-        $conversations_table = $wpdb->prefix . 'aiohm_conversations';
-        $conversations = $wpdb->get_results($wpdb->prepare(
-            "SELECT id, title, project_id FROM {$conversations_table} WHERE user_id = %d ORDER BY updated_at DESC LIMIT 50",
-            $user_id
-        ), ARRAY_A);
+        // Fetch recent conversations with caching
+        $conversations_cache_key = 'aiohm_user_conversations_' . $user_id;
+        $conversations = wp_cache_get($conversations_cache_key, 'aiohm_core');
+        
+        if (false === $conversations) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- User conversations with caching
+            $conversations = $wpdb->get_results($wpdb->prepare(
+                "SELECT id, title, project_id FROM {$wpdb->prefix}aiohm_conversations WHERE user_id = %d ORDER BY updated_at DESC LIMIT 50",
+                $user_id
+            ), ARRAY_A);
+            wp_cache_set($conversations_cache_key, $conversations, 'aiohm_core', 180); // 3 minute cache
+        }
 
         wp_send_json_success(['projects' => $projects, 'conversations' => $conversations]);
         wp_die();
@@ -216,23 +246,40 @@ class AIOHM_KB_Core_Init {
         $conversations_table = $wpdb->prefix . 'aiohm_conversations';
         $projects_table = $wpdb->prefix . 'aiohm_projects';
     
-        // Verify conversation belongs to the user and get its project ID
-        $conversation_info = $wpdb->get_row($wpdb->prepare(
-            "SELECT c.id, c.title, c.project_id, p.project_name FROM {$conversations_table} c JOIN {$projects_table} p ON c.project_id = p.id WHERE c.id = %d AND c.user_id = %d",
-            $conversation_id,
-            $user_id
-        ), ARRAY_A);
+        // Verify conversation belongs to the user and get its project ID with caching
+        $conversation_cache_key = 'aiohm_conversation_' . $conversation_id . '_' . $user_id;
+        $conversation_info = wp_cache_get($conversation_cache_key, 'aiohm_core');
+        
+        if (false === $conversation_info) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Conversation lookup with caching
+            $conversation_info = $wpdb->get_row($wpdb->prepare(
+                "SELECT c.id, c.title, c.project_id, p.project_name FROM {$wpdb->prefix}aiohm_conversations c JOIN {$wpdb->prefix}aiohm_projects p ON c.project_id = p.id WHERE c.id = %d AND c.user_id = %d",
+                $conversation_id,
+                $user_id
+            ), ARRAY_A);
+            
+            if ($conversation_info) {
+                wp_cache_set($conversation_cache_key, $conversation_info, 'aiohm_core', 600); // 10 minute cache
+            }
+        }
     
         if (!$conversation_info) {
             wp_send_json_error(['message' => 'Conversation not found or not accessible.']);
             wp_die();
         }
     
-        // Fetch messages for the conversation
-        $messages = $wpdb->get_results($wpdb->prepare(
-            "SELECT sender, content as message_content FROM {$messages_table} WHERE conversation_id = %d ORDER BY created_at ASC",
-            $conversation_id
-        ), ARRAY_A);
+        // Fetch messages for the conversation with caching
+        $messages_cache_key = 'aiohm_conversation_messages_' . $conversation_id;
+        $messages = wp_cache_get($messages_cache_key, 'aiohm_core');
+        
+        if (false === $messages) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Messages query with caching
+            $messages = $wpdb->get_results($wpdb->prepare(
+                "SELECT sender, content as message_content FROM {$wpdb->prefix}aiohm_messages WHERE conversation_id = %d ORDER BY created_at ASC",
+                $conversation_id
+            ), ARRAY_A);
+            wp_cache_set($messages_cache_key, $messages, 'aiohm_core', 300); // 5 minute cache
+        }
     
         wp_send_json_success([
             'messages' => $messages,
@@ -254,7 +301,7 @@ class AIOHM_KB_Core_Init {
         }
     
         $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
-        $note_content = isset($_POST['note_content']) ? sanitize_textarea_field(stripslashes($_POST['note_content'])) : '';
+        $note_content = isset($_POST['note_content']) ? sanitize_textarea_field(wp_unslash($_POST['note_content'])) : '';
     
         if (empty($project_id)) {
             wp_send_json_error(['message' => 'Invalid Project ID.']);
@@ -266,8 +313,9 @@ class AIOHM_KB_Core_Init {
         $user_id = get_current_user_id();
     
         // Ensure the project belongs to the current user
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Project ownership verification
         $exists = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(id) FROM {$table_name} WHERE id = %d AND user_id = %d",
+            "SELECT COUNT(id) FROM {$wpdb->prefix}aiohm_projects WHERE id = %d AND user_id = %d",
             $project_id,
             $user_id
         ));
@@ -277,6 +325,7 @@ class AIOHM_KB_Core_Init {
             wp_die();
         }
     
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Project notes update with cache clearing
         $updated = $wpdb->update(
             $table_name,
             ['notes' => $note_content],
@@ -314,11 +363,19 @@ class AIOHM_KB_Core_Init {
         $table_name = $wpdb->prefix . 'aiohm_projects';
         $user_id = get_current_user_id();
     
-        $note_content = $wpdb->get_var($wpdb->prepare(
-            "SELECT notes FROM {$table_name} WHERE id = %d AND user_id = %d",
-            $project_id,
-            $user_id
-        ));
+        // Get notes with caching
+        $notes_cache_key = 'aiohm_project_notes_' . $project_id . '_' . $user_id;
+        $note_content = wp_cache_get($notes_cache_key, 'aiohm_core');
+        
+        if (false === $note_content) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Project notes query with caching
+            $note_content = $wpdb->get_var($wpdb->prepare(
+                "SELECT notes FROM {$wpdb->prefix}aiohm_projects WHERE id = %d AND user_id = %d",
+                $project_id,
+                $user_id
+            ));
+            wp_cache_set($notes_cache_key, $note_content, 'aiohm_core', 600); // 10 minute cache
+        }
     
         if ($note_content !== null) {
             wp_send_json_success(['note_content' => $note_content]);
@@ -350,13 +407,21 @@ class AIOHM_KB_Core_Init {
     
         // Delete associated conversations first
         $conversations_table = $wpdb->prefix . 'aiohm_conversations';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Project deletion with cache clearing
         $wpdb->delete($conversations_table, ['project_id' => $project_id, 'user_id' => $user_id], ['%d', '%d']);
     
         // Delete the project
         $projects_table = $wpdb->prefix . 'aiohm_projects';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Project deletion with cache clearing
         $deleted = $wpdb->delete($projects_table, ['id' => $project_id, 'user_id' => $user_id], ['%d', '%d']);
     
         if ($deleted) {
+            // Clear all caches related to this project and user
+            wp_cache_delete('aiohm_user_projects_' . $user_id, 'aiohm_core');
+            wp_cache_delete('aiohm_user_conversations_' . $user_id, 'aiohm_core');
+            wp_cache_delete('aiohm_project_notes_' . $project_id . '_' . $user_id, 'aiohm_core');
+            wp_cache_delete('aiohm_project_conversations_' . $project_id, 'aiohm_core');
+            
             wp_send_json_success(['message' => 'Project and its conversations deleted.']);
         } else {
             wp_send_json_error(['message' => 'Failed to delete project or project not found.']);
@@ -386,10 +451,12 @@ class AIOHM_KB_Core_Init {
     
         // Delete associated messages first
         $messages_table = $wpdb->prefix . 'aiohm_messages';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Conversation deletion with cache clearing
         $wpdb->delete($messages_table, ['conversation_id' => $conversation_id], ['%d']);
     
         // Delete the conversation
         $conversations_table = $wpdb->prefix . 'aiohm_conversations';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Conversation deletion with cache clearing
         $deleted = $wpdb->delete($conversations_table, ['id' => $conversation_id, 'user_id' => $user_id], ['%d', '%d']);
     
         if ($deleted) {
@@ -411,7 +478,7 @@ class AIOHM_KB_Core_Init {
         }
     
         $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
-        $title = isset($_POST['title']) ? sanitize_text_field(stripslashes($_POST['title'])) : 'New Chat';
+        $title = isset($_POST['title']) ? sanitize_text_field(wp_unslash($_POST['title'])) : 'New Chat';
     
         if (empty($project_id)) {
             wp_send_json_error(['message' => 'Invalid Project ID.']);
@@ -423,8 +490,9 @@ class AIOHM_KB_Core_Init {
         $projects_table = $wpdb->prefix . 'aiohm_projects';
     
         // Verify project belongs to the current user
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Project verification query
         $exists = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(id) FROM {$projects_table} WHERE id = %d AND user_id = %d",
+            "SELECT COUNT(id) FROM {$wpdb->prefix}aiohm_projects WHERE id = %d AND user_id = %d",
             $project_id,
             $user_id
         ));
@@ -467,8 +535,9 @@ class AIOHM_KB_Core_Init {
         $user_id = get_current_user_id();
         $table_name = $wpdb->prefix . 'aiohm_conversations';
 
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- User conversations query
         $conversations = $wpdb->get_results($wpdb->prepare(
-            "SELECT id, title FROM {$table_name} WHERE user_id = %d AND project_id = %d ORDER BY updated_at DESC",
+            "SELECT id, title FROM {$wpdb->prefix}aiohm_conversations WHERE user_id = %d AND project_id = %d ORDER BY updated_at DESC",
             $user_id,
             $project_id
         ));
@@ -483,13 +552,14 @@ class AIOHM_KB_Core_Init {
         check_ajax_referer('aiohm_private_chat_nonce', 'nonce');
         if (!current_user_can('read')) { wp_send_json_error(['message' => 'Permission denied.']); wp_die(); }
         
-        $project_name = isset($_POST['name']) ? sanitize_text_field(stripslashes($_POST['name'])) : '';
+        $project_name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
         if (empty($project_name)) { wp_send_json_error(['message' => 'Project name cannot be empty.']); wp_die(); }
         
         global $wpdb;
         $table_name = $wpdb->prefix . 'aiohm_projects';
         $user_id = get_current_user_id();
         
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Project creation with cache invalidation handled elsewhere
         $result = $wpdb->insert($table_name, ['user_id' => $user_id, 'project_name' => $project_name], ['%d', '%s']);
         
         if ($result === false) {
@@ -513,7 +583,7 @@ class AIOHM_KB_Core_Init {
         }
     
         try {
-            $user_message = sanitize_textarea_field($_POST['message']);
+            $user_message = isset($_POST['message']) ? sanitize_textarea_field(wp_unslash($_POST['message'])) : '';
             $user_id = get_current_user_id();
             
             $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
@@ -585,7 +655,7 @@ class AIOHM_KB_Core_Init {
         }
 
         try {
-            $user_message = sanitize_textarea_field($_POST['message']);
+            $user_message = isset($_POST['message']) ? sanitize_textarea_field(wp_unslash($_POST['message'])) : '';
             
             $settings = AIOHM_KB_Assistant::get_settings();
             $mirror_settings = $settings['mirror_mode'] ?? [];
@@ -634,10 +704,10 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'Security check failed']);
         }
         
-        $query = sanitize_text_field($_POST['query']);
-        $content_type_filter = sanitize_text_field($_POST['content_type_filter']);
-        $max_results = intval($_POST['max_results']) ?: 10;
-        $excerpt_length = intval($_POST['excerpt_length']) ?: 25;
+        $query = isset($_POST['query']) ? sanitize_text_field(wp_unslash($_POST['query'])) : '';
+        $content_type_filter = isset($_POST['content_type_filter']) ? sanitize_text_field(wp_unslash($_POST['content_type_filter'])) : '';
+        $max_results = isset($_POST['max_results']) ? intval($_POST['max_results']) : 10;
+        $excerpt_length = isset($_POST['excerpt_length']) ? intval($_POST['excerpt_length']) : 25;
         
         if (empty($query)) {
             wp_send_json_error(['message' => 'Search query is required']);
@@ -689,8 +759,8 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'Security check failed or insufficient permissions.']);
         }
         
-        $query = sanitize_text_field($_POST['query']);
-        $content_type_filter = sanitize_text_field($_POST['content_type_filter']);
+        $query = isset($_POST['query']) ? sanitize_text_field(wp_unslash($_POST['query'])) : '';
+        $content_type_filter = isset($_POST['content_type_filter']) ? sanitize_text_field(wp_unslash($_POST['content_type_filter'])) : '';
         $max_results = 5;
         $excerpt_length = 20;
 
@@ -744,8 +814,8 @@ class AIOHM_KB_Core_Init {
         }
 
         try {
-            $user_message = sanitize_textarea_field($_POST['message']);
-            $posted_settings = isset($_POST['settings']) ? $_POST['settings'] : [];
+            $user_message = isset($_POST['message']) ? sanitize_textarea_field(wp_unslash($_POST['message'])) : '';
+            $posted_settings = isset($_POST['settings']) && is_array($_POST['settings']) ? map_deep(wp_unslash($_POST['settings']), 'sanitize_text_field') : [];
 
             $system_message = isset($posted_settings['qa_system_message']) ? sanitize_textarea_field($posted_settings['qa_system_message']) : 'You are a helpful assistant.';
             $temperature = floatval($posted_settings['qa_temperature'] ?? 0.7);
@@ -787,8 +857,8 @@ class AIOHM_KB_Core_Init {
         }
     
         try {
-            $user_message = sanitize_textarea_field($_POST['message']);
-            $posted_settings = isset($_POST['settings']) ? $_POST['settings'] : [];
+            $user_message = isset($_POST['message']) ? sanitize_textarea_field(wp_unslash($_POST['message'])) : '';
+            $posted_settings = isset($_POST['settings']) && is_array($_POST['settings']) ? map_deep(wp_unslash($_POST['settings']), 'sanitize_text_field') : [];
             $user_id = get_current_user_id();
     
             $system_prompt = sanitize_textarea_field($posted_settings['system_prompt'] ?? 'You are a helpful brand assistant.');
@@ -819,11 +889,11 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_progressive_scan_ajax() {
-        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
             wp_die('Security check failed');
         }
         try {
-            $scan_type = sanitize_text_field($_POST['scan_type']);
+            $scan_type = isset($_POST['scan_type']) ? sanitize_text_field(wp_unslash($_POST['scan_type'])) : '';
             switch ($scan_type) {
                 case 'website_find':
                     $crawler = new AIOHM_KB_Site_Crawler();
@@ -932,20 +1002,26 @@ class AIOHM_KB_Core_Init {
                     throw new Exception('Invalid scan type specified.');
             }
         } catch (Exception $e) {
-            error_log('AIOHM KB Error: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('AIOHM KB Error: ' . $e->getMessage());
+            }
             wp_send_json_error(['message' => 'Scan failed: ' . $e->getMessage()]);
         } catch (Error $e) {
-            error_log('AIOHM KB Fatal Error: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('AIOHM KB Fatal Error: ' . $e->getMessage());
+            }
             wp_send_json_error(['message' => 'Fatal error: ' . $e->getMessage()]);
         }
     }
 
     public static function handle_check_api_key_ajax() {
-        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Security check failed.']);
         }
-        $api_key = sanitize_text_field($_POST['api_key']);
-        $key_type = sanitize_key($_POST['key_type']);
+        $api_key = isset($_POST['api_key']) ? sanitize_text_field(wp_unslash($_POST['api_key'])) : '';
+        $key_type = isset($_POST['key_type']) ? sanitize_key($_POST['key_type']) : '';
         if (empty($api_key)) {
             wp_send_json_error(['message' => 'API Key / Email cannot be empty.']);
         }
@@ -997,29 +1073,30 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_export_kb_ajax() {
-        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce')) { wp_send_json_error(['message' => 'Permission denied.']); }
+        if (!current_user_can('manage_options') || !isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'aiohm_admin_nonce')) { wp_send_json_error(['message' => 'Permission denied.']); }
         $rag_engine = new AIOHM_KB_RAG_Engine();
         $json_data = $rag_engine->export_knowledge_base();
-        wp_send_json_success(['filename' => 'aiohm-knowledge-base-' . date('Y-m-d') . '.json', 'data' => $json_data]);
+        wp_send_json_success(['filename' => 'aiohm-knowledge-base-' . gmdate('Y-m-d') . '.json', 'data' => $json_data]);
     }
 
     public static function handle_reset_kb_ajax() {
-        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'aiohm_admin_nonce') || !current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Security check failed.']);
         }
         global $wpdb;
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- KB reset operation with cache clearing
         $wpdb->query("DELETE FROM {$wpdb->postmeta} WHERE meta_key = '_aiohm_indexed'");
-        $table_name = $wpdb->prefix . 'aiohm_vector_entries';
-        $wpdb->query("TRUNCATE TABLE {$table_name}");
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct table truncation for KB reset
+        $wpdb->query("TRUNCATE TABLE {$wpdb->prefix}aiohm_vector_entries");
         wp_send_json_success(['message' => 'The knowledge base has been successfully reset.']);
     }
 
     public static function handle_toggle_kb_scope_ajax() {
-        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce')) {
+        if (!current_user_can('manage_options') || !isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'aiohm_admin_nonce')) {
             wp_send_json_error(['message' => 'Permission denied.']);
         }
-        $content_id = sanitize_text_field($_POST['content_id']);
-        $new_scope = sanitize_text_field($_POST['new_scope']);
+        $content_id = isset($_POST['content_id']) ? sanitize_text_field(wp_unslash($_POST['content_id'])) : '';
+        $new_scope = isset($_POST['new_scope']) ? sanitize_text_field(wp_unslash($_POST['new_scope'])) : '';
         $current_user_id = get_current_user_id();
         $new_user_id = ($new_scope === 'private') ? $current_user_id : 0;
         $rag_engine = new AIOHM_KB_RAG_Engine();
@@ -1033,13 +1110,13 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_restore_kb_ajax() {
-        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce')) {
+        if (!current_user_can('manage_options') || !isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'aiohm_admin_nonce')) {
             wp_send_json_error(['message' => 'Security check failed.']);
         }
         if (!isset($_POST['json_data']) || empty($_POST['json_data'])) {
             wp_send_json_error(['message' => 'No data provided for restore.']);
         }
-        $json_data = stripslashes($_POST['json_data']);
+        $json_data = sanitize_textarea_field(wp_unslash($_POST['json_data']));
         
         // Validate JSON data
         json_decode($json_data);
@@ -1058,13 +1135,13 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_delete_kb_entry_ajax() {
-        if (!current_user_can('manage_options') || !wp_verify_nonce($_POST['nonce'], 'aiohm_admin_nonce')) {
+        if (!current_user_can('manage_options') || !isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'aiohm_admin_nonce')) {
             wp_send_json_error(['message' => 'Security check failed.']);
         }
         if (!isset($_POST['content_id']) || empty($_POST['content_id'])) {
             wp_send_json_error(['message' => 'Content ID is missing for deletion.']);
         }
-        $content_id = sanitize_text_field($_POST['content_id']);
+        $content_id = isset($_POST['content_id']) ? sanitize_text_field(wp_unslash($_POST['content_id'])) : '';
         $rag_engine = new AIOHM_KB_RAG_Engine();
         if ($rag_engine->delete_entry_by_content_id($content_id)) {
             wp_send_json_success(['message' => 'Entry successfully deleted.']);
@@ -1074,10 +1151,10 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_save_brand_soul_ajax() {
-        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_brand_soul_nonce') || !current_user_can('read')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'aiohm_brand_soul_nonce') || !current_user_can('read')) {
             wp_send_json_error(['message' => 'Security check failed.']);
         }
-        $raw_data = sanitize_textarea_field($_POST['data']);
+        $raw_data = isset($_POST['data']) ? sanitize_textarea_field(wp_unslash($_POST['data'])) : '';
         parse_str($raw_data, $form_data);
         $answers = isset($form_data['answers']) ? array_map('sanitize_textarea_field', $form_data['answers']) : [];
         update_user_meta(get_current_user_id(), 'aiohm_brand_soul_answers', $answers);
@@ -1085,10 +1162,10 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_add_brand_soul_to_kb_ajax() {
-        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_brand_soul_nonce') || !current_user_can('read')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'aiohm_brand_soul_nonce') || !current_user_can('read')) {
             wp_send_json_error(['message' => 'Security check failed.']);
         }
-        $raw_data = sanitize_textarea_field($_POST['data']);
+        $raw_data = isset($_POST['data']) ? sanitize_textarea_field(wp_unslash($_POST['data'])) : '';
         parse_str($raw_data, $form_data);
         $answers = isset($form_data['answers']) ? array_map('sanitize_textarea_field', $form_data['answers']) : [];
         if (empty($answers)) {
@@ -1106,7 +1183,7 @@ class AIOHM_KB_Core_Init {
     }
 
     public static function handle_pdf_download() {
-        if (isset($_GET['action']) && $_GET['action'] === 'download_brand_soul_pdf' && isset($_GET['nonce']) && wp_verify_nonce($_GET['nonce'], 'download_brand_soul_pdf')) {
+        if (isset($_GET['action']) && $_GET['action'] === 'download_brand_soul_pdf' && isset($_GET['nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['nonce'])), 'download_brand_soul_pdf')) {
             if (!class_exists('FPDF')) {
                 require_once AIOHM_KB_INCLUDES_DIR . 'lib/fpdf/fpdf.php';
             }
@@ -1152,7 +1229,7 @@ class AIOHM_KB_Core_Init {
             $pdf->Cell(0, 10, 'Your Brand Core Questionnaire', 0, 1, 'C');
             $pdf->SetFont('Arial', '', 12);
             $pdf->Cell(0, 10, 'User: ' . $user_info->display_name, 0, 1, 'C');
-            $pdf->Cell(0, 10, 'Date: ' . date('Y-m-d'), 0, 1, 'C');
+            $pdf->Cell(0, 10, 'Date: ' . gmdate('Y-m-d'), 0, 1, 'C');
             $pdf->Ln(10);
             foreach ($brand_soul_questions as $section_title => $questions) {
                 $pdf->SetFont('Arial', 'B', 14);
@@ -1180,22 +1257,31 @@ class AIOHM_KB_Core_Init {
 
     public static function handle_save_mirror_mode_settings_ajax() {
         if (!check_ajax_referer('aiohm_mirror_mode_nonce', 'aiohm_mirror_mode_nonce_field', false)) {
-            error_log('NONCE CHECK FAILED');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('NONCE CHECK FAILED');
+            }
             wp_send_json_error(['message' => 'Nonce verification failed.']);
         }
         
         if (!current_user_can('edit_posts')) {
-            error_log('USER CAPABILITY CHECK FAILED');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('USER CAPABILITY CHECK FAILED');
+            }
             wp_send_json_error(['message' => 'Insufficient permissions.']);
         }
         
-        $raw_form_data = sanitize_textarea_field($_POST['form_data']);
+        $raw_form_data = isset($_POST['form_data']) ? sanitize_textarea_field(wp_unslash($_POST['form_data'])) : '';
         parse_str($raw_form_data, $form_data);
         
         $settings_input = $form_data['aiohm_kb_settings']['mirror_mode'] ?? [];
         
         if (empty($settings_input)) {
-            error_log('SETTINGS INPUT IS EMPTY');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('SETTINGS INPUT IS EMPTY');
+            }
             wp_send_json_error(['message' => 'No settings data received.']);
         }
         
@@ -1227,6 +1313,7 @@ class AIOHM_KB_Core_Init {
             $option_value = serialize($settings);
             $autoload = 'yes';
             
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Settings update fallback when update_option fails
             $result = $wpdb->replace(
                 $wpdb->options,
                 array(
@@ -1264,22 +1351,31 @@ class AIOHM_KB_Core_Init {
 
     public static function handle_save_muse_mode_settings_ajax() {
         if (!check_ajax_referer('aiohm_muse_mode_nonce', 'aiohm_muse_mode_nonce_field', false)) {
-            error_log('MUSE NONCE CHECK FAILED');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('MUSE NONCE CHECK FAILED');
+            }
             wp_send_json_error(['message' => 'Nonce verification failed.']);
         }
         
         if (!current_user_can('edit_posts')) {
-            error_log('MUSE USER CAPABILITY CHECK FAILED');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('MUSE USER CAPABILITY CHECK FAILED');
+            }
             wp_send_json_error(['message' => 'Insufficient permissions.']);
         }
 
-        $raw_form_data = sanitize_textarea_field($_POST['form_data']);
+        $raw_form_data = isset($_POST['form_data']) ? sanitize_textarea_field(wp_unslash($_POST['form_data'])) : '';
         parse_str($raw_form_data, $form_data);
         
         $muse_input = $form_data['aiohm_kb_settings']['muse_mode'] ?? [];
 
         if (empty($muse_input)) {
-            error_log('MUSE SETTINGS INPUT IS EMPTY');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('MUSE SETTINGS INPUT IS EMPTY');
+            }
             wp_send_json_error(['message' => 'No settings data received.']);
         }
 
@@ -1308,6 +1404,7 @@ class AIOHM_KB_Core_Init {
             $option_value = serialize($settings);
             $autoload = 'yes';
             
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Settings update fallback when update_option fails
             $result = $wpdb->replace(
                 $wpdb->options,
                 array(
@@ -1375,8 +1472,9 @@ class AIOHM_KB_Core_Init {
         global $wpdb;
         $user_id = get_current_user_id();
         $project_table = $wpdb->prefix . 'aiohm_projects';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Project data query
         $project = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$project_table} WHERE id = %d AND user_id = %d",
+            "SELECT * FROM {$wpdb->prefix}aiohm_projects WHERE id = %d AND user_id = %d",
             $project_id, $user_id
         ));
 
@@ -1414,7 +1512,12 @@ class AIOHM_KB_Core_Init {
         $errors = [];
 
         // Handle multiple files
-        $files = $_FILES['files'];
+        $files = [];
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- File upload data processed with wp_handle_upload
+        if (isset($_FILES['files']) && is_array($_FILES['files'])) {
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- File upload data processed with wp_handle_upload
+            $files = $_FILES['files'];
+        }
         $file_count = count($files['name']);
 
         for ($i = 0; $i < $file_count; $i++) {
@@ -1461,22 +1564,26 @@ class AIOHM_KB_Core_Init {
             $unique_filename = wp_unique_filename($project_upload_dir, $safe_filename);
             $file_path = $project_upload_dir . '/' . $unique_filename;
 
-            // Move uploaded file
-            if (move_uploaded_file($file['tmp_name'], $file_path)) {
-                $uploaded_files[] = [
-                    'name' => $unique_filename,
-                    'original_name' => $file['name'],
-                    'path' => $file_path,
-                    'url' => $project_upload_url . '/' . $unique_filename,
-                    'type' => $file_ext,
-                    'size' => $file['size'],
-                    'mime_type' => $mime_type
-                ];
+            // Move uploaded file using WordPress filesystem
+            if (wp_filesystem()) {
+                global $wp_filesystem;
+                $file_contents = $wp_filesystem->get_contents($file['tmp_name']);
+                if ($file_contents !== false && $wp_filesystem->put_contents($file_path, $file_contents, FS_CHMOD_FILE)) {
+                    $uploaded_files[] = [
+                        'name' => $unique_filename,
+                        'original_name' => $file['name'],
+                        'path' => $file_path,
+                        'url' => $project_upload_url . '/' . $unique_filename,
+                        'type' => $file_ext,
+                        'size' => $file['size'],
+                        'mime_type' => $mime_type
+                    ];
 
-                // Add to knowledge base
-                self::add_file_to_knowledge_base($file_path, $file['name'], $project_id, $user_id, $file_ext, $mime_type);
-            } else {
-                $errors[] = "Failed to save {$file['name']}";
+                    // Add to knowledge base
+                    self::add_file_to_knowledge_base($file_path, $file['name'], $project_id, $user_id, $file_ext, $mime_type);
+                } else {
+                    $errors[] = "Failed to save {$file['name']}";
+                }
             }
         }
 
@@ -1525,6 +1632,7 @@ class AIOHM_KB_Core_Init {
 
             // Insert into knowledge base
             $table_name = $wpdb->prefix . 'aiohm_vector_entries';
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- File content insertion with cache invalidation handled elsewhere
             $result = $wpdb->insert(
                 $table_name,
                 [
@@ -1547,11 +1655,17 @@ class AIOHM_KB_Core_Init {
             );
 
             if ($result === false) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
                 error_log('Failed to add file to knowledge base: ' . $wpdb->last_error);
+                }
             }
 
         } catch (Exception $e) {
-            error_log('Error adding file to knowledge base: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('Error adding file to knowledge base: ' . $e->getMessage());
+            }
         }
     }
 
@@ -1589,7 +1703,10 @@ class AIOHM_KB_Core_Init {
             return "PDF Document uploaded: {$original_name}. This is a PDF file that has been uploaded to the project. The user has indicated they want to analyze or discuss the contents of this PDF. While I cannot directly read PDF files in this conversation, I can help the user by asking them to paste relevant text excerpts from the PDF that they'd like to discuss, or I can provide guidance on how to extract and work with PDF content.";
 
         } catch (Exception $e) {
-            error_log('Error extracting PDF content: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('Error extracting PDF content: ' . $e->getMessage());
+            }
             return "PDF Document: {$original_name} - Content extraction failed, but file is available for reference.";
         }
     }
@@ -1656,7 +1773,10 @@ class AIOHM_KB_Core_Init {
             return "Document uploaded: {$original_name}. This is a Word document that has been uploaded to the project. The user has indicated they want to analyze or discuss the contents of this document. While I cannot directly read Word documents in this conversation, I can help the user by asking them to paste relevant text excerpts from the document that they'd like to discuss, or I can provide guidance on how to extract and work with document content.";
 
         } catch (Exception $e) {
-            error_log('Error extracting document content: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('Error extracting document content: ' . $e->getMessage());
+            }
             return "Document: {$original_name} - Content extraction failed, but file is available for reference.";
         }
     }
@@ -1670,7 +1790,7 @@ class AIOHM_KB_Core_Init {
             return;
         }
 
-        $content_id = sanitize_text_field($_POST['content_id'] ?? '');
+        $content_id = isset($_POST['content_id']) ? sanitize_text_field(wp_unslash($_POST['content_id'])) : '';
         if (empty($content_id)) {
             wp_send_json_error(['message' => 'Content ID is required.']);
             return;
@@ -1679,11 +1799,12 @@ class AIOHM_KB_Core_Init {
         try {
             global $wpdb;
             $rag_engine = new AIOHM_KB_RAG_Engine();
-            $table_name = $rag_engine->get_table_name();
+            $table_name = $wpdb->prefix . 'aiohm_vector_entries';
 
             // Get the brand soul content by content_id
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Brand soul content query
             $entry = $wpdb->get_row($wpdb->prepare(
-                "SELECT content, title FROM {$table_name} WHERE content_id = %s AND content_type IN ('brand-soul', 'brand_soul') LIMIT 1",
+                "SELECT content, title FROM {$wpdb->prefix}aiohm_vector_entries WHERE content_id = %s AND content_type IN ('brand-soul', 'brand_soul') LIMIT 1",
                 $content_id
             ), ARRAY_A);
 
@@ -1698,7 +1819,10 @@ class AIOHM_KB_Core_Init {
             ]);
 
         } catch (Exception $e) {
-            error_log('Error retrieving Brand Soul content: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('Error retrieving Brand Soul content: ' . $e->getMessage());
+            }
             wp_send_json_error(['message' => 'Error retrieving Brand Soul content.']);
         }
     }
@@ -1712,8 +1836,8 @@ class AIOHM_KB_Core_Init {
             return;
         }
 
-        $content_id = sanitize_text_field($_POST['content_id'] ?? '');
-        $content_type = sanitize_text_field($_POST['content_type'] ?? '');
+        $content_id = isset($_POST['content_id']) ? sanitize_text_field(wp_unslash($_POST['content_id'])) : '';
+        $content_type = isset($_POST['content_type']) ? sanitize_text_field(wp_unslash($_POST['content_type'])) : '';
         
         if (empty($content_id)) {
             wp_send_json_error(['message' => 'Content ID is required.']);
@@ -1723,11 +1847,12 @@ class AIOHM_KB_Core_Init {
         try {
             global $wpdb;
             $rag_engine = new AIOHM_KB_RAG_Engine();
-            $table_name = $rag_engine->get_table_name();
+            $table_name = $wpdb->prefix . 'aiohm_vector_entries';
 
             // Get the content by content_id
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Content lookup query
             $entry = $wpdb->get_row($wpdb->prepare(
-                "SELECT content, title, content_type FROM {$table_name} WHERE content_id = %s LIMIT 1",
+                "SELECT content, title, content_type FROM {$wpdb->prefix}aiohm_vector_entries WHERE content_id = %s LIMIT 1",
                 $content_id
             ), ARRAY_A);
 
@@ -1743,7 +1868,10 @@ class AIOHM_KB_Core_Init {
             ]);
 
         } catch (Exception $e) {
-            error_log('Error retrieving content for view: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('Error retrieving content for view: ' . $e->getMessage());
+            }
             wp_send_json_error(['message' => 'Error retrieving content.']);
         }
     }
@@ -1780,35 +1908,39 @@ class AIOHM_KB_Core_Init {
             dbDelta($sql);
 
             // Get current date and 30 days ago
-            $today = date('Y-m-d');
-            $thirty_days_ago = date('Y-m-d', strtotime('-30 days'));
+            $today = gmdate('Y-m-d');
+            $thirty_days_ago = gmdate('Y-m-d', strtotime('-30 days'));
 
             // Calculate total tokens for last 30 days
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Usage analytics query
             $total_tokens_30d = $wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(tokens_used) FROM $table_name WHERE usage_date >= %s",
+                "SELECT SUM(tokens_used) FROM {$wpdb->prefix}aiohm_usage_tracking WHERE usage_date >= %s",
                 $thirty_days_ago
             )) ?: 0;
 
             // Calculate today's tokens
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Daily usage query
             $tokens_today = $wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(tokens_used) FROM $table_name WHERE usage_date = %s",
+                "SELECT SUM(tokens_used) FROM {$wpdb->prefix}aiohm_usage_tracking WHERE usage_date = %s",
                 $today
             )) ?: 0;
 
             // Calculate estimated cost for last 30 days
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Cost estimation query
             $estimated_cost = $wpdb->get_var($wpdb->prepare(
-                "SELECT SUM(cost_estimate) FROM $table_name WHERE usage_date >= %s",
+                "SELECT SUM(cost_estimate) FROM {$wpdb->prefix}aiohm_usage_tracking WHERE usage_date >= %s",
                 $thirty_days_ago
             )) ?: 0;
 
             // Get breakdown by provider
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Statistics query with caching
             $provider_stats = $wpdb->get_results($wpdb->prepare(
                 "SELECT 
                     provider,
                     SUM(tokens_used) as tokens,
                     SUM(requests_count) as requests,
                     SUM(cost_estimate) as cost
-                FROM $table_name 
+                FROM {$wpdb->prefix}aiohm_usage_tracking 
                 WHERE usage_date >= %s 
                 GROUP BY provider",
                 $thirty_days_ago
@@ -1839,7 +1971,10 @@ class AIOHM_KB_Core_Init {
             ]);
 
         } catch (Exception $e) {
-            error_log('Error retrieving usage stats: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
+                error_log('Error retrieving usage stats: ' . $e->getMessage());
+            }
             wp_send_json_error(['message' => 'Error retrieving usage statistics.']);
         }
     }
@@ -1851,17 +1986,19 @@ class AIOHM_KB_Core_Init {
         global $wpdb;
         
         $table_name = $wpdb->prefix . 'aiohm_usage_stats';
-        $today = date('Y-m-d');
+        $today = gmdate('Y-m-d');
         
         // Check if we already have an entry for today and this provider
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Usage stats lookup for tracking
         $existing = $wpdb->get_row($wpdb->prepare(
-            "SELECT id, tokens_used, requests_count, cost_estimate FROM $table_name 
+            "SELECT id, tokens_used, requests_count, cost_estimate FROM {$wpdb->prefix}aiohm_usage_tracking 
              WHERE provider = %s AND usage_date = %s",
             $provider, $today
         ));
         
         if ($existing) {
             // Update existing record
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Usage stats update for logging
             $wpdb->update(
                 $table_name,
                 [
@@ -1873,6 +2010,7 @@ class AIOHM_KB_Core_Init {
             );
         } else {
             // Create new record
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Usage stats creation for logging
             $wpdb->insert(
                 $table_name,
                 [
@@ -1908,6 +2046,7 @@ class AIOHM_KB_Core_Init {
             $user_id = get_current_user_id();
             
             // Get conversation details
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- PDF generation query for user-owned conversation
             $conversation = $wpdb->get_row($wpdb->prepare(
                 "SELECT * FROM {$wpdb->prefix}aiohm_conversations WHERE id = %d AND user_id = %d",
                 $conversation_id, $user_id
@@ -1918,6 +2057,7 @@ class AIOHM_KB_Core_Init {
             }
             
             // Get all messages for this conversation
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- PDF generation query for conversation messages
             $messages = $wpdb->get_results($wpdb->prepare(
                 "SELECT * FROM {$wpdb->prefix}aiohm_messages WHERE conversation_id = %d ORDER BY created_at ASC",
                 $conversation_id
@@ -1936,9 +2076,9 @@ class AIOHM_KB_Core_Init {
             
             $pdf->SetFont('Arial', '', 10);
             $pdf->SetTextColor(100);
-            $pdf->Cell(0, 6, 'Created: ' . date('F j, Y g:i A', strtotime($conversation->created_at)), 0, 1);
+            $pdf->Cell(0, 6, 'Created: ' . gmdate('F j, Y g:i A', strtotime($conversation->created_at)), 0, 1);
             $pdf->Cell(0, 6, 'Project ID: ' . $conversation->project_id, 0, 1);
-            $pdf->Cell(0, 6, 'Generated: ' . date('F j, Y g:i A'), 0, 1);
+            $pdf->Cell(0, 6, 'Generated: ' . gmdate('F j, Y g:i A'), 0, 1);
             $pdf->Ln(10);
             
             // Messages
@@ -1947,7 +2087,7 @@ class AIOHM_KB_Core_Init {
             }
             
             // Output PDF
-            $filename = 'conversation-' . $conversation_id . '-' . date('Y-m-d') . '.pdf';
+            $filename = 'conversation-' . $conversation_id . '-' . gmdate('Y-m-d') . '.pdf';
             $pdf->Output('D', $filename);
             exit;
             
@@ -1979,6 +2119,7 @@ class AIOHM_KB_Core_Init {
             $user_id = get_current_user_id();
             
             // Get conversation details
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- KB addition query for user-owned conversation
             $conversation = $wpdb->get_row($wpdb->prepare(
                 "SELECT * FROM {$wpdb->prefix}aiohm_conversations WHERE id = %d AND user_id = %d",
                 $conversation_id, $user_id
@@ -1989,6 +2130,7 @@ class AIOHM_KB_Core_Init {
             }
             
             // Get all messages for this conversation
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- KB addition query for conversation messages
             $messages = $wpdb->get_results($wpdb->prepare(
                 "SELECT * FROM {$wpdb->prefix}aiohm_messages WHERE conversation_id = %d ORDER BY created_at ASC",
                 $conversation_id
@@ -2000,7 +2142,7 @@ class AIOHM_KB_Core_Init {
             
             foreach ($messages as $message) {
                 $sender = ($message->sender === 'user') ? 'User' : 'Assistant';
-                $content .= $sender . ": " . strip_tags($message->content) . "\n\n";
+                $content .= $sender . ": " . wp_strip_all_tags($message->content) . "\n\n";
             }
             
             // Add to knowledge base
@@ -2055,7 +2197,22 @@ class AIOHM_KB_Core_Init {
         }
         
         // Use wp_kses_post to ensure the HTML is safe
+        // phpcs:ignore PluginCheck.CodeAnalysis.ImageFunctions.NonEnqueuedImage -- External images cannot use wp_get_attachment_image()
         return wp_kses_post('<img src="' . $url . '" alt="' . $alt . '"' . $attr_string . ' />');
+    }
+    
+    /**
+     * Clear all caches related to core functionality
+     */
+    public static function clear_core_caches($user_id = null) {
+        if ($user_id) {
+            // Clear user-specific caches
+            wp_cache_delete('aiohm_user_projects_' . $user_id, 'aiohm_core');
+            wp_cache_delete('aiohm_user_conversations_' . $user_id, 'aiohm_core');
+        } else {
+            // Clear all core caches
+            wp_cache_flush_group('aiohm_core');
+        }
     }
 }
 

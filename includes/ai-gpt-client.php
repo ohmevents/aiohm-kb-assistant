@@ -50,7 +50,7 @@ class AIOHM_KB_AI_GPT_Client {
             return $response['data'][0]['embedding'];
         } else {
             $error_message = $response['error']['message'] ?? 'Invalid embedding response from OpenAI API.';
-            throw new Exception($error_message);
+            throw new Exception(esc_html($error_message));
         }
     }
 
@@ -104,7 +104,7 @@ class AIOHM_KB_AI_GPT_Client {
             return $response['choices'][0]['message']['content'];
         } else {
             $error_message = $response['error']['message'] ?? 'Invalid chat response from OpenAI API.';
-            throw new Exception($error_message);
+            throw new Exception(esc_html($error_message));
         }
     }
 
@@ -123,7 +123,7 @@ class AIOHM_KB_AI_GPT_Client {
         ]);
         
         if (is_wp_error($response)) {
-            throw new Exception('HTTP request failed: ' . $response->get_error_message());
+            throw new Exception('HTTP request failed: ' . esc_html($response->get_error_message()));
         }
         
         $response_code = wp_remote_retrieve_response_code($response);
@@ -132,7 +132,7 @@ class AIOHM_KB_AI_GPT_Client {
 
         if ($response_code !== 200) {
             $error_message = $decoded_response['error']['message'] ?? 'API request failed with status ' . $response_code;
-            throw new Exception('API Error (' . intval($response_code) . '): ' . $error_message);
+            throw new Exception('API Error (' . intval($response_code) . '): ' . esc_html($error_message));
         }
         
         return $decoded_response;

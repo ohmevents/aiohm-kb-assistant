@@ -42,7 +42,12 @@ include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/header.php';
     </div>
 
     <form id="kb-filter-form" method="get">
-        <input type="hidden" name="page" value="<?php echo esc_attr($_REQUEST['page']); ?>" />
+        <!-- Admin filter form - page parameter safe for admin interface -->
+        <?php
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Admin form page parameter, read-only
+        $page_param = isset($_REQUEST['page']) ? sanitize_text_field(wp_unslash($_REQUEST['page'])) : '';
+        ?>
+        <input type="hidden" name="page" value="<?php echo esc_attr($page_param); ?>" />
         <?php
         // The display() method of WP_List_Table will render bulk actions and filters
         // via its built-in functionality and the extra_tablenav() method.

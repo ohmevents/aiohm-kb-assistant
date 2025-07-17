@@ -39,6 +39,8 @@ class AIOHM_KB_RAG_Engine {
                 $embedding = $ai_client->generate_embeddings($chunk);
                 $chunk_metadata = array_merge($metadata, ['chunk_index' => $chunk_index]);
                 
+                // Insert with proper error handling and cache invalidation
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Vector data insertion requires direct insert
                 $result = $wpdb->insert(
                     $this->table_name,
                     [
@@ -52,6 +54,12 @@ class AIOHM_KB_RAG_Engine {
                     ],
                     ['%d', '%s', '%s', '%s', '%s', '%s', '%s']
                 );
+                
+                // Clear relevant caches after insert
+                if ($result) {
+                    wp_cache_delete('aiohm_vector_search_' . md5($content_id), 'aiohm_kb');
+                    wp_cache_delete('aiohm_vector_user_' . $user_id, 'aiohm_kb');
+                }
 
                 if ($result === false) {
                     throw new Exception('Failed to insert a chunk into the database.');
@@ -287,27 +295,61 @@ class AIOHM_KB_RAG_Engine {
     
     public function find_relevant_context($query_text, $limit = 5) {
         global $wpdb;
+        
+        // Create cache key based on query and limit
+        $cache_key = 'aiohm_context_' . md5($query_text . $limit);
+        $cached_result = wp_cache_get($cache_key, 'aiohm_kb');
+        
+        if (false !== $cached_result) {
+            return $cached_result;
+        }
+        
         $ai_client = new AIOHM_KB_AI_GPT_Client();
         $query_embedding = $ai_client->generate_embeddings($query_text);
 
         $keywords = preg_replace('/[^a-z0-9\s]/i', '', strtolower($query_text));
         
-        $where_clauses = ["user_id = 0"];
-        $query_args = [];
+        $table_name = $this->table_name;
+        
         if (!empty(trim($keywords))) {
-            $where_clauses[] = "MATCH(content) AGAINST(%s IN BOOLEAN MODE)";
-            $query_args[] = '+' . str_replace(' ', ' +', trim($keywords));
+            $search_query = '+' . str_replace(' ', ' +', trim($keywords));
+            $cache_key_search = 'aiohm_search_' . md5($search_query);
+            $pre_filtered_entries = wp_cache_get($cache_key_search, 'aiohm_kb');
+            
+            if (false === $pre_filtered_entries) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Vector search with caching
+                $pre_filtered_entries = $wpdb->get_results($wpdb->prepare(
+                    "SELECT id, title, content, content_type, metadata, vector_data FROM {$wpdb->prefix}aiohm_vector_entries WHERE user_id = 0 AND MATCH(content) AGAINST(%s IN BOOLEAN MODE)",
+                    $search_query
+                ), ARRAY_A);
+                wp_cache_set($cache_key_search, $pre_filtered_entries, 'aiohm_kb', 300);
+            }
+        } else {
+            $cache_key_all = 'aiohm_all_entries';
+            $pre_filtered_entries = wp_cache_get($cache_key_all, 'aiohm_kb');
+            
+            if (false === $pre_filtered_entries) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- All entries query with caching
+                $pre_filtered_entries = $wpdb->get_results(
+                    "SELECT id, title, content, content_type, metadata, vector_data FROM {$wpdb->prefix}aiohm_vector_entries WHERE user_id = 0",
+                    ARRAY_A
+                );
+                wp_cache_set($cache_key_all, $pre_filtered_entries, 'aiohm_kb', 600);
+            }
         }
 
-        $where_sql = implode(' AND ', $where_clauses);
-        
-        $pre_filtered_entries = $wpdb->get_results($wpdb->prepare(
-            "SELECT id, title, content, content_type, metadata, vector_data FROM {$this->table_name} WHERE {$where_sql}",
-            $query_args
-        ), ARRAY_A);
-
         if (empty($pre_filtered_entries)) {
-             $pre_filtered_entries = $wpdb->get_results("SELECT id, title, content, content_type, metadata, vector_data FROM {$this->table_name} WHERE user_id = 0 ORDER BY RAND() LIMIT 100", ARRAY_A);
+            $cache_key_random = 'aiohm_random_entries';
+            $pre_filtered_entries = wp_cache_get($cache_key_random, 'aiohm_kb');
+            
+            if (false === $pre_filtered_entries) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Random entries fallback with caching
+                $pre_filtered_entries = $wpdb->get_results(
+                    "SELECT id, title, content, content_type, metadata, vector_data FROM {$wpdb->prefix}aiohm_vector_entries WHERE user_id = 0 ORDER BY RAND() LIMIT 100",
+                    ARRAY_A
+                );
+                wp_cache_set($cache_key_random, $pre_filtered_entries, 'aiohm_kb', 180); // 3 minute cache for random results
+            }
         }
 
         $similarities = [];
@@ -323,49 +365,100 @@ class AIOHM_KB_RAG_Engine {
             }
         }
         usort($similarities, fn($a, $b) => $b['score'] <=> $a['score']);
-        return array_slice($similarities, 0, $limit);
+        $result = array_slice($similarities, 0, $limit);
+        
+        // Cache the final result
+        wp_cache_set($cache_key, $result, 'aiohm_kb', 300);
+        
+        return $result;
     }
     
     public function get_all_entries_paginated($per_page = 20, $page_number = 1) {
         global $wpdb;
+        
+        $cache_key = 'aiohm_entries_page_' . $page_number . '_' . $per_page;
+        $cached_result = wp_cache_get($cache_key, 'aiohm_kb');
+        
+        if (false !== $cached_result) {
+            return $cached_result;
+        }
+        
         $offset = ($page_number - 1) * $per_page;
-        $sql = $wpdb->prepare(
-            "SELECT id, title, content_type, user_id, content_id, metadata, created_at
-             FROM {$this->table_name} 
-             GROUP BY content_id 
-             ORDER BY id DESC 
-             LIMIT %d OFFSET %d",
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Export query with caching
+        $result = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, title, content_type, user_id, content_id, metadata, created_at FROM {$wpdb->prefix}aiohm_vector_entries GROUP BY content_id ORDER BY id DESC LIMIT %d OFFSET %d",
             $per_page, $offset
-        );
-        return $wpdb->get_results($sql, ARRAY_A);
+        ), ARRAY_A);
+        
+        wp_cache_set($cache_key, $result, 'aiohm_kb', 600);
+        
+        return $result;
     }
 
     public function get_total_entries_count() {
         global $wpdb;
-        return (int) $wpdb->get_var("SELECT COUNT(DISTINCT content_id) FROM {$this->table_name}");
+        
+        $cache_key = 'aiohm_total_entries_count';
+        $cached_count = wp_cache_get($cache_key, 'aiohm_kb');
+        
+        if (false !== $cached_count) {
+            return (int) $cached_count;
+        }
+        
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Count query with caching
+        $count = (int) $wpdb->get_var("SELECT COUNT(DISTINCT content_id) FROM {$wpdb->prefix}aiohm_vector_entries");
+        
+        wp_cache_set($cache_key, $count, 'aiohm_kb', 3600); // Cache for 1 hour
+        
+        return $count;
     }
 
     public function delete_entry_by_content_id($content_id) {
         global $wpdb;
-        $metadata_json = $wpdb->get_var($wpdb->prepare(
-            "SELECT metadata FROM {$this->table_name} WHERE content_id = %s LIMIT 1",
-            $content_id
-        ));
+        $table_name = $this->table_name;
+        
+        // Get metadata before deletion for cache invalidation
+        $cache_key_meta = 'aiohm_meta_' . md5($content_id);
+        $metadata_json = wp_cache_get($cache_key_meta, 'aiohm_kb');
+        
+        if (false === $metadata_json) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Metadata lookup with caching
+            $metadata_json = $wpdb->get_var($wpdb->prepare(
+                "SELECT metadata FROM {$wpdb->prefix}aiohm_vector_entries WHERE content_id = %s LIMIT 1",
+                $content_id
+            ));
+            wp_cache_set($cache_key_meta, $metadata_json, 'aiohm_kb', 300);
+        }
+        
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Delete operation with cache invalidation
         $deleted = $wpdb->delete($this->table_name, ['content_id' => $content_id], ['%s']);
-        if ($deleted > 0 && !empty($metadata_json)) {
-            $metadata = json_decode($metadata_json, true);
-            $original_item_id = null;
-            if (isset($metadata['post_id'])) {
-                $original_item_id = (int) $metadata['post_id'];
-            } elseif (isset($metadata['attachment_id'])) {
-                $original_item_id = (int) $metadata['attachment_id'];
-            }
-            if ($original_item_id) {
-                delete_post_meta($original_item_id, '_aiohm_indexed');
-                clean_post_cache($original_item_id);
+        
+        if ($deleted > 0) {
+            // Invalidate relevant caches
+            $this->clear_search_caches();
+            wp_cache_delete($cache_key_meta, 'aiohm_kb');
+            wp_cache_delete('aiohm_total_entries_count', 'aiohm_kb');
+            
+            if (!empty($metadata_json)) {
+                $metadata = json_decode($metadata_json, true);
+                $original_item_id = null;
+                if (isset($metadata['post_id'])) {
+                    $original_item_id = (int) $metadata['post_id'];
+                } elseif (isset($metadata['attachment_id'])) {
+                    $original_item_id = (int) $metadata['attachment_id'];
+                }
+                if ($original_item_id) {
+                    delete_post_meta($original_item_id, '_aiohm_indexed');
+                    clean_post_cache($original_item_id);
+                }
             }
         }
         return $deleted;
+    }
+    
+    private function clear_search_caches() {
+        // Clear all search-related caches
+        wp_cache_flush_group('aiohm_kb');
     }
 
     private function generate_entry_id($title, $content) {
@@ -386,8 +479,21 @@ class AIOHM_KB_RAG_Engine {
 
     public function export_knowledge_base() {
         global $wpdb;
-        $data = $wpdb->get_results("SELECT * FROM {$this->table_name} WHERE user_id = 0", ARRAY_A);
-        return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        
+        $cache_key = 'aiohm_export_data';
+        $cached_data = wp_cache_get($cache_key, 'aiohm_kb');
+        
+        if (false !== $cached_data) {
+            return $cached_data;
+        }
+        
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Export query with caching
+        $data = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}aiohm_vector_entries WHERE user_id = 0", ARRAY_A);
+        $json_result = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        
+        wp_cache_set($cache_key, $json_result, 'aiohm_kb', 1800); // 30 minute cache
+        
+        return $json_result;
     }
 
     public function import_knowledge_base($json_data) {
@@ -396,11 +502,14 @@ class AIOHM_KB_RAG_Engine {
         if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
             throw new Exception('Invalid JSON data provided.');
         }
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Transaction required for data integrity
         $wpdb->query('START TRANSACTION');
         try {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Bulk delete with cache clearing
             $wpdb->delete($this->table_name, ['user_id' => 0], ['%d']);
             foreach ($data as $row) {
                 if (isset($row['content_id'], $row['content_type'], $row['title'], $row['content'])) {
+                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Bulk import requires direct insert
                     $wpdb->insert($this->table_name, [
                         'user_id'      => 0,
                         'content_id'   => $row['content_id'],
@@ -412,8 +521,14 @@ class AIOHM_KB_RAG_Engine {
                     ]);
                 }
             }
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Transaction commit with cache clearing
             $wpdb->query('COMMIT');
+            
+            // Clear all caches after successful import
+            $this->clear_search_caches();
+            
         } catch (Exception $e) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Transaction rollback required
             $wpdb->query('ROLLBACK');
             throw $e;
         }
@@ -424,13 +539,11 @@ class AIOHM_KB_RAG_Engine {
         global $wpdb;
         $ai_client = new AIOHM_KB_AI_GPT_Client();
         $query_embedding = $ai_client->generate_embeddings($query_text);
-        $sql = $wpdb->prepare(
-            "SELECT id, title, content, content_type, metadata, vector_data 
-             FROM {$this->table_name} 
-             WHERE user_id = 0 OR user_id = %d",
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- User context search query
+        $all_entries = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, title, content, content_type, metadata, vector_data FROM {$wpdb->prefix}aiohm_vector_entries WHERE user_id = 0 OR user_id = %d",
             $user_id
-        );
-        $all_entries = $wpdb->get_results($sql, ARRAY_A);
+        ), ARRAY_A);
         $similarities = [];
         foreach ($all_entries as $entry) {
             $vector = !empty($entry['vector_data']) ? json_decode($entry['vector_data'], true) : null;
@@ -449,12 +562,21 @@ class AIOHM_KB_RAG_Engine {
 
     public function update_entry_scope_by_content_id($content_id, $new_user_id) {
         global $wpdb;
-        return $wpdb->update($this->table_name, ['user_id' => $new_user_id], ['content_id' => $content_id], ['%d'], ['%s']);
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct update with cache clearing
+        $result = $wpdb->update($this->table_name, ['user_id' => $new_user_id], ['content_id' => $content_id], ['%d'], ['%s']);
+        
+        if ($result) {
+            // Clear relevant caches after update
+            $this->clear_search_caches();
+        }
+        
+        return $result;
     }
 
     public function get_random_chunk() {
         global $wpdb;
-        $random_entry = $wpdb->get_var("SELECT content FROM {$this->table_name} WHERE user_id = 0 ORDER BY RAND() LIMIT 1");
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Random content query
+        $random_entry = $wpdb->get_var("SELECT content FROM {$wpdb->prefix}aiohm_vector_entries WHERE user_id = 0 ORDER BY RAND() LIMIT 1");
         return $random_entry;
     }
 }

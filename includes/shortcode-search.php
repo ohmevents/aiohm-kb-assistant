@@ -106,15 +106,15 @@ class AIOHM_KB_Shortcode_Search {
      * Handles the AJAX request for searching the knowledge base.
      */
     public static function handle_search_ajax() {
-        if (!wp_verify_nonce($_POST['nonce'], 'aiohm_search_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'aiohm_search_nonce')) {
             wp_send_json_error(['message' => 'Security check failed']);
             wp_die();
         }
         
-        $query = sanitize_text_field($_POST['query']);
-        $content_type_filter = sanitize_text_field($_POST['content_type_filter']);
-        $max_results = intval($_POST['max_results']) ?: 10;
-        $excerpt_length = intval($_POST['excerpt_length']) ?: 25;
+        $query = isset($_POST['query']) ? sanitize_text_field(wp_unslash($_POST['query'])) : '';
+        $content_type_filter = isset($_POST['content_type_filter']) ? sanitize_text_field(wp_unslash($_POST['content_type_filter'])) : '';
+        $max_results = isset($_POST['max_results']) ? intval($_POST['max_results']) : 10;
+        $excerpt_length = isset($_POST['excerpt_length']) ? intval($_POST['excerpt_length']) : 25;
         
         if (empty($query)) {
             wp_send_json_error(['message' => 'Search query is required']);

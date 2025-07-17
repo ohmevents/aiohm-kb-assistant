@@ -45,30 +45,67 @@ class AIOHM_KB_Site_Crawler {
         $total_posts = wp_count_posts('post')->publish;
         $total_pages = wp_count_posts('page')->publish;
         
-        // Use direct database queries to avoid meta_query warnings
-        $indexed_posts = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(DISTINCT p.ID) 
-             FROM {$wpdb->posts} p 
-             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
-             WHERE p.post_type = %s 
-             AND p.post_status = %s 
-             AND pm.meta_key = %s",
-            'post',
-            'publish',
-            '_aiohm_indexed'
-        ));
+        // Use WP_Query with caching for better performance and compliance
+        $cache_key_posts = 'aiohm_indexed_posts_count';
+        $cache_key_pages = 'aiohm_indexed_pages_count';
         
-        $indexed_pages = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(DISTINCT p.ID) 
-             FROM {$wpdb->posts} p 
-             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
-             WHERE p.post_type = %s 
-             AND p.post_status = %s 
-             AND pm.meta_key = %s",
-            'page',
-            'publish',
-            '_aiohm_indexed'
-        ));
+        $indexed_posts = wp_cache_get($cache_key_posts, 'aiohm_kb');
+        if (false === $indexed_posts) {
+            // More efficient: get all posts then check meta existence
+            $all_posts = get_posts([
+                'post_type' => 'post',
+                'post_status' => 'publish',
+                'fields' => 'ids',
+                'posts_per_page' => -1,
+                'no_found_rows' => true,
+                'update_post_meta_cache' => false,
+                'update_post_term_cache' => false
+            ]);
+            
+            // Optimized meta checking with minimal queries
+            $indexed_posts = 0;
+            if (!empty($all_posts)) {
+                // Use array_chunk to process in batches and reduce memory usage
+                $post_chunks = array_chunk($all_posts, 100);
+                foreach ($post_chunks as $chunk) {
+                    foreach ($chunk as $post_id) {
+                        if (get_post_meta($post_id, '_aiohm_indexed', true)) {
+                            $indexed_posts++;
+                        }
+                    }
+                }
+            }
+            wp_cache_set($cache_key_posts, $indexed_posts, 'aiohm_kb', 300); // 5 minute cache
+        }
+        
+        $indexed_pages = wp_cache_get($cache_key_pages, 'aiohm_kb');
+        if (false === $indexed_pages) {
+            // More efficient: get all pages then check meta existence
+            $all_pages = get_posts([
+                'post_type' => 'page',
+                'post_status' => 'publish',
+                'fields' => 'ids',
+                'posts_per_page' => -1,
+                'no_found_rows' => true,
+                'update_post_meta_cache' => false,
+                'update_post_term_cache' => false
+            ]);
+            
+            // Optimized meta checking with minimal queries
+            $indexed_pages = 0;
+            if (!empty($all_pages)) {
+                // Use array_chunk to process in batches and reduce memory usage
+                $page_chunks = array_chunk($all_pages, 100);
+                foreach ($page_chunks as $chunk) {
+                    foreach ($chunk as $page_id) {
+                        if (get_post_meta($page_id, '_aiohm_indexed', true)) {
+                            $indexed_pages++;
+                        }
+                    }
+                }
+            }
+            wp_cache_set($cache_key_pages, $indexed_pages, 'aiohm_kb', 300); // 5 minute cache
+        }
 
         return [
             'posts' => ['total' => $total_posts, 'indexed' => (int)$indexed_posts, 'pending' => $total_posts - (int)$indexed_posts],

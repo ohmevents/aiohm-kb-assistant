@@ -8,6 +8,7 @@ if (!defined('ABSPATH')) exit;
 
 // --- Data Fetching and Status Checks ---
 $default_tab = 'welcome';
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Safe tab navigation parameter
 $current_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : $default_tab;
 
 // Check if user is connected by seeing if their AIOHM email is saved
@@ -24,15 +25,15 @@ $has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_I
 <div class="wrap aiohm-dashboard">
 
     <div class="aiohm-header" style="text-align: left;">
-        <h1 style="text-align: left;"><?php esc_htmlesc_html_e('AIOHM Assistant Dashboard', 'aiohm-kb-assistant'); ?></h1>
-        <p class="aiohm-tagline" style="margin-left: auto; margin-right: auto;"><?php esc_htmlesc_html_e("Welcome! Let's turn your content into an expert AI assistant.", 'aiohm-kb-assistant'); ?></p>
+        <h1 style="text-align: left;"><?php esc_html_e('AIOHM Assistant Dashboard', 'aiohm-kb-assistant'); ?></h1>
+        <p class="aiohm-tagline" style="margin-left: auto; margin-right: auto;"><?php esc_html_e("Welcome! Let's turn your content into an expert AI assistant.", 'aiohm-kb-assistant'); ?></p>
     </div>
 
     <nav class="nav-tab-wrapper">
-        <a href="?page=aiohm-dashboard&tab=welcome" class="nav-tab <?php echo $current_tab == 'welcome' ? 'nav-tab-active' : ''; ?>"><?php esc_htmlesc_html_e('Welcome', 'aiohm-kb-assistant'); ?></a>
-        <a href="?page=aiohm-dashboard&tab=tribe" class="nav-tab <?php echo $current_tab == 'tribe' ? 'nav-tab-active' : ''; ?>"><?php esc_htmlesc_html_e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
-        <a href="?page=aiohm-dashboard&tab=club" class="nav-tab <?php echo $current_tab == 'club' ? 'nav-tab-active' : ''; ?>"><?php esc_htmlesc_html_e('AIOHM Club', 'aiohm-kb-assistant'); ?></a>
-        <a href="?page=aiohm-dashboard&tab=private" class="nav-tab <?php echo $current_tab == 'private' ? 'nav-tab-active' : ''; ?>"><?php esc_htmlesc_html_e('AIOHM Private', 'aiohm-kb-assistant'); ?></a>
+        <a href="?page=aiohm-dashboard&tab=welcome" class="nav-tab <?php echo $current_tab == 'welcome' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Welcome', 'aiohm-kb-assistant'); ?></a>
+        <a href="?page=aiohm-dashboard&tab=tribe" class="nav-tab <?php echo $current_tab == 'tribe' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('AIOHM Tribe', 'aiohm-kb-assistant'); ?></a>
+        <a href="?page=aiohm-dashboard&tab=club" class="nav-tab <?php echo $current_tab == 'club' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('AIOHM Club', 'aiohm-kb-assistant'); ?></a>
+        <a href="?page=aiohm-dashboard&tab=private" class="nav-tab <?php echo $current_tab == 'private' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('AIOHM Private', 'aiohm-kb-assistant'); ?></a>
     </nav>
 
     <div class="aiohm-tab-content">
@@ -40,27 +41,27 @@ $has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_I
         <?php if ($current_tab === 'welcome'): ?>
             <section class="aiohm-sales-page aiohm-welcome-tab">
                 <div class="container">
-                    <h2 class="headline"><?php esc_htmlesc_html_e('4 Steps to Turn Your Site Into a Living Knowledge Base', 'aiohm-kb-assistant'); ?></h2>
+                    <h2 class="headline"><?php esc_html_e('4 Steps to Turn Your Site Into a Living Knowledge Base', 'aiohm-kb-assistant'); ?></h2>
                     <div class="benefits-grid">
                         <div class="benefit">
-                            <h3><?php esc_htmlesc_html_e('1. Root Your Presence', 'aiohm-kb-assistant'); ?></h3>
-                            <p><?php esc_htmlesc_html_e('Connect your preferred AI provider. This is where your structure meets spirit. Add your API key from OpenAI, Claude, or Gemini to activate the intelligence behind your knowledge base.', 'aiohm-kb-assistant'); ?></p>
-                            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-settings')); ?>" class="button button-primary"><?php esc_htmlesc_html_e('Open Settings', 'aiohm-kb-assistant'); ?></a>
+                            <h3><?php esc_html_e('1. Root Your Presence', 'aiohm-kb-assistant'); ?></h3>
+                            <p><?php esc_html_e('Connect your preferred AI provider. This is where your structure meets spirit. Add your API key from OpenAI, Claude, or Gemini to activate the intelligence behind your knowledge base.', 'aiohm-kb-assistant'); ?></p>
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-settings')); ?>" class="button button-primary"><?php esc_html_e('Open Settings', 'aiohm-kb-assistant'); ?></a>
                         </div>
                         <div class="benefit">
-                            <h3><?php esc_htmlesc_html_e('2. Feed the Flame', 'aiohm-kb-assistant'); ?></h3>
-                            <p><?php esc_htmlesc_html_e('Choose which content carries your essence. Curate pages, posts, and files that truly represent your mission. Not just information—transmission.', 'aiohm-kb-assistant'); ?></p>
-                            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-scan-content')); ?>" class="button button-primary"><?php esc_htmlesc_html_e('Scan Content', 'aiohm-kb-assistant'); ?></a>
+                            <h3><?php esc_html_e('2. Feed the Flame', 'aiohm-kb-assistant'); ?></h3>
+                            <p><?php esc_html_e('Choose which content carries your essence. Curate pages, posts, and files that truly represent your mission. Not just information—transmission.', 'aiohm-kb-assistant'); ?></p>
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-scan-content')); ?>" class="button button-primary"><?php esc_html_e('Scan Content', 'aiohm-kb-assistant'); ?></a>
                         </div>
                         <div class="benefit">
-                            <h3><?php esc_htmlesc_html_e('3. Clear the Channel', 'aiohm-kb-assistant'); ?></h3>
-                            <p><?php esc_htmlesc_html_e('Refine your knowledge base for resonance. Review, edit, and release what no longer aligns. Shape your AI's voice like a sacred text.', 'aiohm-kb-assistant'); ?></p>
-                            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-manage-kb')); ?>" class="button button-primary"><?php esc_htmlesc_html_e('Manage Knowledge', 'aiohm-kb-assistant'); ?></a>
+                            <h3><?php esc_html_e('3. Clear the Channel', 'aiohm-kb-assistant'); ?></h3>
+                            <p><?php esc_html_e('Refine your knowledge base for resonance. Review, edit, and release what no longer aligns. Shape your AI\'s voice like a sacred text.', 'aiohm-kb-assistant'); ?></p>
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-manage-kb')); ?>" class="button button-primary"><?php esc_html_e('Manage Knowledge', 'aiohm-kb-assistant'); ?></a>
                         </div>
                         <div class="benefit">
-                            <h3><?php esc_htmlesc_html_e('4. Set Your Wisdom Free', 'aiohm-kb-assistant'); ?></h3>
-                            <p><?php esc_htmlesc_html_e('Download your curated knowledge base and use it anywhere. Your brand's soul—structured and portable for any platform that honors your voice.', 'aiohm-kb-assistant'); ?></p>
-                             <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-manage-kb')); ?>" class="button button-primary"><?php esc_htmlesc_html_e('Export Your KB', 'aiohm-kb-assistant'); ?></a>
+                            <h3><?php esc_html_e('4. Set Your Wisdom Free', 'aiohm-kb-assistant'); ?></h3>
+                            <p><?php esc_html_e('Download your curated knowledge base and use it anywhere. Your brand\'s soul - structured and portable for any platform that honors your voice.', 'aiohm-kb-assistant'); ?></p>
+                             <a href="<?php echo esc_url(admin_url('admin.php?page=aiohm-manage-kb')); ?>" class="button button-primary"><?php esc_html_e('Export Your KB', 'aiohm-kb-assistant'); ?></a>
                         </div>
                     </div>
                 </div>

@@ -5,6 +5,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Get the current page to set the 'active' class on the menu item
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Safe page navigation parameter
 $current_page = isset($_GET['page']) ? sanitize_key($_GET['page']) : '';
 ?>
 <div class="aiohm-admin-header">
