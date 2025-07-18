@@ -14,7 +14,7 @@ jQuery(document).ready(function($) {
     const conversationList = $('.aiohm-pa-conversation-list');
     const projectTitle = $('#project-title');
     const loadingIndicator = $('#aiohm-chat-loading');
-    const notesInput = $('#muse-notes-input');
+    const notesInput = $('#aiohm-pa-notes-textarea');
     const notificationBar = $('#aiohm-pa-notification');
     const notificationMessage = $('#aiohm-pa-notification p');
 
@@ -295,34 +295,6 @@ jQuery(document).ready(function($) {
     });
 
 
-    // --- Add Note to KB Logic (Frontend only for now, needs backend AJAX) ---
-    $('#add-note-to-kb-btn').on('click', function() {
-        const noteContent = notesInput.val().trim();
-        if (!noteContent) {
-            showNotification('Note cannot be empty!', 'error');
-            return;
-        }
-        if (!currentProjectId) {
-            showNotification('Please select a project before adding a note to the Knowledge Base.', 'error');
-            return;
-        }
-
-        // TODO: Implement actual AJAX call to save note to KB
-        performAjaxRequest('aiohm_add_note_to_kb', { // This AJAX action needs to be implemented in core-init.php if not already.
-            project_id: currentProjectId,
-            note_content: noteContent
-        }).done(function(response) {
-            if (response.success) {
-                showNotification('Note added to Knowledge Base successfully!');
-                notesInput.val(''); // Clear the notes input
-                // Optionally, refresh a notes list if one is implemented later
-            } else {
-                showNotification('Error adding note to KB: ' + (response.data.message || 'Unknown error.'), 'error');
-            }
-        }).fail(function() {
-            showNotification('Error adding note to KB. Please try again.', 'error');
-        });
-    });
 
     // Close notification bar when close button is clicked
     notificationBar.on('click', '.close-btn', function() {

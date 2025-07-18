@@ -31,7 +31,69 @@ function aiohm_is_color_dark($hex) {
 }
 
 $default_prompt = "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\nCore Instructions:\n\n1. Primary Directive: Your primary goal is to answer the user's question by grounding your response in the context provided below. This context is your main source of truth.\n\n2. Tone & Personality:\n   - Speak with emotional clarity, not robotic formality.\n   - Sound like a thoughtful assistant, not a sales rep.\n   - Be concise, but not curt — useful, but never cold.\n   - Your purpose is to express with presence, not persuasion.\n\n3. Formatting Rules:\n   - Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n   - Never end your response with a question like \"Do you need help with anything else?\"\n\n4. Fallback Response (Crucial):\n   - If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don't want to guess here. This might need a human's wisdom. You can connect with the person behind this site on the contact page. They'll know exactly how to help.\"\n\nPrimary Context for Answering the User's Question:\n{context}";
-$qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_system_message'] : $default_prompt;
+
+// Get the saved message and check for corruption
+$saved_message = $settings['qa_system_message'] ?? '';
+
+
+// More aggressive corruption detection - check for missing spaces around any punctuation
+$is_corrupted = false;
+if (!empty($saved_message)) {
+    // Check for various corruption patterns
+    $corruption_patterns = [
+        '"%site_name%".Your',    // Missing space after quote
+        '"%site_name%".You',     // Missing space after quote  
+        'tagline:"%site_tagline%".You',  // Missing spaces
+        '".Your',                // Missing space after quote and period
+        '".You',                 // Missing space after quote and period
+        'y_of_week%',           // Corrupted variable name
+        'Core Instructions: 1.',// Corrupted formatting
+    ];
+    
+    foreach ($corruption_patterns as $pattern) {
+        if (strpos($saved_message, $pattern) !== false) {
+            $is_corrupted = true;
+            break;
+        }
+    }
+    
+    // Also check for general lack of spaces in text that should have them
+    if (!$is_corrupted && strpos($saved_message, '%site_name%') !== false) {
+        // Count spaces vs length - corrupted text has very few spaces
+        $space_count = substr_count($saved_message, ' ');
+        $text_length = strlen($saved_message);
+        $space_ratio = $space_count / max($text_length, 1);
+        
+        if ($space_ratio < 0.1) { // Less than 10% spaces indicates corruption
+            $is_corrupted = true;
+        }
+    }
+}
+
+$force_reset = !empty($saved_message) && strpos($saved_message, '%site_name%') !== false && strlen(str_replace(' ', '', $saved_message)) > (strlen($saved_message) * 0.8);
+
+if ($is_corrupted || $force_reset) {
+    // Corruption detected - FORCE use clean default and update database aggressively
+    $qa_system_message = $default_prompt;
+    
+    // Multiple database update attempts
+    $all_settings = AIOHM_KB_Assistant::get_settings();
+    $all_settings['mirror_mode']['qa_system_message'] = $default_prompt;
+    
+    // Update the database using WordPress functions
+    $result = update_option('aiohm_kb_settings', $all_settings);
+    
+    // Clear caches
+    wp_cache_delete('aiohm_kb_settings', 'options');
+    
+} else {
+    $qa_system_message = !empty($saved_message) ? $saved_message : $default_prompt;
+}
+
+// Final check - if it's still corrupted, force it to be clean
+if (strpos($qa_system_message, 'y_of_week%') !== false || strpos($qa_system_message, '".You') !== false) {
+    $qa_system_message = $default_prompt;
+}
 
 ?>
 
@@ -48,7 +110,9 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
                 <?php wp_nonce_field('aiohm_mirror_mode_nonce', 'aiohm_mirror_mode_nonce_field'); ?>
                 
                 <div class="aiohm-setting-block">
-                    <label for="business_name">Business Name</label>
+                    <div class="aiohm-setting-header">
+                        <label for="business_name">Business Name</label>
+                    </div>
                     <input type="text" id="business_name" name="aiohm_kb_settings[mirror_mode][business_name]" value="<?php echo esc_attr($settings['business_name'] ?? get_bloginfo('name')); ?>">
                     <p class="description">This name will appear in the chat header.</p>
                 </div>
@@ -63,7 +127,9 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
                 </div>
 
                 <div class="aiohm-setting-block">
-                    <label for="ai_model_selector">AI Model</label>
+                    <div class="aiohm-setting-header">
+                        <label for="ai_model_selector">AI Model</label>
+                    </div>
                     <select id="ai_model_selector" name="aiohm_kb_settings[mirror_mode][ai_model]">
                         <?php if (!empty($global_settings['openai_api_key'])): ?>
                             <option value="gpt-3.5-turbo" <?php selected($settings['ai_model'] ?? 'gpt-3.5-turbo', 'gpt-3.5-turbo'); ?>>OpenAI: GPT-3.5 Turbo</option>
@@ -79,7 +145,7 @@ $qa_system_message = !empty($settings['qa_system_message']) ? $settings['qa_syst
                             <option value="ollama" <?php selected($settings['ai_model'] ?? '', 'ollama'); ?>>Ollama: <?php echo esc_html($global_settings['private_llm_model'] ?? 'Private Server'); ?></option>
                         <?php endif; ?>
                     </select>
-                     <p class="description">Select the model to power the chat. Models are available based on the API keys you've provided in the main settings.</p>
+                    <p class="description">Select the model to power the chat. Models are available based on the API keys you've provided in the main settings.</p>
                 </div>
 
                 <div class="aiohm-setting-block">
@@ -219,8 +285,11 @@ jQuery(document).ready(function($) {
         
         // Show notice with fade in effect
         $noticeDiv.fadeIn(300, function() {
-            // Auto-focus for accessibility after fade in completes
+            // Auto-focus for accessibility and scroll to notice
             $noticeDiv.focus();
+            $('html, body').animate({
+                scrollTop: $noticeDiv.offset().top - 100
+            }, 300);
             
             // Announce to screen readers
             if (type === 'error') {

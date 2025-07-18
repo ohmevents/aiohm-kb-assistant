@@ -291,8 +291,13 @@ html.aiohm-fullscreen-body-no-scroll {
 }
 
 #aiohm-app-container .aiohm-pa-sidebar-footer {
-    padding: 15px 20px; border-top: 1px solid var(--pa-border-color); font-size: 12px;
-    display: flex; justify-content: space-between; align-items: center; white-space: nowrap;
+    padding: 15px 20px; 
+    border-top: 1px solid var(--pa-border-color); 
+    font-size: 12px;
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    white-space: nowrap;
 }
 
 #aiohm-app-container .aiohm-footer-settings-link {
@@ -349,8 +354,6 @@ html.aiohm-fullscreen-body-no-scroll {
     justify-content: space-between;
     align-items: center;
     white-space: nowrap;
-    min-height: 50px;
-    box-sizing: border-box;
 }
 
 /* --- 4. Notes Sidebar (Right) --- */
@@ -404,7 +407,7 @@ html.aiohm-fullscreen-body-no-scroll {
 /* Admin Notice System for Private Chat */
 #aiohm-app-container .aiohm-admin-notice {
     margin: 0;
-    padding: 12px 50px 12px 20px;
+    padding: 15px 50px 15px 20px;
     border-left: 4px solid;
     background: var(--pa-bg-light);
     color: var(--pa-text-primary);
@@ -412,9 +415,11 @@ html.aiohm-fullscreen-body-no-scroll {
     position: relative;
     z-index: 1000;
     transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    min-height: 24px;
+    display: block;
+    min-height: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.5;
 }
 
 #aiohm-app-container .aiohm-admin-notice.notice-success {
@@ -428,8 +433,9 @@ html.aiohm-fullscreen-body-no-scroll {
 }
 
 #aiohm-app-container .aiohm-admin-notice.notice-warning {
-    border-left-color: var(--pa-highlight-color);
-    background: rgba(255, 185, 35, 0.1);
+    border-left-color: var(--pa-brand-color);
+    background: rgba(31, 80, 20, 0.1);
+    border: 1px solid rgba(31, 80, 20, 0.2);
 }
 
 #aiohm-app-container .aiohm-admin-notice.notice-info {
@@ -438,11 +444,16 @@ html.aiohm-fullscreen-body-no-scroll {
 }
 
 #aiohm-app-container .aiohm-admin-notice p {
-    margin: 0;
+    margin: 0 0 8px 0;
     padding: 0;
     color: var(--pa-text-primary);
-    flex-grow: 1;
-    line-height: 1.4;
+    line-height: 1.5;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+#aiohm-app-container .aiohm-admin-notice p:last-child {
+    margin-bottom: 0;
 }
 
 #aiohm-app-container .aiohm-notice-dismiss {
@@ -471,12 +482,13 @@ html.aiohm-fullscreen-body-no-scroll {
     background: var(--pa-brand-color);
     color: white;
     border: none;
-    padding: 6px 12px;
+    padding: 8px 16px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    margin-left: 10px;
+    margin: 8px 8px 0 0;
+    display: inline-block;
     transition: background-color 0.2s ease;
 }
 
@@ -488,11 +500,12 @@ html.aiohm-fullscreen-body-no-scroll {
     background: transparent;
     color: var(--pa-text-secondary);
     border: 1px solid var(--pa-border-color);
-    padding: 6px 12px;
+    padding: 8px 16px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 13px;
     cursor: pointer;
-    margin-left: 5px;
+    margin: 8px 0 0 0;
+    display: inline-block;
     transition: all 0.2s ease;
 }
 
@@ -548,7 +561,7 @@ html.aiohm-fullscreen-body-no-scroll {
     display: flex; flex-direction: column;
 }
 #aiohm-app-container .message.user {
-    align-items: flex-end; margin-left: auto;
+    align-items: flex-start; margin-right: auto;
 }
 #aiohm-app-container .message.assistant {
     align-items: flex-start; margin-right: auto;
@@ -557,14 +570,22 @@ html.aiohm-fullscreen-body-no-scroll {
     padding: 12px 18px; border-radius: 18px; display: inline-block; 
     margin: 0; text-align: left;
 }
+#aiohm-app-container .message.assistant .message-text {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+    display: block;
+    max-width: none;
+}
 #aiohm-app-container .message.user p {
-    background-color: #007cba; color: var(--pa-text-primary);
-    border-bottom-right-radius: 5px;
+    background-color: #28a745; color: white;
+    border-bottom-left-radius: 5px;
+    font-weight: 500;
 }
 #aiohm-app-container .message.assistant p {
     background-color: transparent; color: var(--pa-text-primary);
-    border: 1px solid var(--pa-border-color); border-bottom-left-radius: 5px;
-    padding: 15px 20px;
+    border: none; border-bottom-left-radius: 5px;
+    padding: 0;
 }
 
 /* **FIX: Final styles for welcome screen alignment** */
@@ -612,7 +633,8 @@ html.aiohm-fullscreen-body-no-scroll {
 
 /* --- 8. Input Area --- */
 #aiohm-app-container .aiohm-pa-input-area-wrapper {
-    padding: 15px 20px; border-top: 1px solid var(--pa-border-color);
+    padding: 15px 20px; 
+    border-top: 1px solid var(--pa-border-color);
     background-color: var(--pa-bg-dark);
 }
 #aiohm-app-container .aiohm-pa-input-area {
@@ -746,6 +768,26 @@ html.aiohm-fullscreen-body-no-scroll {
     font-size: 16px;
     transition: all 0.2s ease;
     box-sizing: border-box;
+}
+
+#aiohm-app-container .aiohm-create-project-input[type="url"] {
+    font-family: monospace;
+}
+
+#aiohm-app-container .aiohm-create-project-input select,
+#aiohm-app-container select.aiohm-create-project-input {
+    cursor: pointer;
+    background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 5"><path fill="%23ffffff" d="M2 0L0 2h4zm0 5L0 3h4z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px;
+    padding-right: 40px;
+}
+
+#aiohm-app-container .aiohm-create-project-input option {
+    background: var(--pa-bg-darkest);
+    color: var(--pa-text-primary);
+    padding: 8px 12px;
 }
 
 #aiohm-app-container .aiohm-create-project-input:focus {
@@ -1037,46 +1079,92 @@ html.aiohm-fullscreen-body-no-scroll {
     gap: 5px;
 }
 
+#aiohm-app-container .message-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+#aiohm-app-container .copy-message-btn {
+    background: none;
+    border: 1px solid var(--pa-border-color);
+    border-radius: 4px;
+    padding: 4px 8px;
+    color: var(--pa-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+#aiohm-app-container .copy-message-btn:hover {
+    background: var(--pa-bg-lighter);
+    color: var(--pa-text-primary);
+    opacity: 1;
+}
+
+#aiohm-app-container .copy-message-btn .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 1;
+}
+
+/* Copy Preview Styles */
+#aiohm-app-container .message-content.copy-preview-active {
+    border: 2px dashed var(--pa-brand-color);
+    border-radius: 8px;
+    transition: border 0.2s ease;
+}
+
+.copy-preview-tooltip {
+    background: var(--pa-bg-darkest);
+    color: var(--pa-text-primary);
+    border: 1px solid var(--pa-border-color);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    max-width: 300px;
+    word-wrap: break-word;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    white-space: pre-wrap;
+    font-family: monospace;
+    line-height: 1.4;
+}
+
 #aiohm-app-container .message-text {
     margin-top: 3px;
     line-height: 1.7;
     font-size: 15px;
 }
 
-#aiohm-app-container .message-text ul,
-#aiohm-app-container .message-text ol {
+#aiohm-app-container .message-text .numbered-item {
     margin: 8px 0;
-    padding-left: 18px;
+    padding: 8px 0;
+    line-height: 1.7;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
 }
 
-#aiohm-app-container .message-text li {
-    margin: 3px 0;
-    line-height: 1.6;
+#aiohm-app-container .message-text .numbered-item .number {
+    color: var(--pa-brand-color);
+    font-weight: 600;
+    min-width: 24px;
+    flex-shrink: 0;
+}
+
+#aiohm-app-container .message-text .bullet-item {
+    margin: 6px 0;
+    padding: 4px 0;
+    line-height: 1.7;
+    padding-left: 16px;
 }
 
 #aiohm-app-container .message-text strong {
     color: var(--pa-text-primary);
     font-weight: 600;
-}
-
-#aiohm-app-container .message-text .aiohm-response-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 10px 0;
-    background-color: var(--pa-bg-light);
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-#aiohm-app-container .message-text .aiohm-response-table td {
-    padding: 8px 12px;
-    border: 1px solid var(--pa-border-color);
-    color: var(--pa-text-primary);
-    font-size: 14px;
-}
-
-#aiohm-app-container .message-text .aiohm-response-table tr:nth-child(even) {
-    background-color: var(--pa-bg-lighter);
 }
 
 #aiohm-app-container .message-text p {

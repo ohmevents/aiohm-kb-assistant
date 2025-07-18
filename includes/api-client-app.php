@@ -40,7 +40,44 @@ if (!class_exists('AIOHM_App_API_Client')) :
         }
 
         /**
+         * Sends a verification code to the user's email address.
+         *
+         * @param string $email The user's email address.
+         * @return array|WP_Error
+         */
+        public function send_verification_code($email) {
+            if (empty($email) || !is_email($email)) {
+                return new WP_Error('invalid_email', 'A valid email is required.');
+            }
+
+            return $this->make_request('send-verification-code', ['email' => $email]);
+        }
+
+        /**
+         * Verifies the code and gets membership details if valid.
+         *
+         * @param string $email The user's email address.
+         * @param string $code The verification code.
+         * @return array|WP_Error
+         */
+        public function verify_code_and_get_details($email, $code) {
+            if (empty($email) || !is_email($email)) {
+                return new WP_Error('invalid_email', 'A valid email is required.');
+            }
+            
+            if (empty($code)) {
+                return new WP_Error('invalid_code', 'Verification code is required.');
+            }
+
+            return $this->make_request('verify-code-and-get-details', [
+                'email' => $email,
+                'code' => $code
+            ]);
+        }
+
+        /**
          * Gets all available membership details for a user by email.
+         * Note: This method is now deprecated in favor of the verification flow.
          *
          * @param string $email The user's email address.
          * @return array|WP_Error

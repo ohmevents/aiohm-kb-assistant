@@ -192,6 +192,9 @@ class AIOHM_KB_List_Table extends WP_List_Table {
                 } elseif ($type === 'contact' || $type === 'contact_type') {
                     $display_type = 'Contact';
                     $type_class = 'type-contact';
+                } elseif ($type === 'project_note') {
+                    $display_type = 'Note';
+                    $type_class = 'type-note';
                 } else {
                     if (strpos($type, '/') !== false) {
                         $main_type = explode('/', $type)[0];
@@ -243,6 +246,7 @@ class AIOHM_KB_List_Table extends WP_List_Table {
                     <option value="brand-core" <?php selected(isset($_GET['content_type']) ? sanitize_text_field(wp_unslash($_GET['content_type'])) : '', 'brand-core'); // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>><?php esc_html_e('Brand Core', 'aiohm-kb-assistant'); ?></option>
                     <option value="github" <?php selected(isset($_GET['content_type']) ? sanitize_text_field(wp_unslash($_GET['content_type'])) : '', 'github'); // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>><?php esc_html_e('GitHub', 'aiohm-kb-assistant'); ?></option>
                     <option value="contact" <?php selected(isset($_GET['content_type']) ? sanitize_text_field(wp_unslash($_GET['content_type'])) : '', 'contact'); // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>><?php esc_html_e('Contact', 'aiohm-kb-assistant'); ?></option>
+                    <option value="project_note" <?php selected(isset($_GET['content_type']) ? sanitize_text_field(wp_unslash($_GET['content_type'])) : '', 'project_note'); // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>><?php esc_html_e('Notes', 'aiohm-kb-assistant'); ?></option>
                 </select>
 
                 <label for="filter-visibility" class="screen-reader-text">Filter by Visibility</label>

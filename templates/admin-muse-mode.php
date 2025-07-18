@@ -83,23 +83,26 @@ $brand_archetypes = [
                     </div>
 
                     <div class="aiohm-setting-block">
-    <label for="ai_model_selector"><?php esc_html_e('4. AI Model', 'aiohm-kb-assistant'); ?></label>
-    <select id="ai_model_selector" name="aiohm_kb_settings[muse_mode][ai_model]">
-        <?php if (!empty($global_settings['openai_api_key'])): ?>
-            <option value="gpt-3.5-turbo" <?php selected($settings['ai_model'] ?? 'gpt-3.5-turbo', 'gpt-3.5-turbo'); ?>>OpenAI: GPT-3.5 Turbo</option>
-            <option value="gpt-4" <?php selected($settings['ai_model'] ?? '', 'gpt-4'); ?>>OpenAI: GPT-4</option>
-        <?php endif; ?>
-        <?php if (!empty($global_settings['gemini_api_key'])): ?>
-            <option value="gemini-pro" <?php selected($settings['ai_model'] ?? '', 'gemini-pro'); ?>>Google: Gemini Pro</option>
-        <?php endif; ?>
-        <?php if (!empty($global_settings['claude_api_key'])): ?>
-            <option value="claude-3-sonnet" <?php selected($settings['ai_model'] ?? '', 'claude-3-sonnet'); ?>>Anthropic: Claude 3 Sonnet</option>
-        <?php endif; ?>
-        <?php if ($has_private_access && !empty($global_settings['private_llm_server_url'])): ?>
-            <option value="ollama" <?php selected($settings['ai_model'] ?? '', 'ollama'); ?>>Ollama: <?php echo esc_html($global_settings['private_llm_model'] ?? 'Private Server'); ?></option>
-        <?php endif; ?>
-    </select>
-</div>
+                        <div class="aiohm-setting-header">
+                            <label for="ai_model_selector"><?php esc_html_e('4. AI Model', 'aiohm-kb-assistant'); ?></label>
+                        </div>
+                        <select id="ai_model_selector" name="aiohm_kb_settings[muse_mode][ai_model]">
+                            <?php if (!empty($global_settings['openai_api_key'])): ?>
+                                <option value="gpt-3.5-turbo" <?php selected($settings['ai_model'] ?? 'gpt-3.5-turbo', 'gpt-3.5-turbo'); ?>>OpenAI: GPT-3.5 Turbo</option>
+                                <option value="gpt-4" <?php selected($settings['ai_model'] ?? '', 'gpt-4'); ?>>OpenAI: GPT-4</option>
+                            <?php endif; ?>
+                            <?php if (!empty($global_settings['gemini_api_key'])): ?>
+                                <option value="gemini-pro" <?php selected($settings['ai_model'] ?? '', 'gemini-pro'); ?>>Google: Gemini Pro</option>
+                            <?php endif; ?>
+                            <?php if (!empty($global_settings['claude_api_key'])): ?>
+                                <option value="claude-3-sonnet" <?php selected($settings['ai_model'] ?? '', 'claude-3-sonnet'); ?>>Anthropic: Claude 3 Sonnet</option>
+                            <?php endif; ?>
+                            <?php if ($has_private_access && !empty($global_settings['private_llm_server_url'])): ?>
+                                <option value="ollama" <?php selected($settings['ai_model'] ?? '', 'ollama'); ?>>Ollama: <?php echo esc_html($global_settings['private_llm_model'] ?? 'Private Server'); ?></option>
+                            <?php endif; ?>
+                        </select>
+                        <p class="description"><?php esc_html_e('Choose which AI model powers your brand assistant.', 'aiohm-kb-assistant'); ?></p>
+                    </div>
 
                     <div class="aiohm-setting-block">
                         <label for="temperature"><?php esc_html_e('5. Temperature:', 'aiohm-kb-assistant'); ?> <span class="temp-value"><?php echo esc_attr($settings['temperature'] ?? '0.7'); ?></span></label>
@@ -189,8 +192,11 @@ jQuery(document).ready(function($) {
         
         // Show notice with fade in effect
         $noticeDiv.fadeIn(300, function() {
-            // Auto-focus for accessibility after fade in completes
+            // Auto-focus for accessibility and scroll to notice
             $noticeDiv.focus();
+            $('html, body').animate({
+                scrollTop: $noticeDiv.offset().top - 100
+            }, 300);
             
             // Announce to screen readers
             if (type === 'error') {

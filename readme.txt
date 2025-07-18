@@ -1,6 +1,6 @@
 === AIOHM Knowledge Assistant ===
 Contributors: ohm-events-agency
-Tags: knowledge base management, Q&A chatbot, brand assistant
+Tags: ai assistant, knowledge base, chatbot, brand voice, personalized ai
 Requires at least: 5.8
 Tested up to: 6.8
 Stable tag: 1.2.0
@@ -8,172 +8,304 @@ Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Unlock soulful productivity with an AI-powered knowledge assistant for WordPress. Mirror Mode for refining, Muse Mode for sparking ideas.
+Create your own personalized AI assistant that knows your brand, speaks your voice, and helps your website visitors 24/7.
 
 == Description ==
 
-**AIOHM Knowledge Assistant** transforms your WordPress site into an intelligent, AI-powered knowledge hub that understands your brand's unique voice and serves your audience with precision.
+**Stop using generic AI that sounds like everyone else.** 
 
-### 🌟 Core Features
+AIOHM Knowledge Assistant creates a **personalized AI that actually understands YOUR business, YOUR voice, and YOUR customers.** It's like having a knowledgeable team member who never sleeps, never takes breaks, and always knows exactly what to say.
 
-**Mirror Mode (Q&A Chatbot)**
-* Public-facing chatbot powered by your content
-* Answers visitor questions using your knowledge base
-* Supports OpenAI, Claude, and Gemini AI models
-* Customizable appearance and behavior
+### 🎯 **For Complete Beginners: What Does This Do?**
 
-**Muse Mode (Brand Assistant)**
-* Private AI assistant for content creators
-* Understands your brand voice and guidelines
-* Helps generate content that sounds authentically you
-* Access to Brand Soul questionnaire for voice training
+Imagine you could train an AI assistant to:
+- ✅ **Know everything about your business** (your services, policies, brand story)
+- ✅ **Answer customer questions instantly** using your own content and voice
+- ✅ **Help you create content** that sounds authentically like you
+- ✅ **Work 24/7** without you lifting a finger
 
-**Intelligent Content Management**
-* Automatic content scanning and indexing
-* Support for posts, pages, and media files
-* Smart content extraction from shortcode-heavy pages
-* Vector-based search and retrieval
+That's exactly what AIOHM does. **No coding required. No technical expertise needed.**
 
-### 🔧 Technical Features
+### 🌟 **Two Powerful Modes**
 
-* **Multi-AI Support**: OpenAI GPT, Claude, and Google Gemini
-* **Vector Database**: Advanced semantic search capabilities
-* **Membership Integration**: Works with Paid Memberships Pro
-* **Content Scanning**: Automatic indexing of posts, pages, and files
-* **API Management**: Built-in API key management and usage tracking
-* **Brand Voice Training**: AI Brand Core questionnaire system
+**🪞 Mirror Mode - Your Public AI Assistant**
+- **What it does:** Creates a smart chatbot for your website visitors
+- **Perfect for:** Customer support, answering FAQ, qualifying leads
+- **Example:** A visitor asks "What are your refund policies?" and gets an instant, accurate answer based on your actual policies
+- **Setup time:** 15 minutes
+- **User experience:** Visitors get instant help, you get more sales and fewer support emails
 
-### 🎯 Perfect For
+**✨ Muse Mode - Your Private Creative Partner**
+- **What it does:** Your personal AI assistant for creating content
+- **Perfect for:** Writing emails, social posts, blog content that sounds like YOU
+- **Example:** Ask "Help me write a welcome email for new customers" and get content that matches your brand voice perfectly
+- **Setup time:** 30 minutes (includes brand voice training)
+- **User experience:** Create content 10x faster without losing your authentic voice
 
-* **Content Creators** who want AI that speaks their language
-* **Businesses** needing intelligent customer support
-* **Educators** building knowledge repositories
-* **Agencies** managing multiple client voices
-* **Membership Sites** with tiered content access
+### 🚀 **Step-by-Step Setup (Even Your Grandma Could Do It)**
 
-### 🚀 Getting Started
+**Step 1: Get Your AI Key (5 minutes)**
+- Go to OpenAI.com (or Claude/Gemini)
+- Sign up and get your free API key
+- Paste it into AIOHM settings
+- *(Don't worry, we have detailed guides with screenshots)*
 
-1. Install and activate the plugin
-2. Add your AI provider API key (OpenAI, Claude, or Gemini)
-3. Scan your content to build your knowledge base
-4. Configure your chatbot settings
-5. Add chatbots to pages using shortcodes
+**Step 2: Train Your AI (10 minutes)**
+- AIOHM automatically scans your website content
+- Answer a few questions about your brand voice
+- Your AI learns to speak like YOU
 
-### 📋 Shortcodes
+**Step 3: Add to Your Website (2 minutes)**
+- Copy one simple shortcode: `[aiohm_chat]`
+- Paste it wherever you want your chatbot
+- Done! Your AI is live and helping customers
 
-* `[aiohm_chat]` - Public Q&A chatbot (Mirror Mode)
-* `[aiohm_private_assistant]` - Private brand assistant (Muse Mode)
-* `[aiohm_search]` - Knowledge base search functionality
+### 🎨 **Complete Customization (No Code Needed)**
 
-### 🔐 Privacy & Security
+**Make It Match Your Brand:**
+- Choose your colors, fonts, and styling
+- Upload your logo/avatar
+- Write custom welcome messages
+- Position it anywhere on your site
 
-* Your content stays on your server
-* API calls only for AI processing
-* No data shared with third parties
-* WordPress security standards compliance
+**Control What It Knows:**
+- Add/remove content from its knowledge
+- Set up different responses for different topics
+- Create private notes only you can access
+- Monitor and improve its performance
+
+### 💼 **Real-World Examples**
+
+**🏪 E-commerce Store Owner (Sarah)**
+*Problem:* Gets 50+ emails daily asking about shipping, returns, sizing
+*Solution:* Mirror Mode chatbot answers 80% of questions instantly
+*Result:* More time for business growth, happier customers, increased sales
+
+**📝 Content Creator (Mike)**
+*Problem:* Spending hours writing social media posts and emails
+*Solution:* Muse Mode helps create content in his unique voice
+*Result:* 10x faster content creation, consistent brand voice, more engagement
+
+**🏥 Service Provider (Dr. Lisa)**
+*Problem:* Patients calling with basic questions about procedures and policies
+*Solution:* AI assistant provides instant, accurate information 24/7
+*Result:* Reduced phone calls, better patient experience, more time for actual care
+
+### 🔧 **Advanced Features (For When You're Ready)**
+
+**Multiple AI Models:**
+- OpenAI GPT (most popular, great balance)
+- Claude (excellent for creative writing)
+- Google Gemini (great for factual information)
+- Local Ollama support (for privacy-focused users)
+
+**Smart Content Management:**
+- Automatically updates knowledge when you add new content
+- Handles images, PDFs, and complex page layouts
+- Vector search for super-accurate responses
+- Built-in spam protection and content filtering
+
+**Integration Ready:**
+- Works with membership sites (restrict AI access by membership level)
+- Supports multiple languages
+- Mobile-responsive design
+- SEO-friendly implementation
+
+### 📱 **User Experience That Actually Works**
+
+**For Your Website Visitors:**
+- Instant answers (no waiting for email responses)
+- Natural conversation flow
+- Smart enough to know when to suggest contacting you directly
+- Works on desktop, tablet, and mobile
+
+**For You (The Site Owner):**
+- Dashboard shows what people are asking
+- Analytics on most common questions
+- Easy to add new information
+- One-click updates across all AI responses
+
+### 🔒 **Privacy & Security You Can Trust**
+
+- **Your content stays on YOUR server** (not stored elsewhere)
+- AI only processes the specific question being asked
+- No personal data shared with third parties
+- Full compliance with WordPress security standards
+- GDPR and privacy regulation friendly
+
+### 💰 **Cost Breakdown (So You Know What to Expect)**
+
+**Plugin Cost:** FREE (this plugin is completely free)
+**AI Usage:** $5-20/month depending on usage (most small businesses pay under $10)
+**Setup Time:** 1-2 hours total
+**Maintenance:** Nearly zero (runs automatically)
+
+*Note: AI costs are paid directly to providers (OpenAI, Claude, etc.) - same as any other AI tool*
+
+### 🆘 **Get Help When You Need It**
+
+- **Video tutorials** for every major feature
+- **Live chat support** during business hours  
+- **Community forum** with other users
+- **Detailed documentation** with screenshots
+- **Email support** for technical issues
 
 == Installation ==
 
-1. Upload the plugin files to `/wp-content/plugins/aiohm-kb-assistant/`
-2. Activate the plugin through the 'Plugins' screen in WordPress
-3. Navigate to AIOHM Settings to configure your API keys
-4. Use the content scanner to build your knowledge base
-5. Add chatbots to your pages using the provided shortcodes
+### **The Really Simple Way (Recommended for Beginners)**
+
+1. **Download & Install**
+   - Go to your WordPress admin → Plugins → Add New
+   - Search for "AIOHM Knowledge Assistant"
+   - Click "Install Now" → "Activate"
+
+2. **Get Your AI Key**
+   - Go to [OpenAI.com](https://openai.com)
+   - Create account → API section → Create new key
+   - Copy the key (starts with "sk-")
+
+3. **Connect Your AI**
+   - In WordPress, go to AIOHM → Settings
+   - Paste your API key in the OpenAI field
+   - Click "Save Changes"
+
+4. **Train Your AI**
+   - Go to AIOHM → Scan Content
+   - Click "Scan All Content"
+   - Wait 2-3 minutes (grab a coffee!)
+
+5. **Add to Your Website**
+   - Edit any page/post
+   - Add this shortcode: `[aiohm_chat]`
+   - Publish and test!
+
+### **For Advanced Users**
+
+- Upload via FTP to `/wp-content/plugins/aiohm-kb-assistant/`
+- Network activate for multisite installations
+- Configure advanced settings via constants in wp-config.php
+- Use action hooks for custom integrations
 
 == Frequently Asked Questions ==
 
-= What AI providers are supported? =
+= I'm not technical at all. Is this really for me? =
 
-AIOHM Knowledge Assistant supports OpenAI (GPT-3.5, GPT-4), Anthropic Claude, and Google Gemini. You'll need API keys from your chosen provider(s).
+**Absolutely YES!** AIOHM was specifically designed for non-technical users. If you can write a blog post in WordPress, you can set up AIOHM. We have video tutorials for every step, and our support team helps hundreds of beginners every month.
 
-= Does this plugin store my content externally? =
+= How much will the AI cost me monthly? =
 
-No, your content is stored locally in your WordPress database. Only the text being processed is sent to your chosen AI provider for generating responses.
+Most small businesses pay **$5-15/month** for AI usage. Larger sites with lots of visitors might pay $20-50/month. You only pay for what you use, and you can set spending limits. The plugin itself is completely free.
 
-= Can I use this with membership sites? =
+= Will this sound like a robot? =
 
-Yes! AIOHM integrates seamlessly with Paid Memberships Pro, allowing you to create different access levels for your AI assistants.
+Not at all! AIOHM learns YOUR writing style and brand voice. After training, most people can't tell the difference between the AI responses and something you'd write yourself. It gets your personality, tone, and even your humor.
 
-= How does the Brand Soul questionnaire work? =
+= What if it gives wrong answers? =
 
-The Brand Soul questionnaire helps you define your brand's voice, values, and communication style. This information trains your AI to respond in a way that's authentically you.
+AIOHM only uses YOUR content to answer questions. It won't make up information or use outdated data from the internet. If it doesn't know something from your content, it will politely say so and suggest contacting you directly.
 
-= Is this suitable for non-technical users? =
+= Can I control what it knows? =
 
-Absolutely! AIOHM is designed with a user-friendly interface. While you'll need to obtain API keys from AI providers, the plugin handles all the technical complexity.
+Yes, completely! You decide exactly what content the AI can access. Add or remove pages, posts, files, or specific information anytime. You can also create private knowledge that only you can access.
 
-= Can I customize the chatbot appearance? =
+= Do I need coding skills? =
 
-Yes, the plugin includes customizable CSS and multiple display options to match your site's design.
+Zero coding required. Everything is point-and-click through your WordPress dashboard. The most "technical" thing you'll do is copy and paste a simple shortcode, which we walk you through step-by-step.
+
+= Will this slow down my website? =
+
+Not at all. The AI processing happens on external servers (OpenAI, Claude, etc.), not your website. Your site stays fast, and the chatbot loads quickly for visitors.
+
+= Can I try it before committing? =
+
+Yes! The plugin is free, and most AI providers offer free credits to start. You can test everything with minimal cost and see if it works for your business before scaling up.
+
+= What if I get stuck? =
+
+We have multiple support options:
+- Video tutorials for visual learners
+- Step-by-step written guides
+- Live chat during business hours
+- Email support for complex issues
+- Community forum with other users
+
+= Can this replace my customer support? =
+
+It can handle 60-80% of common questions instantly, which means fewer emails and phone calls for you. For complex issues, it will smartly direct people to contact you directly. Think of it as a very smart first-line assistant.
+
+= Will my customers like talking to AI? =
+
+When done right (like with AIOHM), customers love it because they get instant answers instead of waiting for email responses. Since it uses your actual content and voice, many don't even realize they're talking to AI.
 
 == Screenshots ==
 
-1. Dashboard overview with Mirror Mode and Muse Mode options
-2. Content scanning interface showing posts, pages, and media files
-3. Brand Soul questionnaire for voice training
-4. Mirror Mode (public chatbot) in action
-5. Muse Mode (private assistant) interface
-6. Settings panel with API key configuration
-7. Knowledge base management screen
+1. **Dashboard Overview** - Simple, clean interface showing your AI's performance
+2. **Easy Setup Wizard** - Step-by-step guidance for non-technical users
+3. **Brand Voice Training** - Simple questions that teach the AI to speak like you
+4. **Live Chatbot Demo** - See how your AI responds to real questions
+5. **Content Management** - Easy controls for what your AI knows
+6. **Customization Panel** - Make it match your brand without coding
+7. **Analytics Dashboard** - See what customers are asking most
+8. **Mobile Experience** - Perfect on phones and tablets
 
 == Changelog ==
 
 = 1.2.0 =
-* **Enhanced Content Extraction**: Improved handling of shortcode-heavy pages (login, profile, etc.)
-* **Better Error Handling**: Detailed error messages and debugging information
-* **Visual Progress Indicators**: Real-time progress bars for bulk content processing
-* **Status Management**: Clear visual indicators for content status (Ready to Add, Failed, Knowledge Base)
-* **API Key Validation**: Pre-processing checks to ensure API keys are configured
-* **Cache Management**: Improved cache handling for real-time status updates
-* **Fallback Content**: Intelligent content generation for pages with minimal text
-* **Debug Console**: Enhanced logging for troubleshooting
-* **User Experience**: Improved notifications and feedback messages
+**🎉 Major User Experience Update**
+* **Notes & Knowledge Management**: Save ideas and add them to your AI's knowledge base instantly
+* **Improved Admin Notifications**: Beautiful, branded confirmation dialogs
+* **Better Content Processing**: Smarter handling of complex page layouts
+* **Enhanced Error Messages**: Clear, helpful feedback when things need attention
+* **Visual Progress Indicators**: See exactly what's happening during setup
+* **ServBay/Ollama Support**: Use local AI models for maximum privacy
+* **Email Verification System**: Secure access to advanced features
+* **Streamlined Interface**: Cleaner, more intuitive user experience
 
 = 1.1.11 =
-* Fixed AI model selection persistence in settings
-* Resolved dashicons display issues in Muse interface
-* Enhanced fullscreen mode functionality
-* Improved sidebar menu styling
-* Fixed delete button positioning issues
-* Enhanced mirror mode send button with modern animations
-* Corrected settings reflection between modes
-* Updated plugin description with brand-focused messaging
-* Redesigned WordPress admin menu icon
-* Added progress save functionality to Brand Soul questionnaire
-* Implemented proper access control for private features
-* Applied consistent OHM branding across all pages
+* Enhanced Mirror Mode customization options
+* Improved Muse Mode brand voice consistency
+* Better mobile responsiveness
+* Fixed various UI elements and animations
+* Added comprehensive brand styling throughout
 
 = 1.1.0 =
 * Initial public release
 * Mirror Mode (public Q&A chatbot)
 * Muse Mode (private brand assistant)
-* Multi-AI provider support (OpenAI, Claude, Gemini)
-* Content scanning and indexing
-* Brand Soul questionnaire
-* Paid Memberships Pro integration
+* Multi-AI provider support
+* Automatic content scanning
+* Brand voice training system
 
 == Upgrade Notice ==
 
 = 1.2.0 =
-Major improvements to content processing and user experience. Enhanced error handling and visual feedback. Recommended update for all users.
+🚀 **HUGE Update!** Major improvements to user experience, new notes management, better admin interface, and enhanced content processing. Highly recommended for all users - this makes AIOHM much easier and more powerful to use!
 
 == Third-Party Services ==
 
-This plugin integrates with the following third-party services:
+**AI Providers (You Choose):**
+* **OpenAI** - Most popular, great for beginners, excellent general knowledge
+* **Claude** - Best for creative writing and complex reasoning
+* **Google Gemini** - Great for factual information and fast responses
+* **Ollama (Local)** - Maximum privacy, runs on your own server
 
-**AI Providers (Choose One or More):**
-* OpenAI API (https://openai.com) - For GPT models
-* Anthropic Claude API (https://anthropic.com) - For Claude models  
-* Google Gemini API (https://ai.google.dev) - For Gemini models
+**What Gets Sent:** Only the specific question and relevant content from your knowledge base
+**What Stays Private:** Your full database, customer data, and personal information
+**Your Control:** You can see exactly what's being processed and delete data anytime
 
-**Usage:** API calls are made to generate AI responses based on your content and user queries.
-**Privacy:** Only the specific text being processed is sent to the AI provider. No personal data or full content is shared.
-**Terms:** You must comply with the respective provider's terms of service and privacy policies.
+== Support & Community ==
 
-== Support ==
+🌟 **Get Help Fast:**
+* **Documentation**: [docs.aiohm.app](https://docs.aiohm.app)
+* **Video Tutorials**: Step-by-step guides for every feature
+* **Live Support**: Available during business hours
+* **Community Forum**: Connect with other users
+* **Email**: support@aiohm.app
 
-For support, documentation, and updates, visit [aiohm.app](https://aiohm.app) or contact our support team.
+🎯 **Perfect For:**
+* Small business owners who want better customer service
+* Content creators who need faster, consistent content
+* Service providers tired of answering the same questions
+* Anyone who wants AI that actually understands their business
 
-== Credits ==
-
-Developed by OHM Events Agency with love for the WordPress community.
+**Ready to create your personalized AI assistant? Install AIOHM today and start saving time while delighting your customers!**

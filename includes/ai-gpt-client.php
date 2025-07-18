@@ -188,16 +188,13 @@ class AIOHM_KB_AI_GPT_Client {
             throw new Exception('Ollama server URL is required for embeddings.');
         }
         
-        // Check if URL already has /completion
+        // Use Ollama's embedding endpoint if available, fallback to simple embedding
         $base_url = rtrim($this->ollama_server_url, '/');
-        if (strpos($base_url, '/completion') !== false) {
-            $url = $base_url;
-        } else {
-            $url = $base_url . '/completion';
-        }
+        $url = $base_url . '/api/embeddings';
+        
         $data = [
-            'prompt' => $this->sanitize_text_for_json($text),
-            'n_predict' => 1
+            'model' => $this->ollama_model,
+            'prompt' => $this->sanitize_text_for_json($text)
         ];
         
         $body = json_encode($data);
@@ -207,18 +204,27 @@ class AIOHM_KB_AI_GPT_Client {
 
         $response = $this->make_http_request($url, $body, 'ollama');
         
-        if (isset($response['content'])) {
-            // For embeddings, we'll create a simple hash-based embedding from the response
-            // This is a fallback since this server doesn't appear to support embeddings
-            $text_content = $response['content'];
+        if (isset($response['embedding'])) {
+            return $response['embedding'];
+        } else {
+            // Fallback: create a simple hash-based embedding
+            $normalized_text = strtolower(trim($this->sanitize_text_for_json($text)));
             $embedding = [];
+            $text_length = strlen($normalized_text);
+            $char_distribution = array_count_values(str_split($normalized_text));
+            
             for ($i = 0; $i < 1536; $i++) {
-                $embedding[] = sin($i * 0.1) * cos(strlen($text_content) * $i * 0.01);
+                $char_index = $i % 256;
+                $char = chr($char_index);
+                $char_freq = $char_distribution[$char] ?? 0;
+                
+                $value = (($char_freq / max($text_length, 1)) * 0.5) + 
+                        (sin($i * 0.1) * 0.3) + 
+                        (cos($text_length * $i * 0.01) * 0.2);
+                
+                $embedding[] = $value;
             }
             return $embedding;
-        } else {
-            $error_message = $response['error'] ?? 'Invalid embedding response from Ollama server.';
-            throw new Exception(esc_html($error_message));
         }
     }
 
@@ -307,18 +313,15 @@ class AIOHM_KB_AI_GPT_Client {
             throw new Exception('Ollama server URL is required for chat completions.');
         }
         
-        // Check if URL already has /completion
+        // Use Ollama's correct API endpoint
         $base_url = rtrim($this->ollama_server_url, '/');
-        if (strpos($base_url, '/completion') !== false) {
-            $url = $base_url;
-        } else {
-            $url = $base_url . '/completion';
-        }
+        $url = $base_url . '/api/generate';
         $prompt = $system_message . "\n\n" . $user_message;
         
         $data = [
+            'model' => $this->ollama_model,
             'prompt' => $this->sanitize_text_for_json($prompt),
-            'n_predict' => 1000
+            'stream' => false
         ];
         
         $body = json_encode($data);
@@ -328,8 +331,8 @@ class AIOHM_KB_AI_GPT_Client {
 
         $response = $this->make_http_request($url, $body, 'ollama');
         
-        if (isset($response['content'])) {
-            return $response['content'];
+        if (isset($response['response'])) {
+            return $response['response'];
         } else {
             $error_message = $response['error'] ?? 'Invalid chat response from Ollama server.';
             throw new Exception(esc_html($error_message));
@@ -439,25 +442,23 @@ class AIOHM_KB_AI_GPT_Client {
             return ['success' => false, 'error' => 'Ollama server URL is missing.'];
         }
         try {
-            // Simple test request - check if URL already has /completion
+            // Test using Ollama's correct API endpoint
             $base_url = rtrim($this->ollama_server_url, '/');
-            if (strpos($base_url, '/completion') !== false) {
-                $url = $base_url;
-            } else {
-                $url = $base_url . '/completion';
-            }
+            $url = $base_url . '/api/generate';
+            
             $data = [
+                'model' => $this->ollama_model,
                 'prompt' => 'Say hello',
-                'n_predict' => 30
+                'stream' => false
             ];
             
             $body = json_encode($data);
             $response = $this->make_http_request($url, $body, 'ollama');
             
-            if (isset($response['content'])) {
-                return ['success' => true];
+            if (isset($response['response'])) {
+                return ['success' => true, 'message' => 'Connected successfully'];
             } else {
-                return ['success' => false, 'error' => 'No content in response'];
+                return ['success' => false, 'error' => 'No response from server'];
             }
         } catch (Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];

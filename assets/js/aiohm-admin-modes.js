@@ -27,6 +27,14 @@ jQuery(document).ready(function($) {
         $notice.find('p').html(message);
         $notice.fadeIn();
 
+        // Focus on the notice for accessibility and scroll to top
+        setTimeout(() => {
+            $notice.focus();
+            $('html, body').animate({
+                scrollTop: $notice.offset().top - 100
+            }, 300);
+        }, 100);
+
         // If the notice doesn't contain a button, auto-hide it.
         if (!message.includes('<button')) {
             noticeTimer = setTimeout(() => $notice.fadeOut(), 5000);
@@ -195,14 +203,22 @@ jQuery(document).ready(function($) {
              .fail(() => $results.html('<p style="color:red;">Server error.</p>'))
              .always(() => $btn.prop('disabled', false).text('Generate Sample Q&A'));
         });
+        
+        // Text formatting removed - was causing corruption
     }
     
     if (config.mode === 'muse') {
         // Archetype change handler for Muse Mode
         $('#brand_archetype').on('change', function() {
             const selected = $(this).val();
-            $('#' + config.promptTextareaId).val(selected && config.archetypePrompts[selected] ? config.archetypePrompts[selected] : config.defaultPrompt);
+            const promptText = selected && config.archetypePrompts[selected] ? config.archetypePrompts[selected] : config.defaultPrompt;
+            $('#' + config.promptTextareaId).val(promptText);
+            
+            // Trigger input event to ensure proper formatting is applied
+            $('#' + config.promptTextareaId).trigger('input');
         });
+        
+        // Text formatting removed - was causing corruption
     }
 
     // --- Shared Handlers for Buttons ---
@@ -231,18 +247,13 @@ jQuery(document).ready(function($) {
         
         const formData = $('#' + config.formId).serialize();
         
-        console.log('Save button clicked for:', config.mode);
-        console.log('Form data:', formData);
-        console.log('Action:', config.saveAction);
         
         $.post(config.ajax_url, {
             action: config.saveAction,
             form_data: formData
         }).done(response => {
-            console.log('Response:', response);
             showAdminNotice(response.success ? response.data.message : 'Error: ' + (response.data.message || 'Could not save.'), response.success ? 'success' : 'error');
         }).fail((xhr, status, error) => {
-            console.log('AJAX failed:', xhr.responseText, status, error);
             showAdminNotice('A server error occurred.', 'error');
         }).always(() => $btn.prop('disabled', false).text(originalText));
     });

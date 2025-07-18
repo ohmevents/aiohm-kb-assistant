@@ -1,236 +1,113 @@
-# AIOHM Knowledge Assistant
-
-**Contributors:** AIOHM  
-**Tags:** ai, chatbot, knowledge-base, artificial-intelligence, chat, assistant, customer-support, faq, search, automation  
-**Requires at least:** 5.0  
-**Tested up to:** 6.4  
-**Requires PHP:** 7.4  
-**Stable tag:** 1.2.0  
-**License:** GPLv2 or later  
-**License URI:** https://www.gnu.org/licenses/gpl-2.0.html  
-
-Transform your WordPress site into an intelligent knowledge hub with AI-powered chat assistance, content scanning, and brand-aligned responses.
-
-## Description
-
-The AIOHM Knowledge Assistant brings advanced AI capabilities to your WordPress site, creating an intelligent chat experience that understands your content and speaks in your brand voice. Perfect for businesses, educators, and content creators who want to provide instant, accurate information to their visitors.
+## AIOHM WordPress Plugin Documentation
 
-### 🌟 Key Features
-
-**🔍 Smart Content Scanner**
-- Automatically scans WordPress posts, pages, and media files
-- Supports text-based formats (`.txt`, `.json`, `.csv`)
-- Intelligent content chunking and vectorization
-- Scheduled scanning for automatic updates
-
-**💬 AI Chat Assistant**
-- Multiple AI provider support (OpenAI, Gemini, Claude, Ollama)
-- Customizable chat interface with brand colors and styling
-- Real-time knowledge base search and retrieval
-- Responsive design that works on all devices
-
-**📚 Knowledge Base Management**
-- Add, edit, and delete knowledge entries
-- Export/import knowledge base as JSON
-- Content categorization and tagging
-- Bulk operations for efficient management
-
-**🎨 Brand Personalization**
-- Mirror Mode: Q&A assistant for customer support
-- Muse Mode: Brand-aligned content generation
-- Custom brand archetypes (Creator, Sage, Hero, etc.)
-- Personalized voice and tone settings
-
-**🔐 Membership Integration**
-- Support for membership plugins (PMP, ARMember)
-- Role-based access control
-- Private content handling
-- Tiered feature access
-
-**⚙️ Advanced Settings**
-- Multiple AI provider integration
-- Custom temperature and model settings
-- Private LLM server support (Ollama)
-- Comprehensive usage analytics
-
-### 🚀 Perfect For
+Welcome to the official documentation for the AIOHM WordPress Plugin. This guide is for conscious creators, site administrators, and developers who wish to integrate soulful, voice-aligned AI support into their WordPress websites.
 
-- **Customer Support**: Instant answers to common questions
-- **Education**: Interactive learning experiences
-- **E-commerce**: Product information and guidance
-- **Content Sites**: Enhanced content discovery
-- **Business**: Brand-consistent communication
+---
 
-### 🛠️ AI Provider Support
+### What Is the AIOHM Plugin?
 
-- **OpenAI**: GPT-3.5, GPT-4
-- **Google Gemini**: Gemini Pro, Gemini 1.5
-- **Anthropic Claude**: Claude 3 Sonnet, Haiku, Opus
-- **Ollama**: Self-hosted private LLM servers
+The AIOHM Plugin empowers your website with a voice-aligned AI assistant that reflects your brand's essence. Designed for coaches, facilitators, and conscious brands, it connects your content to a Retrieval-Augmented Generation (RAG) engine, making your assistant deeply aware of your knowledge base.
 
-## Installation
+---
 
-### Automatic Installation
+### Core Features Overview
 
-1. Log into your WordPress admin dashboard
-2. Navigate to `Plugins > Add New`
-3. Search for "AIOHM Knowledge Assistant"
-4. Click "Install Now" and then "Activate"
+* Knowledge Base Engine: Index and retrieve content using full-text and vector search.
+* Voice-Aligned Chat Assistant: Embed public or private chatbots using shortcodes.
+* Mirror Mode: Train your assistant to reflect your unique tone and expression style.
+* Muse Mode: Unlock soulful writing prompts, brand-aligned content generation, and creative co-writing support.
+* Custom Embeddings with OpenAI/Gemini: Supports private LLM usage and custom prompts.
+* Site & File Crawling: Index pages, posts, and supported uploads (PDF, CSV, TXT, JSON).
+* Membership Integration: Restrict private assistant features to paid members (via PMPro).
 
-### Manual Installation
+---
 
-1. Download the plugin zip file
-2. Go to `Plugins > Add New > Upload Plugin`
-3. Select the downloaded zip file and click "Install Now"
-4. Activate the plugin
+### Includes Folder Breakdown
 
-### After Installation
+**core-init.php**
+Initializes the plugin, sets up hooks for AJAX handling, API key validation, and data import/export functions.
 
-1. Go to `AIOHM > Settings`
-2. Configure your AI provider API keys
-3. Set up your assistant's voice and personality
-4. Run your first content scan
-5. Deploy the chat assistant using shortcodes
+**rag-engine.php**
+Implements the RAG engine. Handles content chunking, embedding generation, and context retrieval using full-text and vector similarity.
 
-## Configuration
+**crawler-site.php**
+Crawls and indexes posts and pages from your WordPress site into the knowledge base.
 
-### Basic Setup
+**crawler-uploads.php**
+Indexes supported files from the Media Library (PDF, JSON, CSV, TXT) into your AI’s memory.
 
-1. **API Configuration**
-   - Navigate to `AIOHM > Settings`
-   - Enter your preferred AI provider API key
-   - Test the connection to ensure it's working
+**ai-gpt-client.php**
+Handles interaction with OpenAI or Gemini models. Supports embedding and chat completion calls.
 
-2. **Content Scanning**
-   - Go to `AIOHM > Scan Content`
-   - Select content types to scan
-   - Run the scan and add content to knowledge base
+**user-functions.php**
+Manages user data like ARMember IDs, access levels, and stores chat interactions.
 
-3. **Assistant Customization**
-   - Use Mirror Mode for Q&A functionality
-   - Use Muse Mode for content generation
-   - Customize colors, greetings, and behavior
+**aiohm-kb-manager.php**
+Creates the admin UI for managing knowledge base entries via a custom WP\_List\_Table.
 
-### Advanced Features
+**api-client-app.php**
+Communicates with the aiohm.app site to fetch membership data based on user email.
 
-**Private LLM Integration**
-- Configure Ollama servers for private AI processing
-- Available for premium members
-- Complete data privacy and control
+**chat-box.php**
+Renders the frontend chat interface — including message bubbles, quick replies, and suggested prompts.
 
-**Brand Soul Setup**
-- Define your brand's core values and voice
-- Create custom response templates
-- Align AI responses with your brand personality
+**pmpro-integration.php**
+Integrates with Paid Memberships Pro. Manages access controls based on membership level.
 
-## Shortcodes
+**settings-page.php**
+Creates the admin dashboard UI and settings pages. Enqueues backend scripts and styles.
 
-### Chat Assistant
-```
-[aiohm_chat title="Ask Me Anything" placeholder="Type your question..." welcome_message="Hello! How can I help you today?"]
-```
+**shortcode-chat.php**
+Implements `[aiohm_chat]` shortcode. Renders public chatbot interface for site visitors.
 
-**Parameters:**
-- `title`: Chat window title
-- `placeholder`: Input field placeholder text
-- `welcome_message`: Initial greeting message
+**shortcode-search.php**
+Implements `[aiohm_search]` shortcode. Provides search access to the public knowledge base.
 
-### Knowledge Search
-```
-[aiohm_search placeholder="Search our knowledge base..." max_results="10"]
-```
+**shortcode-private-assistant.php**
+Implements `[aiohm_private_assistant]` shortcode. Renders private assistant for logged-in members.
 
-**Parameters:**
-- `placeholder`: Search input placeholder
-- `max_results`: Maximum number of results to display
+**frontend-widget.php**
+Enqueues necessary frontend assets based on active shortcodes.
 
-### Private Assistant (Premium)
-```
-[aiohm_private_assistant]
-```
+---
 
-## Frequently Asked Questions
+### Templates Folder
 
-### Do I need an AI API key?
+Customizable frontend templates for chat, search, and assistant interfaces. Modify these to match your site's aesthetic and tone.
 
-Yes, you need an API key from at least one supported AI provider (OpenAI, Gemini, Claude, or Ollama). We recommend starting with OpenAI or Gemini for the best experience.
+---
 
-### How does the knowledge base work?
+### Privacy & Personalization (Private Mode)
 
-The plugin scans your WordPress content and creates a searchable knowledge base using AI embeddings. When visitors ask questions, the AI searches relevant content and provides contextual answers.
+The plugin supports private VPS and LLM hosting, encrypted file input, and user-specific AI fine-tuning for secure, sovereign experiences.
 
-### Can I use my own AI models?
+---
 
-Yes! Premium members can connect private Ollama servers for complete data privacy and control over AI processing.
+### Using Shortcodes
 
-### Is the plugin mobile-friendly?
+Embed intelligent features easily with:
 
-Absolutely! The chat interface is fully responsive and works seamlessly on all devices.
+* `[aiohm_chat]` – Public chat based on knowledge base
+* `[aiohm_search]` – Search box for public KB
+* `[aiohm_private_assistant]` – Private AI assistant (for members only)
 
-### How do I customize the assistant's personality?
+---
 
-Use the Mirror Mode and Muse Mode settings to define your assistant's voice, choose brand archetypes, and create custom response templates.
+### Installation & Setup
 
-### Can I export my knowledge base?
+1. Upload and activate the plugin via WordPress admin.
+2. Set your OpenAI or Gemini API key under the Settings menu.
+3. Crawl site content and/or upload documents.
+4. Use shortcodes to embed assistants where needed.
 
-Yes, you can export your entire knowledge base as JSON for backup or migration purposes.
+---
 
-## Screenshots
+### Need Help?
 
-1. **Dashboard Overview** - Main dashboard with usage statistics and quick actions
-2. **Content Scanning** - Intelligent content scanning interface
-3. **Chat Interface** - Responsive chat assistant in action
-4. **Knowledge Base Management** - Easy content management tools
-5. **Brand Customization** - Mirror Mode and Muse Mode settings
-6. **AI Provider Settings** - Multiple AI provider configuration
+This plugin was designed with care and consciousness. If something feels unclear or off-tone, reach out — human support is always available.
 
-## Changelog
+---
 
-### 1.2.0
-* Added Ollama private server support
-* Implemented comprehensive multi-AI provider system
-* Enhanced Mirror Mode and Muse Mode functionality
-* Added brand archetype templates
-* Improved WordPress coding standards compliance
-* Fixed security escaping issues
-* Added custom OHM logo menu integration
-* Enhanced membership integration system
+### Final Note
 
-### 1.1.11
-* Improved content scanning accuracy
-* Enhanced chat interface responsiveness
-* Added usage analytics dashboard
-* Fixed various bugs and performance issues
-
-### 1.1.1
-* Enhanced shortcode support
-* Added onboarding flow for voice setup
-* Improved knowledge base search
-* Better error handling and user feedback
-
-### 1.0.0
-* Initial plugin release
-* Basic AI chat functionality
-* Content scanning capabilities
-* WordPress integration
-
-## Upgrade Notice
-
-### 1.2.0
-This major update adds multiple AI provider support, private LLM integration, and enhanced brand customization features. Please backup your site before upgrading.
-
-## Support
-
-**Documentation**: [https://aiohm.app/docs](https://aiohm.app/docs)  
-**Support Forum**: [https://aiohm.app/support](https://aiohm.app/support)  
-**GitHub Issues**: [https://github.com/aiohm/kb-assistant/issues](https://github.com/aiohm/kb-assistant/issues)  
-
-For premium support and advanced features, visit [AIOHM.app](https://aiohm.app).
-
-## Privacy Policy
-
-This plugin connects to third-party AI services (OpenAI, Google, Anthropic) to process content and generate responses. Please review the privacy policies of your chosen AI provider. Private LLM options are available for users requiring complete data privacy.
-
-## License
-
-This plugin is licensed under the GPLv2 or later. Some premium features may require additional licensing.
+Your voice isn’t a task to automate. It’s a presence to be supported. Let AIOHM be the assistant that holds your frequency with care.

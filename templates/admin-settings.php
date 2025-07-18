@@ -111,8 +111,20 @@ $has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_I
                 <tr>
                     <th scope="row"><label for="private_llm_server_url"><?php esc_html_e('Private LLM Server URL', 'aiohm-kb-assistant'); ?></label></th>
                     <td>
-                        <input type="url" id="private_llm_server_url" name="aiohm_kb_settings[private_llm_server_url]" value="<?php echo esc_attr($settings['private_llm_server_url'] ?? ''); ?>" class="regular-text" placeholder="http://your-server.com:8080">
-                        <p class="description"><?php esc_html_e('Enter your Ollama server URL (e.g., http://155.138.222.3:8080)', 'aiohm-kb-assistant'); ?></p>
+                        <div class="aiohm-server-selection">
+                            <select id="server_preset" class="server-preset-select">
+                                <option value="custom"><?php esc_html_e('Custom Server', 'aiohm-kb-assistant'); ?></option>
+                                <option value="localhost"><?php esc_html_e('Local Ollama (localhost:11434)', 'aiohm-kb-assistant'); ?></option>
+                                <option value="servbay"><?php esc_html_e('ServBay Ollama (Local Development)', 'aiohm-kb-assistant'); ?></option>
+                            </select>
+                            <input type="url" id="private_llm_server_url" name="aiohm_kb_settings[private_llm_server_url]" value="<?php echo esc_attr($settings['private_llm_server_url'] ?? ''); ?>" class="regular-text" placeholder="http://your-server.com:8080">
+                        </div>
+                        <p class="description">
+                            <strong><?php esc_html_e('Local Development Options:', 'aiohm-kb-assistant'); ?></strong><br>
+                            • <strong><?php esc_html_e('ServBay Ollama:', 'aiohm-kb-assistant'); ?></strong> <?php esc_html_e('Requires ServBay software installed on your computer', 'aiohm-kb-assistant'); ?><br>
+                            • <strong><?php esc_html_e('Local Ollama:', 'aiohm-kb-assistant'); ?></strong> <?php esc_html_e('Standard Ollama installation (customizable port)', 'aiohm-kb-assistant'); ?><br>
+                            • <strong><?php esc_html_e('Custom Server:', 'aiohm-kb-assistant'); ?></strong> <?php esc_html_e('Remote server or custom URL', 'aiohm-kb-assistant'); ?>
+                        </p>
                     </td>
                 </tr>
                 <tr>
@@ -123,6 +135,16 @@ $has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_I
                             <button type="button" class="button button-secondary aiohm-test-api-key" data-target="private_llm_server_url" data-type="ollama"><?php esc_html_e('Test Server', 'aiohm-kb-assistant'); ?></button>
                         </div>
                         <p class="description"><?php esc_html_e('Enter the model name to use on your Ollama server (e.g., llama2, mistral, codellama)', 'aiohm-kb-assistant'); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"></th>
+                    <td>
+                        <button type="button" id="save-ollama-settings" class="button button-primary">
+                            <span class="dashicons dashicons-saved"></span>
+                            <?php esc_html_e('Save Ollama Settings', 'aiohm-kb-assistant'); ?>
+                        </button>
+                        <span id="ollama-save-status" class="save-status-message" style="display: none;"></span>
                     </td>
                 </tr>
                 <?php else : ?>
@@ -283,6 +305,12 @@ $has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_I
     .aiohm-settings-page .button-primary { background: var(--ohm-primary) !important; border-color: var(--ohm-dark-accent) !important; font-family: var(--ohm-font-primary); font-weight: bold; }
     .aiohm-settings-page .button-primary:hover { background: var(--ohm-dark-accent) !important; }
     .aiohm-api-key-wrapper { display: flex; gap: 5px; align-items: center; }
+    .aiohm-server-selection { display: flex; gap: 10px; align-items: center; margin-bottom: 5px; }
+    .server-preset-select { min-width: 200px; }
+    .aiohm-server-selection input[readonly] { background-color: #f7f7f7; color: #555; }
+    .save-status-message { margin-left: 10px; font-weight: 600; }
+    .save-status-message.success { color: #46b450; }
+    .save-status-message.error { color: #dc3232; }
     .aiohm-premium-settings-wrapper { position: relative; }
     .aiohm-premium-settings-wrapper.is-locked .aiohm-settings-section,
     .aiohm-premium-settings-wrapper.is-locked .submit { 
@@ -657,5 +685,92 @@ jQuery(document).ready(function($){
 
     // Load usage stats on page load
     loadUsageStats();
+
+    // Server preset selection functionality
+    const $serverPreset = $('#server_preset');
+    const $serverUrl = $('#private_llm_server_url');
+    
+    // Server presets
+    const serverPresets = {
+        'localhost': 'http://localhost:11434',
+        'servbay': 'https://ollama.servbay.host',
+        'custom': ''
+    };
+    
+    // Initialize preset selection based on current URL
+    function initializeServerPreset() {
+        const currentUrl = $serverUrl.val();
+        let selectedPreset = 'custom';
+        
+        for (const [preset, url] of Object.entries(serverPresets)) {
+            if (url && currentUrl === url) {
+                selectedPreset = preset;
+                break;
+            }
+        }
+        
+        $serverPreset.val(selectedPreset);
+        updateServerUrlField(selectedPreset);
+    }
+    
+    // Update server URL field based on preset selection
+    function updateServerUrlField(preset) {
+        if (preset === 'custom') {
+            $serverUrl.prop('readonly', false).attr('placeholder', 'http://your-server.com:8080');
+        } else if (preset === 'localhost') {
+            $serverUrl.prop('readonly', false).attr('placeholder', 'http://localhost:11434');
+            // Set default if empty
+            if (!$serverUrl.val()) {
+                $serverUrl.val(serverPresets[preset]);
+            }
+        } else {
+            $serverUrl.prop('readonly', true).val(serverPresets[preset]);
+        }
+    }
+    
+    // Handle preset selection change
+    $serverPreset.on('change', function() {
+        const selectedPreset = $(this).val();
+        updateServerUrlField(selectedPreset);
+        
+        if (selectedPreset === 'localhost') {
+            // Only set default if field is empty
+            if (!$serverUrl.val()) {
+                $serverUrl.val(serverPresets[selectedPreset]);
+            }
+        } else if (selectedPreset === 'servbay') {
+            $serverUrl.val(serverPresets[selectedPreset]);
+        }
+        // For custom, don't change the value
+    });
+    
+    // Initialize on page load
+    initializeServerPreset();
+
+    // Save Ollama settings button (convenience save for all settings)
+    $('#save-ollama-settings').on('click', function(e) {
+        e.preventDefault();
+        
+        // Get current values
+        const serverUrl = $('#private_llm_server_url').val();
+        const model = $('#private_llm_model').val();
+        const $status = $('#ollama-save-status');
+        
+        if (!serverUrl || !model) {
+            $status.removeClass('success').addClass('error').text('Please fill in both server URL and model name').show();
+            return;
+        }
+        
+        // Hide any existing status
+        $status.hide();
+        
+        // Simply click the main submit button (same as "Save All Settings")
+        const $submitBtn = $('#submit, input[type="submit"]').first();
+        if ($submitBtn.length) {
+            $submitBtn.click();
+        } else {
+            $status.removeClass('success').addClass('error').text('Could not find main save button').show();
+        }
+    });
 });
 </script>

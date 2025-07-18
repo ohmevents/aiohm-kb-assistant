@@ -91,47 +91,32 @@ jQuery(document).ready(function($) {
         const messageClass = sender.toLowerCase() === 'user' ? 'user' : 'assistant';
         const senderName = sender.toLowerCase() === 'user' ? 'You' : assistantName;
         
-        // Enhanced formatting for AI responses
+        // Simplified formatting for AI responses
         let formattedText = text;
         if (messageClass === 'assistant') {
-            // Convert markdown-like formatting to HTML
+            // Clean and simple formatting
             formattedText = text
+                // Preserve line breaks
+                .replace(/\n/g, '<br>')
                 // Bold text: **text** -> <strong>text</strong>
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                // Bullet points: - item -> <li>item</li>
-                .replace(/^- (.+)$/gm, '<li>$1</li>')
-                // Numbered lists: 1. item -> <ol><li>item</li></ol>
-                .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
-                // Line breaks for better readability
-                .replace(/\n\n/g, '</p><p>')
-                // Tables: | cell | cell | -> proper table HTML (basic)
-                .replace(/\|(.+)\|/g, function(match, content) {
-                    const cells = content.split('|').map(cell => `<td>${cell.trim()}</td>`).join('');
-                    return `<tr>${cells}</tr>`;
-                });
-            
-            // Wrap lists in proper HTML
-            if (formattedText.includes('<li>')) {
+                // Handle numbered lists (1., 2., 3., etc.)
+                .replace(/^(\d+)\.\s(.+)$/gm, '<div class="numbered-item"><span class="number">$1.</span> $2</div>')
                 // Handle bullet points
-                formattedText = formattedText.replace(/(<li>(?:(?!<li>).)*<\/li>)/gs, function(match) {
-                    return '<ul>' + match + '</ul>';
-                });
-                // Handle numbered lists (need to check for numbered pattern)
-                if (/^\d+\./.test(text)) {
-                    formattedText = formattedText.replace(/<ul>/g, '<ol>').replace(/<\/ul>/g, '</ol>');
-                }
-            }
-            
-            // Wrap tables
-            if (formattedText.includes('<tr>')) {
-                formattedText = '<table class="aiohm-response-table">' + formattedText + '</table>';
-            }
+                .replace(/^•\s(.+)$/gm, '<div class="bullet-item">• $1</div>')
+                .replace(/^-\s(.+)$/gm, '<div class="bullet-item">• $1</div>');
         }
+        
+        const copyButton = messageClass === 'assistant' ? 
+            '<button class="copy-message-btn" title="Copy message"><span class="dashicons dashicons-admin-page"></span></button>' : '';
         
         const messageHTML = `
             <div class="message ${messageClass}">
                 <div class="message-content">
-                    <strong>${senderName}:</strong> 
+                    <div class="message-header">
+                        <strong>${senderName}:</strong>
+                        ${copyButton}
+                    </div>
                     <div class="message-text">${formattedText}</div>
                 </div>
             </div>`;
@@ -277,7 +262,7 @@ jQuery(document).ready(function($) {
             note_content: noteContent
         }, false).done(function(response) {
              if(response.success) {
-                console.log('Notes saved for project ' + projectId);
+                // Notes saved successfully
              }
         });
     }
@@ -560,6 +545,67 @@ jQuery(document).ready(function($) {
     fullscreenBtn.on('click', () => setFullscreen());
     notificationBar.on('click', '.close-btn', () => notificationBar.fadeOut());
 
+    // Copy message button handler with hover preview
+    conversationPanel.on('click', '.copy-message-btn', function() {
+        const messageText = $(this).closest('.message-content').find('.message-text').text();
+        
+        // Create a temporary textarea to copy the text
+        const tempTextarea = $('<textarea>');
+        tempTextarea.val(messageText);
+        $('body').append(tempTextarea);
+        tempTextarea.select();
+        document.execCommand('copy');
+        tempTextarea.remove();
+        
+        // Show feedback
+        const $btn = $(this);
+        const originalIcon = $btn.find('.dashicons');
+        originalIcon.removeClass('dashicons-admin-page').addClass('dashicons-yes');
+        
+        setTimeout(() => {
+            originalIcon.removeClass('dashicons-yes').addClass('dashicons-admin-page');
+        }, 1500);
+        
+        showAdminNotice('Message copied to clipboard!', 'success');
+    });
+
+    // Copy button hover preview
+    conversationPanel.on('mouseenter', '.copy-message-btn', function() {
+        const $messageContent = $(this).closest('.message-content');
+        const messageText = $messageContent.find('.message-text').text();
+        
+        // Add preview border and show what will be copied
+        $messageContent.addClass('copy-preview-active');
+        
+        // Create or update preview tooltip
+        const $tooltip = $('<div class="copy-preview-tooltip">').text('Copy: ' + (messageText.length > 100 ? messageText.substring(0, 100) + '...' : messageText));
+        $('body').append($tooltip);
+        
+        // Position tooltip near button
+        const btnOffset = $(this).offset();
+        $tooltip.css({
+            'position': 'absolute',
+            'top': btnOffset.top - 40,
+            'left': btnOffset.left - 100,
+            'z-index': 10000
+        });
+        
+        // Store tooltip reference
+        $(this).data('tooltip', $tooltip);
+    });
+
+    conversationPanel.on('mouseleave', '.copy-message-btn', function() {
+        const $messageContent = $(this).closest('.message-content');
+        $messageContent.removeClass('copy-preview-active');
+        
+        // Remove tooltip
+        const $tooltip = $(this).data('tooltip');
+        if ($tooltip) {
+            $tooltip.remove();
+            $(this).removeData('tooltip');
+        }
+    });
+
     // File upload button handler
     $('#upload-file-btn').on('click', function() {
         if (!currentProjectId) {
@@ -583,7 +629,7 @@ jQuery(document).ready(function($) {
             showAdminNotice('Please select a project first.', 'error');
             return;
         }
-        insertResearchPrompt();
+        displayResearchModal();
     });
 
     // Download PDF button handler
@@ -617,19 +663,35 @@ jQuery(document).ready(function($) {
         }, 3000);
     });
 
-    // Add to KB button handler
+    // Add to KB button handler with proper admin notice confirmation
     $('#add-to-kb-btn').on('click', function() {
         if (!currentConversationId) {
             showAdminNotice('Please start a conversation before adding to knowledge base.', 'error');
             return;
         }
         
-        const $btn = $(this);
+        // Show proper admin notice confirmation dialog
+        showAdminNotice(
+            'Are you sure you want to add this conversation to the Knowledge Base as a private item? ' +
+            'This will save the entire conversation history for future reference. ' +
+            '<button class="aiohm-confirm-btn" data-action="add-chat-kb" data-conversation-id="' + currentConversationId + '">Confirm</button> ' +
+            '<button class="aiohm-cancel-btn">Cancel</button>',
+            'warning',
+            true
+        );
+    });
+
+    // Handle add chat to KB confirmation
+    $(document).on('click', '.aiohm-confirm-btn[data-action="add-chat-kb"]', function() {
+        const conversationId = $(this).data('conversation-id');
+        const $btn = $('#add-to-kb-btn');
         const originalTitle = $btn.attr('title');
+        
+        $('#aiohm-admin-notice').fadeOut();
         $btn.prop('disabled', true).attr('title', 'Adding to KB...');
         
         performAjaxRequest('aiohm_add_conversation_to_kb', {
-            conversation_id: currentConversationId
+            conversation_id: conversationId
         }).done(function(response) {
             if (response.success) {
                 showAdminNotice('Conversation added to knowledge base successfully!', 'success');
@@ -725,45 +787,164 @@ jQuery(document).ready(function($) {
     // 5. FILE UPLOAD & RESEARCH FUNCTIONS
     // ====================================================================
     
-    function insertResearchPrompt() {
-        const researchPrompt = `Please research the following URL and provide a summary of its key points: [PASTE URL HERE]
+    function displayResearchModal() {
+        chatInput.prop('disabled', true);
+        sendBtn.prop('disabled', true);
 
-After researching the URL, please provide a structured analysis covering:
+        const researchPersonas = {
+            'journalist': {
+                name: 'Journalist',
+                icon: 'dashicons-edit',
+                prompt: 'Please research the following URL as an investigative journalist and provide comprehensive coverage including: key facts, credible sources, potential biases, timeline of events, stakeholder perspectives, and verification of claims. Focus on accuracy, objectivity, and uncovering the complete story.'
+            },
+            'seo_guru': {
+                name: 'SEO Specialist',
+                icon: 'dashicons-chart-line',
+                prompt: 'Please research the following URL from an SEO perspective and analyze: keyword optimization, content structure, meta descriptions, backlink opportunities, technical SEO issues, competitor analysis, search intent alignment, and recommendations for improving search rankings.'
+            },
+            'web_designer': {
+                name: 'Web Designer',
+                icon: 'dashicons-art',
+                prompt: 'Please research the following URL from a web design perspective and evaluate: visual hierarchy, user experience, responsive design, loading speed, accessibility features, navigation structure, color schemes, typography choices, and overall design effectiveness.'
+            },
+            'marketer': {
+                name: 'Digital Marketer',
+                icon: 'dashicons-megaphone',
+                prompt: 'Please research the following URL from a marketing perspective and analyze: target audience, value proposition, conversion opportunities, content marketing strategy, social media integration, call-to-action effectiveness, brand positioning, and competitive advantages.'
+            },
+            'developer': {
+                name: 'Web Developer',
+                icon: 'dashicons-editor-code',
+                prompt: 'Please research the following URL from a technical development perspective and assess: code quality, performance optimization, security measures, framework usage, API integrations, database structure implications, scalability considerations, and technical best practices.'
+            },
+            'business_analyst': {
+                name: 'Business Analyst',
+                icon: 'dashicons-analytics',
+                prompt: 'Please research the following URL from a business analysis perspective and examine: business model, revenue streams, market positioning, competitive landscape, growth opportunities, operational efficiency, customer segments, and strategic implications.'
+            }
+        };
 
-**1. Who:** Who are the key people, companies, or groups mentioned?
-
-**2. What:** What is the main topic, event, or product being discussed?
-
-**3. When:** When did these events happen, or when is the content relevant?
-
-**4. Where:** Where is this happening or where is the focus of the content?
-
-**5. Why:** Why is this information important? What is the main argument or purpose?
-
-**6. How:** How did this happen or how does this work, based on the text?
-
-**7. Summary:** Finally, provide a concise, three-sentence summary of the entire article.`;
-
-        // Insert the prompt into the chat input
-        chatInput.val(researchPrompt);
+        const modalHTML = `
+            <div id="research-modal-view" class="aiohm-create-project-container">
+                <div class="aiohm-create-project-card">
+                    <div class="aiohm-create-project-icon">
+                        <span class="dashicons dashicons-search"></span>
+                    </div>
+                    <h3 class="aiohm-create-project-title">Research Website Online</h3>
+                    <p class="aiohm-create-project-description">Choose your research perspective and enter the website URL to analyze.</p>
+                    
+                    <div class="aiohm-create-project-form">
+                        <div class="aiohm-input-group">
+                            <label for="research-persona-select" class="aiohm-input-label">Research Perspective</label>
+                            <select id="research-persona-select" class="aiohm-create-project-input">
+                                ${Object.entries(researchPersonas).map(([key, persona]) => 
+                                    `<option value="${key}"><span class="dashicons ${persona.icon}"></span> ${persona.name}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        
+                        <div class="aiohm-input-group">
+                            <label for="research-url-input" class="aiohm-input-label">Website URL</label>
+                            <input type="url" id="research-url-input" placeholder="https://example.com" class="aiohm-create-project-input">
+                        </div>
+                        
+                        <div class="aiohm-create-project-actions">
+                            <button id="start-research-submit" class="aiohm-create-project-btn primary">
+                                <span class="dashicons dashicons-search"></span>
+                                Start Research
+                            </button>
+                            <button id="cancel-research" class="aiohm-create-project-btn secondary">
+                                <span class="dashicons dashicons-dismiss"></span>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
         
-        // Focus on the chat input and scroll to the URL placeholder
-        chatInput.focus();
+        conversationPanel.html(modalHTML);
         
-        // Select the [PASTE URL HERE] text for easy replacement
-        const textArea = chatInput[0];
-        const urlPlaceholder = '[PASTE URL HERE]';
-        const promptText = textArea.value;
-        const startIndex = promptText.indexOf(urlPlaceholder);
+        // Store personas for later use
+        window.researchPersonas = researchPersonas;
         
-        if (startIndex !== -1) {
-            textArea.setSelectionRange(startIndex, startIndex + urlPlaceholder.length);
-        }
+        // Use setTimeout to ensure DOM is ready
+        setTimeout(function() {
+            // Focus the URL input
+            const $urlInput = $('#research-url-input');
+            $urlInput.focus();
+            
+            // Handle Enter key submission
+            $urlInput.on('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    $('#start-research-submit').trigger('click');
+                }
+            });
+            
+            // Handle form submission
+            $('#start-research-submit').off('click').on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const selectedPersona = $('#research-persona-select').val();
+                const websiteUrl = $('#research-url-input').val().trim();
+                
+                if (!websiteUrl) {
+                    showAdminNotice('Please enter a website URL.', 'error');
+                    return;
+                }
+                
+                if (!websiteUrl.match(/^https?:\/\/.+/)) {
+                    showAdminNotice('Please enter a valid URL starting with http:// or https://', 'error');
+                    return;
+                }
+                
+                // Update button with loading state
+                const $btn = $(this);
+                const originalHtml = $btn.html();
+                $btn.html('<span class="dashicons dashicons-update"></span> Researching...').prop('disabled', true);
+                
+                startWebsiteResearch(selectedPersona, websiteUrl, $btn, originalHtml);
+            });
+            
+            $('#cancel-research').off('click').on('click', function() {
+                restoreChatView();
+            });
+        }, 50);
+    }
+    
+    function startWebsiteResearch(persona, url, $btn, originalBtnHtml) {
+        const personaData = window.researchPersonas[persona];
+        const researchPrompt = `${personaData.prompt}\n\nWebsite URL: ${url}`;
         
-        // Enable send button
-        updateChatUIState();
+        // Restore chat view first
+        restoreChatView();
         
-        showAdminNotice('Research prompt inserted! Replace [PASTE URL HERE] with the website URL you want to analyze.', 'success');
+        // Add user message showing the research request
+        appendMessage('user', `Research this website as a ${personaData.name}: ${url}`);
+        
+        // Perform the actual research
+        performAjaxRequest('aiohm_research_online', {
+            url: url,
+            project_id: currentProjectId,
+            conversation_id: currentConversationId,
+            research_prompt: researchPrompt
+        }).done(function(response) {
+            if (response.success && response.data.reply) {
+                appendMessage(assistantName, response.data.reply);
+                if (response.data.conversation_id) {
+                    currentConversationId = response.data.conversation_id;
+                    loadHistory();
+                }
+            } else {
+                appendMessage(assistantName, 'Error: ' + (response.data.message || 'Could not research the website.'));
+            }
+        }).fail(function() {
+            appendMessage(assistantName, 'Error: Network failure while researching the website.');
+        }).always(function() {
+            updateChatUIState();
+        });
     }
     
     function uploadFiles(files) {
@@ -864,6 +1045,56 @@ After researching the URL, please provide a structured analysis covering:
         return iconMap[fileType] || '📎';
     }
 
+
+    // Add Note to KB button handler
+    $('#add-note-to-kb-btn, #add-note-to-kb-btn').on('click', handleAddNoteToKB);
+    $(document).on('click', '#add-note-to-kb-btn', handleAddNoteToKB);
+
+    function handleAddNoteToKB() {
+        const notesInput = $('#aiohm-pa-notes-textarea');
+        const noteContent = notesInput.val().trim();
+        
+        if (!noteContent) {
+            showAdminNotice('Note cannot be empty!', 'error');
+            return;
+        }
+        if (!currentProjectId) {
+            showAdminNotice('Please select a project before adding a note to the Knowledge Base.', 'error');
+            return;
+        }
+
+        const previewText = noteContent.substring(0, 100) + (noteContent.length > 100 ? '...' : '');
+        showAdminNotice(
+            'Are you sure you want to add this note to the Knowledge Base as a private item? ' +
+            previewText + ' ' +
+            '<button class="aiohm-confirm-btn" data-action="add-note-kb" data-project-id="' + currentProjectId + '" data-note-content="' + noteContent.replace(/"/g, '&quot;') + '">Confirm</button> ' +
+            '<button class="aiohm-cancel-btn">Cancel</button>',
+            'warning',
+            true
+        );
+    }
+    $(document).on('click', '.aiohm-confirm-btn[data-action="add-note-kb"]', function() {
+        const projectId = $(this).data('project-id');
+        const noteContent = $(this).data('note-content');
+        const notesInput = $('#aiohm-pa-notes-textarea');
+        
+        $('#aiohm-admin-notice').fadeOut();
+        
+        // Proceed with AJAX call to save note to KB
+        performAjaxRequest('aiohm_add_note_to_kb', {
+            project_id: projectId,
+            note_content: noteContent
+        }).done(function(response) {
+            if (response.success) {
+                showAdminNotice('Note added to Knowledge Base successfully!', 'success');
+                notesInput.val(''); // Clear the notes input
+            } else {
+                showAdminNotice('Error adding note to KB: ' + (response.data.message || 'Unknown error.'), 'error');
+            }
+        }).fail(function() {
+            showAdminNotice('Error adding note to KB. Please try again.', 'error');
+        });
+    });
 
     // ====================================================================
     // 6. INITIALIZATION

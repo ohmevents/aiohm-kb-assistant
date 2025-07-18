@@ -424,6 +424,7 @@ include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/header.php';
 .type-brand-core { background: #e8f5e8; color: #1f5014; }
 .type-github { background: #f0f0f0; color: #272727; }
 .type-contact { background: #fff8e1; color: #457d58; }
+.type-note { background: #e8f4fd; color: #1565c0; }
 .type-default { background: #f5f5f5; color: #616161; }
 
 /* Filter block styling */

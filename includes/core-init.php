@@ -141,6 +141,7 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_delete_kb_entry', array(__CLASS__, 'handle_delete_kb_entry_ajax'));
         add_action('wp_ajax_aiohm_save_brand_soul', array(__CLASS__, 'handle_save_brand_soul_ajax'));
         add_action('wp_ajax_aiohm_add_brand_soul_to_kb', array(__CLASS__, 'handle_add_brand_soul_to_kb_ajax'));
+        add_action('wp_ajax_aiohm_add_note_to_kb', array(__CLASS__, 'handle_add_note_to_kb_ajax'));
         add_action('admin_init', array(__CLASS__, 'handle_pdf_download'));
         add_action('wp_ajax_aiohm_save_mirror_mode_settings', array(__CLASS__, 'handle_save_mirror_mode_settings_ajax'));
         add_action('wp_ajax_nopriv_aiohm_save_mirror_mode_settings', array(__CLASS__, 'handle_save_mirror_mode_settings_ajax'));
@@ -179,6 +180,10 @@ class AIOHM_KB_Core_Init {
         add_action('wp_ajax_aiohm_download_conversation_pdf', array(__CLASS__, 'handle_download_conversation_pdf_ajax'));
         add_action('wp_ajax_aiohm_add_conversation_to_kb', array(__CLASS__, 'handle_add_conversation_to_kb_ajax'));
         add_action('wp_ajax_aiohm_research_online', array(__CLASS__, 'handle_research_online_ajax'));
+        
+        // Email verification AJAX handlers
+        add_action('wp_ajax_aiohm_send_verification_code', array(__CLASS__, 'handle_send_verification_code_ajax'));
+        add_action('wp_ajax_aiohm_verify_email_code', array(__CLASS__, 'handle_verify_email_code_ajax'));
     }
     
     /**
@@ -820,7 +825,7 @@ class AIOHM_KB_Core_Init {
             $user_message = isset($_POST['message']) ? sanitize_textarea_field(wp_unslash($_POST['message'])) : '';
             $posted_settings = isset($_POST['settings']) && is_array($_POST['settings']) ? map_deep(wp_unslash($_POST['settings']), 'sanitize_text_field') : [];
 
-            $system_message = isset($posted_settings['qa_system_message']) ? sanitize_textarea_field($posted_settings['qa_system_message']) : 'You are a helpful assistant.';
+            $system_message = isset($posted_settings['qa_system_message']) ? wp_kses_post($posted_settings['qa_system_message']) : 'You are a helpful assistant.';
             $temperature = floatval($posted_settings['qa_temperature'] ?? 0.7);
             
             // Initialize AI client with current settings to support Ollama
@@ -866,7 +871,7 @@ class AIOHM_KB_Core_Init {
             $posted_settings = isset($_POST['settings']) && is_array($_POST['settings']) ? map_deep(wp_unslash($_POST['settings']), 'sanitize_text_field') : [];
             $user_id = get_current_user_id();
     
-            $system_prompt = sanitize_textarea_field($posted_settings['system_prompt'] ?? 'You are a helpful brand assistant.');
+            $system_prompt = wp_kses_post($posted_settings['system_prompt'] ?? 'You are a helpful brand assistant.');
             $temperature = floatval($posted_settings['temperature'] ?? 0.7);
             $model = sanitize_text_field($posted_settings['ai_model'] ?? 'gpt-4');
     
@@ -1009,16 +1014,8 @@ class AIOHM_KB_Core_Init {
                     throw new Exception('Invalid scan type specified.');
             }
         } catch (Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('AIOHM KB Error: ' . $e->getMessage());
-            }
             wp_send_json_error(['message' => 'Scan failed: ' . $e->getMessage()]);
         } catch (Error $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('AIOHM KB Fatal Error: ' . $e->getMessage());
-            }
             wp_send_json_error(['message' => 'Fatal error: ' . $e->getMessage()]);
         }
     }
@@ -1211,6 +1208,53 @@ class AIOHM_KB_Core_Init {
         }
     }
 
+    public static function handle_add_note_to_kb_ajax() {
+        // Check nonce and permissions
+        if (!check_ajax_referer('aiohm_private_chat_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+        
+        if (!current_user_can('read')) {
+            wp_send_json_error(['message' => 'Insufficient permissions.']);
+        }
+
+        // Get and validate input data
+        $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
+        $note_content = isset($_POST['note_content']) ? sanitize_textarea_field(wp_unslash($_POST['note_content'])) : '';
+
+        // Validate inputs
+        if (empty($project_id)) {
+            wp_send_json_error(['message' => 'Invalid project ID.']);
+        }
+
+        if (empty($note_content)) {
+            wp_send_json_error(['message' => 'Note content cannot be empty.']);
+        }
+
+        try {
+            $rag_engine = new AIOHM_KB_RAG_Engine();
+            $user_id = get_current_user_id();
+
+            // Create a title for the note
+            $note_title = 'Project Note: ' . wp_trim_words($note_content, 8, '...');
+
+            // Add the note to the knowledge base
+            $rag_engine->add_entry(
+                $note_content,
+                'project_note',
+                $note_title,
+                ['project_id' => $project_id],
+                $user_id
+            );
+
+            wp_send_json_success(['message' => 'Note added to Knowledge Base successfully!']);
+
+        } catch (Exception $e) {
+            AIOHM_KB_Assistant::log('Add Note to KB Error: ' . $e->getMessage(), 'error');
+            wp_send_json_error(['message' => 'Error adding note to KB: ' . $e->getMessage()]);
+        }
+    }
+
     public static function handle_pdf_download() {
         if (isset($_GET['action']) && $_GET['action'] === 'download_brand_soul_pdf' && isset($_GET['nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['nonce'])), 'download_brand_soul_pdf')) {
             if (!class_exists('FPDF')) {
@@ -1289,7 +1333,15 @@ class AIOHM_KB_Core_Init {
             wp_send_json_error(['message' => 'Insufficient permissions.']);
         }
         
-        $raw_form_data = isset($_POST['form_data']) ? sanitize_text_field(wp_unslash($_POST['form_data'])) : '';
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Form data is sanitized after parsing
+        $raw_form_data = isset($_POST['form_data']) ? wp_unslash($_POST['form_data']) : '';
+        
+        // Fix URL encoding issues that cause space loss
+        $raw_form_data = str_replace('%22.%20', '%22.%20', $raw_form_data);
+        $raw_form_data = str_replace('%22.Your', '%22.%20Your', $raw_form_data);
+        $raw_form_data = str_replace('%22.You', '%22.%20You', $raw_form_data);
+        $raw_form_data = str_replace('tagline%3A%20%22', 'tagline%3A%20%22', $raw_form_data);
+        
         parse_str($raw_form_data, $form_data);
         
         // Check nonce from parsed form data
@@ -1331,15 +1383,25 @@ class AIOHM_KB_Core_Init {
         // Handle system message with proper formatting preservation
         $qa_system_message = trim($settings_input['qa_system_message'] ?? '');
         
-        // If the message looks corrupted or is the default, restore it
+        // Clean default template 
+        $clean_default = "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\nCore Instructions:\n\n1. Primary Directive: Your primary goal is to answer the user's question by grounding your response in the context provided below. This context is your main source of truth.\n\n2. Tone & Personality:\n   - Speak with emotional clarity, not robotic formality.\n   - Sound like a thoughtful assistant, not a sales rep.\n   - Be concise, but not curt — useful, but never cold.\n   - Your purpose is to express with presence, not persuasion.\n\n3. Formatting Rules:\n   - Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n   - Never end your response with a question like \"Do you need help with anything else?\"\n\n4. Fallback Response (Crucial):\n   - If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don't want to guess here. This might need a human's wisdom. You can connect with the person behind this site on the contact page. They'll know exactly how to help.\"\n\nPrimary Context for Answering the User's Question:\n{context}";
+        
+        // Check for any signs of corruption and restore clean version
         if (empty($qa_system_message) || 
+            // Original corruption patterns
             strpos($qa_system_message, 'y_of_week%') !== false || 
-            strpos($qa_system_message, 'Core Instructions: 1.') !== false) {
+            strpos($qa_system_message, 'Core Instructions: 1.') !== false ||
+            // New corruption patterns (missing spaces)
+            strpos($qa_system_message, '"%site_name%".Your') !== false ||
+            strpos($qa_system_message, 'tagline:"%site_tagline%".You') !== false ||
+            strpos($qa_system_message, '"%site_name%".You') !== false ||
+            // General corruption check - if it contains variables but no spaces around punctuation
+            (strpos($qa_system_message, '%site_name%') !== false && 
+             (strpos($qa_system_message, '".You') !== false || strpos($qa_system_message, '".Your') !== false))) {
             
-            // Restore the clean default template
-            $qa_system_message = "You are the official AI Knowledge Assistant for \"%site_name%\".\n\nYour core mission is to embody our brand's tagline: \"%site_tagline%\".\n\nYou are to act as a thoughtful and emotionally intelligent guide for all website visitors, reflecting the unique voice of the brand. You should be aware that today is %day_of_week%, %current_date%.\n\nCore Instructions:\n\n1. Primary Directive: Your primary goal is to answer the user's question by grounding your response in the context provided below. This context is your main source of truth.\n\n2. Tone & Personality:\n   - Speak with emotional clarity, not robotic formality.\n   - Sound like a thoughtful assistant, not a sales rep.\n   - Be concise, but not curt — useful, but never cold.\n   - Your purpose is to express with presence, not persuasion.\n\n3. Formatting Rules:\n   - Use only basic HTML tags for clarity (like <strong> or <em> if needed). Do not use Markdown.\n   - Never end your response with a question like \"Do you need help with anything else?\"\n\n4. Fallback Response (Crucial):\n   - If the provided context does not contain enough information to answer the user's question, you MUST respond with this exact phrase: \"Hmm… I don't want to guess here. This might need a human's wisdom. You can connect with the person behind this site on the contact page. They'll know exactly how to help.\"\n\nPrimary Context for Answering the User's Question:\n{context}";
+            $qa_system_message = $clean_default;
         } else {
-            // Clean up HTML entities and preserve basic formatting
+            // Decode HTML entities and preserve formatting
             $qa_system_message = html_entity_decode($qa_system_message, ENT_QUOTES, 'UTF-8');
         }
         
@@ -1417,23 +1479,16 @@ class AIOHM_KB_Core_Init {
 
     public static function handle_save_muse_mode_settings_ajax() {
         if (!current_user_can('edit_posts')) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('MUSE USER CAPABILITY CHECK FAILED');
-            }
             wp_send_json_error(['message' => 'Insufficient permissions.']);
         }
 
-        $raw_form_data = isset($_POST['form_data']) ? sanitize_text_field(wp_unslash($_POST['form_data'])) : '';
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Form data is sanitized after parsing
+        $raw_form_data = isset($_POST['form_data']) ? wp_unslash($_POST['form_data']) : '';
         parse_str($raw_form_data, $form_data);
         
         // Check nonce from parsed form data
         $nonce_value = $form_data['aiohm_muse_mode_nonce_field'] ?? '';
         if (!wp_verify_nonce($nonce_value, 'aiohm_muse_mode_nonce')) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('MUSE NONCE CHECK FAILED: ' . $nonce_value);
-            }
             wp_send_json_error(['message' => 'Nonce verification failed.']);
         }
         
@@ -1466,7 +1521,18 @@ class AIOHM_KB_Core_Init {
         }
         
         $settings['muse_mode']['assistant_name'] = sanitize_text_field($muse_input['assistant_name'] ?? 'Muse');
-        $settings['muse_mode']['system_prompt'] = sanitize_textarea_field($muse_input['system_prompt'] ?? '');
+        
+        // Handle system prompt with special care to preserve formatting
+        $raw_system_prompt = $muse_input['system_prompt'] ?? '';
+        if (!empty($raw_system_prompt)) {
+            // Decode any HTML entities that might have been encoded
+            $decoded_prompt = html_entity_decode($raw_system_prompt, ENT_QUOTES, 'UTF-8');
+            // Use wp_kses_post which preserves formatting but sanitizes dangerous content
+            $settings['muse_mode']['system_prompt'] = $decoded_prompt;
+        } else {
+            $settings['muse_mode']['system_prompt'] = '';
+        }
+        
         $settings['muse_mode']['ai_model'] = sanitize_text_field($muse_input['ai_model'] ?? 'gpt-4');
         $settings['muse_mode']['temperature'] = floatval($muse_input['temperature'] ?? 0.7);
         $settings['muse_mode']['start_fullscreen'] = isset($muse_input['start_fullscreen']) ? 1 : 0;
@@ -1755,17 +1821,11 @@ class AIOHM_KB_Core_Init {
             );
 
             if ($result === false) {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('Failed to add file to knowledge base: ' . $wpdb->last_error);
-                }
+                // Failed to add file to knowledge base
             }
 
         } catch (Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('Error adding file to knowledge base: ' . $e->getMessage());
-            }
+            // Error adding file to knowledge base
         }
     }
 
@@ -1803,10 +1863,6 @@ class AIOHM_KB_Core_Init {
             return "PDF Document uploaded: {$original_name}. This is a PDF file that has been uploaded to the project. The user has indicated they want to analyze or discuss the contents of this PDF. While I cannot directly read PDF files in this conversation, I can help the user by asking them to paste relevant text excerpts from the PDF that they'd like to discuss, or I can provide guidance on how to extract and work with PDF content.";
 
         } catch (Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('Error extracting PDF content: ' . $e->getMessage());
-            }
             return "PDF Document: {$original_name} - Content extraction failed, but file is available for reference.";
         }
     }
@@ -1873,10 +1929,6 @@ class AIOHM_KB_Core_Init {
             return "Document uploaded: {$original_name}. This is a Word document that has been uploaded to the project. The user has indicated they want to analyze or discuss the contents of this document. While I cannot directly read Word documents in this conversation, I can help the user by asking them to paste relevant text excerpts from the document that they'd like to discuss, or I can provide guidance on how to extract and work with document content.";
 
         } catch (Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('Error extracting document content: ' . $e->getMessage());
-            }
             return "Document: {$original_name} - Content extraction failed, but file is available for reference.";
         }
     }
@@ -1919,10 +1971,6 @@ class AIOHM_KB_Core_Init {
             ]);
 
         } catch (Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('Error retrieving Brand Soul content: ' . $e->getMessage());
-            }
             wp_send_json_error(['message' => 'Error retrieving Brand Soul content.']);
         }
     }
@@ -1968,10 +2016,6 @@ class AIOHM_KB_Core_Init {
             ]);
 
         } catch (Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('Error retrieving content for view: ' . $e->getMessage());
-            }
             wp_send_json_error(['message' => 'Error retrieving content.']);
         }
     }
@@ -2071,10 +2115,6 @@ class AIOHM_KB_Core_Init {
             ]);
 
         } catch (Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug logging for development only
-                error_log('Error retrieving usage stats: ' . $e->getMessage());
-            }
             wp_send_json_error(['message' => 'Error retrieving usage statistics.']);
         }
     }
@@ -2288,6 +2328,7 @@ class AIOHM_KB_Core_Init {
             $url = isset($_POST['url']) ? esc_url_raw(wp_unslash($_POST['url'])) : '';
             $project_id = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
             $conversation_id = isset($_POST['conversation_id']) ? intval($_POST['conversation_id']) : null;
+            $research_prompt_base = isset($_POST['research_prompt']) ? sanitize_textarea_field(wp_unslash($_POST['research_prompt'])) : '';
             
             if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL)) {
                 wp_send_json_error(['message' => 'Invalid URL provided.']);
@@ -2354,18 +2395,32 @@ class AIOHM_KB_Core_Init {
             $settings = AIOHM_KB_Assistant::get_settings();
             $ai_client = new AIOHM_KB_AI_GPT_Client($settings);
             
-            $research_prompt = "Please analyze the following webpage content and provide a comprehensive summary:\n\n" .
-                              "**Page Title:** {$pageTitle}\n" .
-                              "**URL:** {$url}\n\n" .
-                              "**Content:**\n{$textContent}\n\n" .
-                              "Please provide a structured analysis covering:\n" .
-                              "1. **Main Topic:** What is this page about?\n" .
-                              "2. **Key Points:** What are the most important points mentioned?\n" .
-                              "3. **People/Organizations:** Who are the key people or organizations mentioned?\n" .
-                              "4. **Summary:** Provide a concise 3-sentence summary of the entire content.";
+            // Use custom research prompt if provided, otherwise use default
+            if (!empty($research_prompt_base)) {
+                $research_prompt = $research_prompt_base . "\n\n" .
+                                  "**Page Title:** {$pageTitle}\n" .
+                                  "**URL:** {$url}\n\n" .
+                                  "**Content:**\n{$textContent}";
+            } else {
+                // Fallback to default prompt
+                $research_prompt = "Please analyze the following webpage content and provide a comprehensive summary:\n\n" .
+                                  "**Page Title:** {$pageTitle}\n" .
+                                  "**URL:** {$url}\n\n" .
+                                  "**Content:**\n{$textContent}\n\n" .
+                                  "Please provide a structured analysis covering:\n" .
+                                  "1. **Main Topic:** What is this page about?\n" .
+                                  "2. **Key Points:** What are the most important points mentioned?\n" .
+                                  "3. **People/Organizations:** Who are the key people or organizations mentioned?\n" .
+                                  "4. **Summary:** Provide a concise 3-sentence summary of the entire content.";
+            }
+            
+            // Adjust system message based on whether custom prompt is used
+            $system_message = !empty($research_prompt_base) 
+                ? "You are a professional researcher and analyst. Follow the research instructions precisely and provide detailed, insightful analysis based on your assigned perspective."
+                : "You are a web content analyst. Provide clear, structured analysis of webpage content.";
             
             $analysis = $ai_client->get_chat_completion(
-                "You are a web content analyst. Provide clear, structured analysis of webpage content.",
+                $system_message,
                 $research_prompt,
                 0.3,
                 $settings['muse_mode']['ai_model'] ?? 'gpt-3.5-turbo'
@@ -2436,6 +2491,92 @@ class AIOHM_KB_Core_Init {
         return wp_kses_post('<img src="' . $url . '" alt="' . $alt . '"' . $attr_string . ' />');
     }
     
+    /**
+     * Handles sending verification code via AJAX
+     */
+    public static function handle_send_verification_code_ajax() {
+        // Verify nonce for security
+        $nonce = sanitize_text_field(wp_unslash($_POST['nonce'] ?? ''));
+        if (!wp_verify_nonce($nonce, 'aiohm_license_verification')) {
+            wp_die(json_encode(['success' => false, 'error' => 'Invalid security token.']));
+        }
+
+        $email = sanitize_email(wp_unslash($_POST['email'] ?? ''));
+        
+        if (empty($email) || !is_email($email)) {
+            wp_die(json_encode(['success' => false, 'error' => 'Please enter a valid email address.']));
+        }
+
+        if (!class_exists('AIOHM_App_API_Client')) {
+            wp_die(json_encode(['success' => false, 'error' => 'API client not available.']));
+        }
+
+        $api_client = new AIOHM_App_API_Client();
+        $result = $api_client->send_verification_code($email);
+
+        if (is_wp_error($result)) {
+            wp_die(json_encode(['success' => false, 'error' => $result->get_error_message()]));
+        }
+
+        // Store the email temporarily for verification (expires in 10 minutes)
+        set_transient('aiohm_verification_email_' . md5($email), $email, 10 * MINUTE_IN_SECONDS);
+
+        wp_die(json_encode(['success' => true, 'message' => 'Verification code sent to your email.']));
+    }
+
+    /**
+     * Handles verifying the email code via AJAX
+     */
+    public static function handle_verify_email_code_ajax() {
+        // Verify nonce for security
+        $nonce = sanitize_text_field(wp_unslash($_POST['nonce'] ?? ''));
+        if (!wp_verify_nonce($nonce, 'aiohm_license_verification')) {
+            wp_die(json_encode(['success' => false, 'error' => 'Invalid security token.']));
+        }
+
+        $email = sanitize_email(wp_unslash($_POST['email'] ?? ''));
+        $code = sanitize_text_field(wp_unslash($_POST['code'] ?? ''));
+        
+        if (empty($email) || !is_email($email)) {
+            wp_die(json_encode(['success' => false, 'error' => 'Please enter a valid email address.']));
+        }
+
+        if (empty($code)) {
+            wp_die(json_encode(['success' => false, 'error' => 'Please enter the verification code.']));
+        }
+
+        // Check if email was previously requested for verification
+        $stored_email = get_transient('aiohm_verification_email_' . md5($email));
+        if (!$stored_email) {
+            wp_die(json_encode(['success' => false, 'error' => 'Verification session expired. Please request a new code.']));
+        }
+
+        if (!class_exists('AIOHM_App_API_Client')) {
+            wp_die(json_encode(['success' => false, 'error' => 'API client not available.']));
+        }
+
+        $api_client = new AIOHM_App_API_Client();
+        $result = $api_client->verify_code_and_get_details($email, $code);
+
+        if (is_wp_error($result)) {
+            wp_die(json_encode(['success' => false, 'error' => $result->get_error_message()]));
+        }
+
+        // Verification successful - update the settings
+        $settings = AIOHM_KB_Assistant::get_settings();
+        $settings['aiohm_app_email'] = $email;
+        update_option('aiohm_kb_settings', $settings);
+
+        // Clear the verification transient
+        delete_transient('aiohm_verification_email_' . md5($email));
+
+        wp_die(json_encode([
+            'success' => true, 
+            'message' => 'Email verified successfully! Your account is now connected.',
+            'membership_data' => $result
+        ]));
+    }
+
     /**
      * Clear all caches related to core functionality
      */

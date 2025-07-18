@@ -1,7 +1,7 @@
 <?php
 /**
  * Shortcode for displaying the private assistant interface.
- * v1.1.11 - Implements new welcome screen layout and modals.
+ * v1.2.0 - Enhanced user interface with notes management and improved admin notifications.
  */
 if (!defined('ABSPATH')) exit;
 
@@ -96,7 +96,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                         <button class="aiohm-pa-header-btn" id="upload-file-btn" title="Upload files to project">
                             <span class="dashicons dashicons-upload"></span>
                         </button>
-                        <button class="aiohm-pa-header-btn" id="research-online-prompt-btn" title="Research a live website">
+                        <button class="aiohm-pa-header-btn" id="research-online-prompt-btn" title="Research website with expert perspectives">
                             <span class="dashicons dashicons-search"></span>
                         </button>
                         <button class="aiohm-pa-header-btn" id="download-pdf-btn" title="Download chat as PDF">
@@ -132,7 +132,7 @@ class AIOHM_KB_Shortcode_Private_Assistant {
                                 <li><span class="dashicons dashicons-plus"></span> <div><strong>New Project</strong><p>Start a new project to organize your chats.</p></div></li>
                                 <li><span class="dashicons dashicons-format-chat"></span> <div><strong>New Chat</strong><p>Begin a new conversation in the current project.</p></div></li>
                                 <li><span class="dashicons dashicons-upload"></span> <div><strong>Upload Files</strong><p>Add documents, images, or audio to your project.</p></div></li>
-                                <li><span class="dashicons dashicons-search"></span> <div><strong>Research Online</strong><p>Fetch real-time information from a website.</p></div></li>
+                                <li><span class="dashicons dashicons-search"></span> <div><strong>Research Online</strong><p>Analyze websites from expert perspectives (journalist, SEO, designer, etc.).</p></div></li>
                                 <li><span class="dashicons dashicons-download"></span> <div><strong>Download Chat</strong><p>Save your current conversation as a PDF.</p></div></li>
                                 <li><span class="dashicons dashicons-database-add"></span> <div><strong>Add to KB</strong><p>Save chat content to your knowledge base.</p></div></li>
                                 <li><span class="dashicons dashicons-edit"></span> <div><strong>Toggle Notes</strong><p>Open a sidebar to jot down ideas.</p></div></li>
