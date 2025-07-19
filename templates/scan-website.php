@@ -81,7 +81,7 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
                             ) . '</span></div>'; 
                         } 
                     } else { 
-                        echo '<p>' . esc_html__('Supported files include .txt, .json, .csv, and .pdf from your Media Library.', 'aiohm-kb-assistant') . '</p>'; 
+                        echo '<p>' . esc_html__('Supported files include .txt, .json, .csv, .pdf, .doc, .docx, and .md from your Media Library.', 'aiohm-kb-assistant') . '</p>'; 
                     } ?>
                 </div>
             </div>
@@ -105,7 +105,9 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
         <div class="aiohm-scan-column">
             <div class="aiohm-scan-section">
                 <h2><?php esc_html_e('Upload Folder Scanner', 'aiohm-kb-assistant'); ?></h2>
-                <p><?php esc_html_e('Scan your <strong>WordPress Media Library</strong> for readable files like .txt, .json, .csv, and .pdf.', 'aiohm-kb-assistant'); ?></p>
+                <p><?php 
+                    // translators: %s is the WordPress Media Library text that will be bolded
+                    printf(esc_html__('Scan your %s for readable files like .txt, .json, .csv, and .pdf.', 'aiohm-kb-assistant'), '<strong>' . esc_html__('WordPress Media Library', 'aiohm-kb-assistant') . '</strong>'); ?></p>
                 <button type="button" class="button button-primary" id="scan-uploads-btn" <?php disabled(!$api_key_exists); ?>><?php esc_html_e('Find Uploads', 'aiohm-kb-assistant'); ?></button>
                 <div id="pending-uploads-area" style="margin-top: 20px;">
                     <h3><?php esc_html_e('Uploads Scan Results', 'aiohm-kb-assistant'); ?></h3>
@@ -158,6 +160,9 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
     .type-page { background-color: #f3e7ff; color: #6f42c1; }
     .type-application { background-color: #ffe7e7; color: #d63384; }
     .type-text { background-color: #fff8e7; color: #b8860b; }
+    .type-pdf { background-color: #ffe7e7; color: #d63384; }
+    .type-word { background-color: #e7f0ff; color: #1e40af; }
+    .type-file { background-color: #f3f4f6; color: #6b7280; }
     @media (max-width: 960px) { #aiohm-scan-page .aiohm-scan-columns-wrapper, #aiohm-scan-page .aiohm-stats-boxes { grid-template-columns: 1fr; } }
 </style>
 
@@ -165,6 +170,38 @@ $total_links = ($site_stats['posts']['total'] ?? 0) + ($site_stats['pages']['tot
 jQuery(document).ready(function($) {
     const nonce = '<?php echo esc_js(wp_create_nonce("aiohm_admin_nonce")); ?>';
     let noticeTimer;
+
+    // Function to get friendly file type display names
+    function getFileTypeDisplay(mimeType) {
+        const typeMap = {
+            'application/pdf': 'PDF',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'WORD',
+            'application/msword': 'WORD',
+            'text/plain': 'TEXT',
+            'application/json': 'JSON',
+            'text/csv': 'CSV',
+            'text/markdown': 'MD',
+            'application/vnd.ms-excel': 'EXCEL',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'EXCEL'
+        };
+        
+        return typeMap[mimeType] || mimeType.split('/')[1]?.toUpperCase() || 'FILE';
+    }
+
+    // Function to get CSS class for file types
+    function getFileTypeClass(mimeType) {
+        const classMap = {
+            'application/pdf': 'pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'word',
+            'application/msword': 'word',
+            'text/plain': 'text',
+            'application/json': 'text',
+            'text/csv': 'text',
+            'text/markdown': 'text'
+        };
+        
+        return classMap[mimeType] || 'file';
+    }
     
     // Enhanced admin notice function with accessibility features
     function showAdminNotice(message, type = 'success', persistent = false) {
@@ -236,8 +273,9 @@ jQuery(document).ready(function($) {
                     statusClass = 'failed-to-add';
                 }
                 
-                let typeDisplay = isUploads ? (item.type.split('/')[1] || item.type).toUpperCase() : (item.type.charAt(0).toUpperCase() + item.type.slice(1));
-                tableHtml += `<tr><th scope="row" class="check-column"><input type="checkbox" name="${checkboxName}" value="${item.id}" ${checkboxDisabled}></th><td><a href="${item.link}" target="_blank">${item.title}</a></td><td><span class="aiohm-content-type-badge type-${isUploads ? item.type.split('/')[0] : item.type}">${typeDisplay}</span></td><td><span class="status-${statusClass}">${statusContent}</span></td></tr>`;
+                let typeDisplay = isUploads ? getFileTypeDisplay(item.type) : (item.type.charAt(0).toUpperCase() + item.type.slice(1));
+                let typeClass = isUploads ? getFileTypeClass(item.type) : item.type;
+                tableHtml += `<tr><th scope="row" class="check-column"><input type="checkbox" name="${checkboxName}" value="${item.id}" ${checkboxDisabled}></th><td><a href="${item.link}" target="_blank">${item.title}</a></td><td><span class="aiohm-content-type-badge type-${typeClass}">${typeDisplay}</span></td><td><span class="status-${statusClass}">${statusContent}</span></td></tr>`;
             });
         } else {
             tableHtml += `<tr><td colspan="4" style="text-align: center;">No scannable items found.</td></tr>`;

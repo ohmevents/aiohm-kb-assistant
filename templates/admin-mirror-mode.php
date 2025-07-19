@@ -198,7 +198,9 @@ if (strpos($qa_system_message, 'y_of_week%') !== false || strpos($qa_system_mess
         
         <div class="aiohm-test-column">
             <h3><?php esc_html_e('Test Your Q&A Assistant', 'aiohm-kb-assistant'); ?></h3>
-            <p class="description"><?php esc_html_e('Test your assistant here. To display this on your website, use the shortcode: ', 'aiohm-kb-assistant'); ?><code>[aiohm_chat]</code></p>
+            <p class="description"><?php 
+                // translators: %s is the shortcode to display the chat assistant
+                printf(esc_html__('Test your assistant here. To display this on your website, use the shortcode: %s', 'aiohm-kb-assistant'), '<code>[aiohm_chat]</code>'); ?></p>
             <div id="aiohm-test-chat" class="aiohm-chat-container">
                 <div class="aiohm-chat-header">
                     <div class="aiohm-chat-title-preview"><?php echo esc_html($settings['business_name'] ?? 'Live Preview'); ?></div>

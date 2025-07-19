@@ -565,6 +565,12 @@ html.aiohm-fullscreen-body-no-scroll {
 }
 #aiohm-app-container .message.assistant {
     align-items: flex-start; margin-right: auto;
+    background: linear-gradient(135deg, rgba(31, 80, 20, 0.03), rgba(31, 80, 20, 0.08));
+    border-left: 3px solid var(--pa-brand-color);
+    border-radius: 8px;
+    padding: 15px 18px;
+    margin-bottom: 25px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 #aiohm-app-container .message p {
     padding: 12px 18px; border-radius: 18px; display: inline-block; 
@@ -1170,4 +1176,75 @@ html.aiohm-fullscreen-body-no-scroll {
 #aiohm-app-container .message-text p {
     margin: 6px 0;
     line-height: 1.7;
+}
+
+/* --- 13. Table Styling for Markdown Tables --- */
+#aiohm-app-container .table-container {
+    overflow-x: auto;
+    margin: 15px 0;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: var(--pa-bg-light);
+}
+
+#aiohm-app-container .markdown-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: var(--pa-bg-light);
+    color: var(--pa-text-primary);
+}
+
+#aiohm-app-container .markdown-table th {
+    background: var(--pa-brand-color);
+    color: white;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--pa-brand-color-hover);
+    position: sticky;
+    top: 0;
+}
+
+#aiohm-app-container .markdown-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--pa-border-color);
+    vertical-align: top;
+    line-height: 1.5;
+}
+
+#aiohm-app-container .markdown-table tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+#aiohm-app-container .markdown-table tr:hover {
+    background: rgba(31, 80, 20, 0.1);
+    transition: background-color 0.2s ease;
+}
+
+#aiohm-app-container .markdown-table td strong {
+    color: var(--pa-highlight-color);
+    font-weight: 600;
+}
+
+#aiohm-app-container .markdown-table td em {
+    color: var(--pa-text-secondary);
+    font-style: italic;
+}
+
+/* Responsive table styling */
+@media (max-width: 768px) {
+    #aiohm-app-container .table-container {
+        margin: 10px -18px; /* Extend to edges on mobile */
+        border-radius: 0;
+    }
+    
+    #aiohm-app-container .markdown-table {
+        font-size: 12px;
+    }
+    
+    #aiohm-app-container .markdown-table th,
+    #aiohm-app-container .markdown-table td {
+        padding: 8px 12px;
+    }
 }

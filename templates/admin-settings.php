@@ -249,7 +249,9 @@ $has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_I
             <h2><?php esc_html_e('Free Features', 'aiohm-kb-assistant'); ?></h2>
             <table class="form-table">
                 <tr><th scope="row"><?php esc_html_e('Enable Search Shortcode', 'aiohm-kb-assistant'); ?></th>
-                    <td><label><input type="checkbox" name="aiohm_kb_settings[enable_search_shortcode]" value="1" <?php checked($settings['enable_search_shortcode'] ?? false); ?> /> <?php esc_html_e('Enable the `[aiohm_search]` shortcode for knowledge base search.', 'aiohm-kb-assistant'); ?></label></td></tr>
+                    <td><label><input type="checkbox" name="aiohm_kb_settings[enable_search_shortcode]" value="1" <?php checked($settings['enable_search_shortcode'] ?? false); ?> /> <?php 
+                        // translators: %s is the shortcode for knowledge base search
+                        printf(esc_html__('Enable the %s shortcode for knowledge base search.', 'aiohm-kb-assistant'), '<code>[aiohm_search]</code>'); ?></label></td></tr>
             </table>
         </div>
 
@@ -269,7 +271,9 @@ $has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_I
                 <h2><?php esc_html_e('Q&A Chatbot Settings (Public)', 'aiohm-kb-assistant'); ?></h2>
                 <table class="form-table">
                     <tr><th scope="row"><?php esc_html_e('Enable Q&A Chatbot', 'aiohm-kb-assistant'); ?></th>
-                        <td><label><input type="checkbox" name="aiohm_kb_settings[chat_enabled]" value="1" <?php checked($settings['chat_enabled'] ?? false); disabled(!$can_access_settings); ?> /> <?php esc_html_e('Enable the `[aiohm_chat]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
+                        <td><label><input type="checkbox" name="aiohm_kb_settings[chat_enabled]" value="1" <?php checked($settings['chat_enabled'] ?? false); disabled(!$can_access_settings); ?> /> <?php 
+                            // translators: %s is the shortcode for the Q&A chatbot
+                            printf(esc_html__('Enable the %s shortcode.', 'aiohm-kb-assistant'), '<code>[aiohm_chat]</code>'); ?></label></td></tr>
                 </table>
             </div>
 
@@ -277,7 +281,9 @@ $has_private_access = class_exists('AIOHM_KB_PMP_Integration') && AIOHM_KB_PMP_I
                 <h2><?php esc_html_e('Private Brand Assistant (Admin-Only)', 'aiohm-kb-assistant'); ?></h2>
                 <table class="form-table">
                     <tr><th scope="row"><?php esc_html_e('Enable Private Assistant', 'aiohm-kb-assistant'); ?></th>
-                        <td><label><input type="checkbox" name="aiohm_kb_settings[enable_private_assistant]" value="1" <?php checked($settings['enable_private_assistant'] ?? false); disabled(!$can_access_settings); ?> /> <?php esc_html_e('Enable the `[aiohm_private_assistant]` shortcode.', 'aiohm-kb-assistant'); ?></label></td></tr>
+                        <td><label><input type="checkbox" name="aiohm_kb_settings[enable_private_assistant]" value="1" <?php checked($settings['enable_private_assistant'] ?? false); disabled(!$can_access_settings); ?> /> <?php 
+                            // translators: %s is the shortcode for the private brand assistant
+                            printf(esc_html__('Enable the %s shortcode.', 'aiohm-kb-assistant'), '<code>[aiohm_private_assistant]</code>'); ?></label></td></tr>
                 </table>
             </div>
             

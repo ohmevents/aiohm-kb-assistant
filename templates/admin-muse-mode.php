@@ -127,7 +127,9 @@ $brand_archetypes = [
         
         <div class="aiohm-test-column">
             <h3><?php esc_html_e('Test Your Muse Assistant', 'aiohm-kb-assistant'); ?></h3>
-            <p class="description"><?php esc_html_e('Test your assistant here. For the full experience, use the shortcode: ', 'aiohm-kb-assistant'); ?><code>[aiohm_private_assistant]</code> on a new page</p>
+            <p class="description"><?php 
+                // translators: %s is the shortcode to display the private assistant
+                printf(esc_html__('Test your assistant here. For the full experience, use the shortcode: %s on a new page', 'aiohm-kb-assistant'), '<code>[aiohm_private_assistant]</code>'); ?></p>
             <div id="aiohm-test-chat" class="aiohm-chat-container">
                 <div class="aiohm-chat-header">
                     <div class="aiohm-chat-title-preview"><?php echo esc_html($settings['assistant_name'] ?? 'Muse'); ?></div>

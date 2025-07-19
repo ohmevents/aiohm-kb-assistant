@@ -91,27 +91,34 @@ jQuery(document).ready(function($) {
         const messageClass = sender.toLowerCase() === 'user' ? 'user' : 'assistant';
         const senderName = sender.toLowerCase() === 'user' ? 'You' : assistantName;
         
-        // Simplified formatting for AI responses
+        // Enhanced formatting for AI responses
         let formattedText = text;
         if (messageClass === 'assistant') {
-            // Clean and simple formatting
-            formattedText = text
-                // Preserve line breaks
-                .replace(/\n/g, '<br>')
-                // Bold text: **text** -> <strong>text</strong>
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                // Handle numbered lists (1., 2., 3., etc.)
-                .replace(/^(\d+)\.\s(.+)$/gm, '<div class="numbered-item"><span class="number">$1.</span> $2</div>')
-                // Handle bullet points
-                .replace(/^•\s(.+)$/gm, '<div class="bullet-item">• $1</div>')
-                .replace(/^-\s(.+)$/gm, '<div class="bullet-item">• $1</div>');
+            // Check if the text contains a markdown table
+            const hasTable = /\|.*\|/.test(text) && /\|[-\s:]+\|/.test(text);
+            
+            if (hasTable) {
+                formattedText = formatMarkdownTable(text);
+            } else {
+                // Clean and simple formatting for non-table content
+                formattedText = text
+                    // Preserve line breaks
+                    .replace(/\n/g, '<br>')
+                    // Bold text: **text** -> <strong>text</strong>
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    // Handle numbered lists (1., 2., 3., etc.)
+                    .replace(/^(\d+)\.\s(.+)$/gm, '<div class="numbered-item"><span class="number">$1.</span> $2</div>')
+                    // Handle bullet points
+                    .replace(/^•\s(.+)$/gm, '<div class="bullet-item">• $1</div>')
+                    .replace(/^-\s(.+)$/gm, '<div class="bullet-item">• $1</div>');
+            }
         }
         
         const copyButton = messageClass === 'assistant' ? 
             '<button class="copy-message-btn" title="Copy message"><span class="dashicons dashicons-admin-page"></span></button>' : '';
         
         const messageHTML = `
-            <div class="message ${messageClass}">
+            <div class="message ${messageClass}" data-message-id="${Date.now()}">
                 <div class="message-content">
                     <div class="message-header">
                         <strong>${senderName}:</strong>
@@ -120,8 +127,113 @@ jQuery(document).ready(function($) {
                     <div class="message-text">${formattedText}</div>
                 </div>
             </div>`;
+        
         conversationPanel.append(messageHTML);
-        conversationPanel.scrollTop(conversationPanel[0].scrollHeight);
+        
+        // If it's an AI response, scroll to the beginning of the response for better UX
+        if (messageClass === 'assistant') {
+            const newMessage = conversationPanel.find('.message').last();
+            setTimeout(() => {
+                newMessage[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        } else {
+            // For user messages, scroll to bottom as usual
+            conversationPanel.scrollTop(conversationPanel[0].scrollHeight);
+        }
+    }
+    
+    function formatMarkdownTable(text) {
+        // Split text into lines
+        const lines = text.split('\n');
+        let result = '';
+        let inTable = false;
+        let tableLines = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            
+            // Check if this line is part of a table
+            if (line.includes('|') && line.split('|').length > 2) {
+                if (!inTable) {
+                    // Starting a new table
+                    inTable = true;
+                    tableLines = [];
+                }
+                tableLines.push(line);
+                
+                // Check if next line is not a table line (or end of text)
+                const nextLine = i + 1 < lines.length ? lines[i + 1].trim() : '';
+                if (!nextLine.includes('|') || nextLine.split('|').length <= 2) {
+                    // End of table, process it
+                    result += processTableLines(tableLines);
+                    inTable = false;
+                    tableLines = [];
+                }
+            } else {
+                // Not a table line
+                if (inTable) {
+                    // Process accumulated table and end table mode
+                    result += processTableLines(tableLines);
+                    inTable = false;
+                    tableLines = [];
+                }
+                
+                // Process non-table content
+                if (line) {
+                    result += '<p>' + line
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>') + '</p>';
+                } else {
+                    result += '<br>';
+                }
+            }
+        }
+        
+        // Handle case where table is at the end
+        if (inTable && tableLines.length > 0) {
+            result += processTableLines(tableLines);
+        }
+        
+        return result;
+    }
+    
+    function processTableLines(tableLines) {
+        if (tableLines.length < 2) return '';
+        
+        let html = '<div class="table-container"><table class="markdown-table">';
+        let headerProcessed = false;
+        
+        for (let i = 0; i < tableLines.length; i++) {
+            const line = tableLines[i];
+            const cells = line.split('|').map(cell => cell.trim()).filter(cell => cell !== '');
+            
+            // Skip separator lines (like |-----|-----|)
+            if (line.includes('---') || line.includes(':--') || line.includes('--:')) {
+                continue;
+            }
+            
+            if (!headerProcessed) {
+                // First non-separator line is header
+                html += '<thead><tr>';
+                cells.forEach(cell => {
+                    html += '<th>' + cell.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') + '</th>';
+                });
+                html += '</tr></thead><tbody>';
+                headerProcessed = true;
+            } else {
+                // Data rows
+                html += '<tr>';
+                cells.forEach(cell => {
+                    html += '<td>' + cell
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>') + '</td>';
+                });
+                html += '</tr>';
+            }
+        }
+        
+        html += '</tbody></table></div>';
+        return html;
     }
 
     function updateChatUIState() {

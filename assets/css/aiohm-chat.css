@@ -15,11 +15,23 @@
     --ohm-font-secondary: 'PT Sans', sans-serif;
 }
 
-/* --- Global Wrappers to fight Elementor --- */
+/* --- Global Wrappers to fight Elementor and theme conflicts --- */
 .aiohm-chat-wrapper, .aiohm-search-wrapper {
     max-width: 800px;
     margin: 0 auto 2em auto;
     clear: both;
+}
+
+/* Reset any theme interference */
+.aiohm-chat-container * {
+    box-sizing: border-box;
+}
+
+.aiohm-chat-container input,
+.aiohm-chat-container textarea,
+.aiohm-chat-container button {
+    font-family: inherit !important;
+    font-size: inherit !important;
 }
 
 /* --- CHAT WIDGET STYLES --- */
@@ -143,6 +155,29 @@
     border-bottom-right-radius: 4px;
 }
 
+/* Message content formatting */
+.aiohm-message-content {
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.aiohm-message-content p {
+    margin: 0 0 0.8em 0;
+    line-height: 1.5;
+}
+
+.aiohm-message-content p:last-child {
+    margin-bottom: 0;
+}
+
+.aiohm-message-content strong {
+    font-weight: bold;
+}
+
+.aiohm-message-content em {
+    font-style: italic;
+}
+
 .aiohm-typing-dots {
     display: flex;
     gap: 4px;
@@ -190,18 +225,20 @@
 }
 
 .aiohm-chat-input {
-    flex-grow: 1;
-    border: none;
-    padding: 8px 4px;
-    background: transparent;
-    outline: none;
-    box-shadow: none;
-    resize: none;
-    font-family: var(--ohm-font-secondary);
-    font-size: 1em;
-    line-height: 1.4;
-    min-height: 20px;
-    max-height: 120px;
+    flex-grow: 1 !important;
+    border: none !important;
+    padding: 8px 4px !important;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    resize: none !important;
+    font-family: var(--ohm-font-secondary) !important;
+    font-size: 1em !important;
+    line-height: 1.4 !important;
+    min-height: 20px !important;
+    max-height: 120px !important;
+    color: #333 !important;
+    width: auto !important;
 }
 
 .aiohm-chat-input::placeholder {
@@ -209,21 +246,24 @@
 }
 
 .aiohm-chat-send-btn {
-    background: var(--aiohm-primary-color, #1f5014);
-    border: none;
-    border-radius: 8px;
-    color: #fff;
-    width: 44px;
-    height: 44px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(31, 80, 20, 0.2);
-    position: relative;
-    overflow: hidden;
+    background: var(--aiohm-primary-color, #1f5014) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    color: #fff !important;
+    width: 44px !important;
+    height: 44px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    flex-shrink: 0 !important;
+    box-shadow: 0 2px 8px rgba(31, 80, 20, 0.2) !important;
+    position: relative !important;
+    overflow: hidden !important;
+    min-width: 44px !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 .aiohm-chat-send-btn:hover:not(:disabled) {

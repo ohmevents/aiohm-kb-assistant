@@ -11,7 +11,8 @@ include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/header.php';
 
 <div class="wrap aiohm-manage-kb-page">
     <h1 class="wp-heading-inline"><?php esc_html_e('Manage Knowledge Base', 'aiohm-kb-assistant'); ?></h1>
-    <a href="<?php echo esc_url(add_query_arg(['page' => 'aiohm-scan-content'], admin_url('admin.php'))); ?>" class="page-title-action"><?php esc_html_e('Add New Content', 'aiohm-kb-assistant'); ?></a>
+    <button type="button" id="add-content-btn" class="page-title-action"><?php esc_html_e('Add New Content', 'aiohm-kb-assistant'); ?></button>
+    <a href="<?php echo esc_url(add_query_arg(['page' => 'aiohm-scan-content'], admin_url('admin.php'))); ?>" class="page-title-action" style="margin-left: 10px;"><?php esc_html_e('Scan Website', 'aiohm-kb-assistant'); ?></a>
     <p class="page-description"><?php esc_html_e('View, organize, and manage all your knowledge base entries in one place.', 'aiohm-kb-assistant'); ?></p>
 
     <div id="aiohm-admin-notice" class="notice is-dismissible" style="display:none; margin-top: 10px;" tabindex="-1" role="alert" aria-live="polite"><p></p></div>
@@ -26,7 +27,9 @@ include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/header.php';
                     <span class="dashicons dashicons-admin-settings"></span> <?php esc_html_e('Configure Mirror Mode', 'aiohm-kb-assistant'); ?>
                 </a>
             </div>
-            <p><?php esc_html_e('<strong>Public</strong> entries are part of the global knowledge base. They are used by your AI assistant to answer questions from any website visitor.', 'aiohm-kb-assistant'); ?></p>
+            <p><?php 
+                // translators: %s is the word "Public" that will be bolded
+                printf(esc_html__('%s entries are part of the global knowledge base. They are used by your AI assistant to answer questions from any website visitor.', 'aiohm-kb-assistant'), '<strong>' . esc_html__('Public', 'aiohm-kb-assistant') . '</strong>'); ?></p>
             <p><?php esc_html_e('This is perfect for general support, FAQs, and public information about your brand.', 'aiohm-kb-assistant'); ?></p>
         </div>
         <div class="knowledge-section private-section">
@@ -36,7 +39,9 @@ include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/header.php';
                     <span class="dashicons dashicons-admin-settings"></span> <?php esc_html_e('Configure Muse Mode', 'aiohm-kb-assistant'); ?>
                 </a>
             </div>
-            <p><?php esc_html_e('<strong>Private</strong> entries are only accessible to you when using the Brand Assistant chat (Muse Mode).', 'aiohm-kb-assistant'); ?></p>
+            <p><?php 
+                // translators: %s is the word "Private" that will be bolded
+                printf(esc_html__('%s entries are only accessible to you when using the Brand Assistant chat (Muse Mode).', 'aiohm-kb-assistant'), '<strong>' . esc_html__('Private', 'aiohm-kb-assistant') . '</strong>'); ?></p>
             <p><?php esc_html_e('Use this for personal notes, strategic insights, or confidential brand guidelines that only you should access.', 'aiohm-kb-assistant'); ?></p>
         </div>
     </div>
@@ -418,13 +423,14 @@ include_once AIOHM_KB_PLUGIN_DIR . 'templates/partials/header.php';
 .type-pdf { background: #ffebee; color: #d32f2f; }
 .type-txt { background: #e8f5e8; color: #388e3c; }
 .type-csv { background: #fff3e0; color: #f57c00; }
-.type-json { background: #fce4ec; color: #c2185b; }
+.type-json { background: #e0f2f1; color: #00695c; }
 .type-manual { background: #e1f5fe; color: #0277bd; }
 .type-brand-soul { background: #f3e5f5; color: #8e24aa; }
 .type-brand-core { background: #e8f5e8; color: #1f5014; }
 .type-github { background: #f0f0f0; color: #272727; }
 .type-contact { background: #fff8e1; color: #457d58; }
 .type-note { background: #e8f4fd; color: #1565c0; }
+.type-chat { background: #e8f5e8; color: #2e7d32; }
 .type-default { background: #f5f5f5; color: #616161; }
 
 /* Filter block styling */
@@ -1136,6 +1142,298 @@ jQuery(document).ready(function($) {
             }, 7000); // Increased to 7 seconds for better UX
         }
     }
+
+    // File Upload Modal functionality
+    $('#add-content-btn').on('click', function() {
+        showFileUploadModal();
+    });
+
+    function showFileUploadModal() {
+        // Remove any existing modal
+        $('#file-upload-modal').remove();
+        
+        // Create upload modal
+        $('body').append(`
+            <div id="file-upload-modal" class="aiohm-modal" style="display: flex;">
+                <div class="aiohm-modal-backdrop"></div>
+                <div class="aiohm-modal-content" style="max-width: 600px;">
+                    <div class="aiohm-modal-header">
+                        <h2>Upload Files to Knowledge Base</h2>
+                        <button type="button" class="aiohm-modal-close">&times;</button>
+                    </div>
+                    <div class="aiohm-modal-body">
+                        <div id="upload-section">
+                            <p>Upload documents directly to your knowledge base. Supported formats: .txt, .json, .csv, .pdf, .doc, .docx, .md</p>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <label for="kb-scope" style="font-weight: bold; margin-bottom: 10px; display: block;">Knowledge Base Scope:</label>
+                                <select id="kb-scope" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="public">Public (Mirror Mode - visible to all visitors)</option>
+                                    <option value="private">Private (Muse Mode - visible only to you)</option>
+                                </select>
+                            </div>
+                            
+                            <input type="file" id="file-input" multiple accept=".txt,.json,.csv,.pdf,.doc,.docx,.md" style="display: none;">
+                            <div id="drop-zone" style="border: 2px dashed #457d58; padding: 40px; text-align: center; border-radius: 8px; background: #f8fbf9; margin-bottom: 20px; cursor: pointer;">
+                                <p style="margin: 0; color: #457d58; font-size: 16px;"><strong>Drop files here or click to browse</strong></p>
+                                <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">Maximum file size: 10MB per file</p>
+                            </div>
+                            
+                            <div id="file-list" style="margin-bottom: 20px;"></div>
+                            
+                            <div style="text-align: right;">
+                                <button type="button" id="cancel-upload" class="button button-secondary" style="margin-right: 10px;">Cancel</button>
+                                <button type="button" id="start-upload" class="button button-primary" disabled>Upload to Knowledge Base</button>
+                            </div>
+                        </div>
+                        
+                        <div id="upload-progress" style="display: none;">
+                            <h3>Processing Files...</h3>
+                            <div id="progress-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+
+    // Handle file upload modal interactions
+    $(document).on('click', '#drop-zone', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) {
+            fileInput.click();
+        }
+    });
+
+    $(document).on('change', '#file-input', function() {
+        handleFileSelection(this.files);
+    });
+
+    $(document).on('dragover', '#drop-zone', function(e) {
+        e.preventDefault();
+        $(this).css('background', '#f0f8f4');
+    });
+
+    $(document).on('dragleave', '#drop-zone', function(e) {
+        e.preventDefault();
+        $(this).css('background', '#f8fbf9');
+    });
+
+    $(document).on('drop', '#drop-zone', function(e) {
+        e.preventDefault();
+        $(this).css('background', '#f8fbf9');
+        handleFileSelection(e.originalEvent.dataTransfer.files);
+    });
+
+    $(document).on('click', '#cancel-upload', function() {
+        $('#file-upload-modal').remove();
+    });
+
+    $(document).on('click', '#start-upload', function() {
+        startFileUpload();
+    });
+
+    function handleFileSelection(files) {
+        const fileList = $('#file-list');
+        const startBtn = $('#start-upload');
+        
+        fileList.empty();
+        
+        if (files.length === 0) {
+            startBtn.prop('disabled', true);
+            return;
+        }
+
+        const allowedTypes = ['txt', 'json', 'csv', 'pdf', 'doc', 'docx', 'md'];
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        let validFiles = [];
+
+        Array.from(files).forEach(file => {
+            const ext = file.name.split('.').pop().toLowerCase();
+            const isValidType = allowedTypes.includes(ext);
+            const isValidSize = file.size <= maxSize;
+            
+            const status = isValidType && isValidSize ? 'valid' : 'invalid';
+            const statusText = !isValidType ? 'Unsupported file type' : !isValidSize ? 'File too large (max 10MB)' : 'Ready to upload';
+            const statusColor = status === 'valid' ? '#457d58' : '#dc3545';
+            
+            fileList.append(`
+                <div class="file-item" data-valid="${status === 'valid'}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px;">
+                        <span style="font-weight: bold;">${file.name}</span>
+                        <span style="color: ${statusColor}; font-size: 12px;">${statusText}</span>
+                    </div>
+                </div>
+            `);
+            
+            if (status === 'valid') {
+                validFiles.push(file);
+            }
+        });
+
+        startBtn.prop('disabled', validFiles.length === 0);
+        window.selectedFiles = validFiles;
+    }
+
+    function startFileUpload() {
+        const scope = $('#kb-scope').val();
+        const files = window.selectedFiles || [];
+        
+        if (files.length === 0) {
+            showAdminNotice('No valid files selected.', 'error');
+            return;
+        }
+
+        // Show progress section
+        $('#upload-section').hide();
+        $('#upload-progress').show();
+        
+        const progressList = $('#progress-list');
+        progressList.empty();
+
+        // Add progress items for each file
+        files.forEach((file, index) => {
+            progressList.append(`
+                <div id="progress-${index}" style="margin-bottom: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>${file.name}</span>
+                        <span class="status">Preparing...</span>
+                    </div>
+                    <div style="width: 100%; background: #f0f0f0; border-radius: 4px; margin-top: 5px;">
+                        <div class="progress-bar" style="width: 0%; background: #457d58; height: 20px; border-radius: 4px; transition: width 0.5s;"></div>
+                    </div>
+                    <div class="progress-stages" style="font-size: 12px; color: #666; margin-top: 5px;">
+                        <span class="stage-upload">📤 Upload</span> → 
+                        <span class="stage-process">⚙️ Process</span> → 
+                        <span class="stage-index">📚 Index</span>
+                    </div>
+                </div>
+            `);
+        });
+
+        // Upload files one by one
+        uploadFilesSequentially(files, scope, 0);
+    }
+
+    function uploadFilesSequentially(files, scope, index) {
+        if (index >= files.length) {
+            // All files uploaded
+            setTimeout(() => {
+                $('#file-upload-modal').remove();
+                showAdminNotice(`Successfully uploaded ${files.length} file(s) to the knowledge base!`, 'success');
+                location.reload(); // Refresh the page to show new entries
+            }, 1000);
+            return;
+        }
+
+        const file = files[index];
+        const formData = new FormData();
+        formData.append('action', 'aiohm_kb_file_upload');
+        formData.append('nonce', nonce); // Use the existing nonce
+        formData.append('scope', scope);
+        formData.append('files', file);
+
+        const progressItem = $(`#progress-${index}`);
+        let uploadComplete = false;
+        
+        // Estimate processing time based on file size (rough estimate)
+        const fileSizeMB = file.size / (1024 * 1024);
+        const estimatedProcessingTime = Math.max(2000, fileSizeMB * 1000); // At least 2 seconds, +1 second per MB
+        
+        $.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            timeout: Math.max(30000, fileSizeMB * 10000), // At least 30 seconds, +10 seconds per MB
+            xhr: function() {
+                const xhr = new window.XMLHttpRequest();
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const uploadPercent = (e.loaded / e.total) * 30; // Upload is only 30% of total process
+                        progressItem.find('.progress-bar').css('width', uploadPercent + '%');
+                        progressItem.find('.status').text('Uploading... ' + Math.round(uploadPercent) + '%');
+                        progressItem.find('.stage-upload').css('font-weight', 'bold').css('color', '#457d58');
+                    }
+                });
+                xhr.upload.addEventListener('load', function() {
+                    uploadComplete = true;
+                    progressItem.find('.progress-bar').css('width', '30%');
+                    progressItem.find('.status').text('Processing file...');
+                    progressItem.find('.stage-upload').css('color', '#28a745');
+                    progressItem.find('.stage-process').css('font-weight', 'bold').css('color', '#457d58');
+                    
+                    // Simulate processing progress
+                    let processProgress = 30;
+                    const progressInterval = setInterval(() => {
+                        processProgress += 5;
+                        if (processProgress <= 85) {
+                            progressItem.find('.progress-bar').css('width', processProgress + '%');
+                            progressItem.find('.status').text('Processing file... ' + Math.round(processProgress) + '%');
+                        }
+                    }, estimatedProcessingTime / 15); // Spread over estimated time
+                    
+                    // Clear interval when response arrives
+                    progressItem.data('progressInterval', progressInterval);
+                });
+                return xhr;
+            },
+            success: function(response) {
+                // Clear progress interval
+                const progressInterval = progressItem.data('progressInterval');
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                }
+                
+                if (response.success) {
+                    // Final indexing stage
+                    progressItem.find('.status').text('Indexing in knowledge base...');
+                    progressItem.find('.stage-process').css('color', '#28a745');
+                    progressItem.find('.stage-index').css('font-weight', 'bold').css('color', '#457d58');
+                    progressItem.find('.progress-bar').css('width', '90%');
+                    
+                    // Complete after short delay
+                    setTimeout(() => {
+                        progressItem.find('.status').text('✓ Successfully added to knowledge base').css('color', '#457d58');
+                        progressItem.find('.progress-bar').css('width', '100%');
+                        progressItem.find('.stage-index').css('color', '#28a745');
+                        
+                        // Upload next file
+                        setTimeout(() => uploadFilesSequentially(files, scope, index + 1), 500);
+                    }, 1000);
+                } else {
+                    progressItem.find('.status').text('✗ Failed: ' + (response.data.message || 'Unknown error')).css('color', '#dc3545');
+                    progressItem.find('.progress-bar').css('background', '#dc3545').css('width', '100%');
+                    progressItem.find('.progress-stages').hide();
+                    
+                    // Upload next file
+                    setTimeout(() => uploadFilesSequentially(files, scope, index + 1), 500);
+                }
+            },
+            error: function(xhr, status, error) {
+                // Clear progress interval
+                const progressInterval = progressItem.data('progressInterval');
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                }
+                
+                progressItem.find('.status').text('✗ Upload failed: ' + status).css('color', '#dc3545');
+                progressItem.find('.progress-bar').css('background', '#dc3545').css('width', '100%');
+                progressItem.find('.progress-stages').hide();
+                
+                // Upload next file anyway
+                setTimeout(() => uploadFilesSequentially(files, scope, index + 1), 500);
+            }
+        });
+    }
+
+    // Close modal on backdrop click or close button
+    $(document).on('click', '.aiohm-modal-backdrop, .aiohm-modal-close', function() {
+        $('#file-upload-modal').remove();
+    });
 });
 </script>
 

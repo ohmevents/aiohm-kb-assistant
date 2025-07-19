@@ -107,11 +107,14 @@ jQuery(document).ready(function($) {
                 `<div class="aiohm-message-avatar"><img src="${config.settings.ai_avatar}" alt="AI Avatar" style="width:100%; height:100%; border-radius:50%; object-fit: cover;"></div>` :
                 (isBot ? '<div class="aiohm-message-avatar"><div style="width:100%; height:100%; border-radius:50%; background:#457d58; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:12px;">AI</div></div>' : '');
 
+            // For bot messages, allow basic HTML formatting but clean it
+            const formattedContent = isBot ? formatBotMessage(content) : escapeHtml(content);
+
             const messageHtml = `
                 <div class="aiohm-message ${messageClass}">
                     ${avatarHtml}
                     <div class="aiohm-message-bubble">
-                        <div class="aiohm-message-content">${escapeHtml(content)}</div>
+                        <div class="aiohm-message-content">${formattedContent}</div>
                     </div>
                 </div>
             `;
@@ -157,6 +160,28 @@ jQuery(document).ready(function($) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function formatBotMessage(content) {
+            // Convert common markdown-like formatting to HTML
+            let formatted = content
+                // Convert **bold** to <strong>
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                // Convert *italic* to <em>
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                // Convert line breaks to proper breaks
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+            
+            // Wrap in paragraph if it doesn't already have paragraph tags
+            if (!formatted.includes('<p>') && !formatted.includes('</p>')) {
+                formatted = '<p>' + formatted + '</p>';
+            }
+            
+            // Clean up any malformed paragraph tags
+            formatted = formatted.replace(/<\/p><p>/g, '</p><p>');
+            
+            return formatted;
         }
 
         // Initialize send button state

@@ -219,6 +219,10 @@ foreach ($brand_soul_questions as $section) {
 </style>
 
 <script>
+    var ajaxurl = '<?php echo esc_url(admin_url('admin-ajax.php')); ?>';
+</script>
+
+<script>
     // Self-invoking function to avoid polluting the global scope
     (function($) {
         // Only run the script if the main layout exists (i.e., user is connected)

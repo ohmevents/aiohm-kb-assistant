@@ -76,8 +76,15 @@ class AIOHM_KB_List_Table extends WP_List_Table {
         
         // Enhanced View button logic for different content types
         
-        // Content types that need modal view (Brand Soul, Brand Core, etc.)
-        if (in_array($content_type, ['brand-soul', 'brand_soul', 'brand-core', 'brand_core', 'github', 'repository', 'contact', 'contact_type'])) {
+        // Content types that need modal view (Brand Soul, Brand Core, JSON, TXT, etc.)
+        $modal_content_types = [
+            'brand-soul', 'brand_soul', 'brand-core', 'brand_core', 'github', 'repository', 
+            'contact', 'contact_type', 'conversation', 'application/json', 'text/plain', 
+            'text/csv', 'text/markdown', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+            'application/msword', 'manual', 'project_note'
+        ];
+        
+        if (in_array($content_type, $modal_content_types)) {
             $action_links_html[] = sprintf(
                 '<a href="#" class="view-content-btn" data-content-id="%s" data-content-type="%s">%s</a>',
                 esc_attr($item['content_id']),
@@ -195,6 +202,9 @@ class AIOHM_KB_List_Table extends WP_List_Table {
                 } elseif ($type === 'project_note') {
                     $display_type = 'Note';
                     $type_class = 'type-note';
+                } elseif ($type === 'conversation') {
+                    $display_type = 'CHAT';
+                    $type_class = 'type-chat';
                 } else {
                     if (strpos($type, '/') !== false) {
                         $main_type = explode('/', $type)[0];
@@ -247,6 +257,7 @@ class AIOHM_KB_List_Table extends WP_List_Table {
                     <option value="github" <?php selected(isset($_GET['content_type']) ? sanitize_text_field(wp_unslash($_GET['content_type'])) : '', 'github'); // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>><?php esc_html_e('GitHub', 'aiohm-kb-assistant'); ?></option>
                     <option value="contact" <?php selected(isset($_GET['content_type']) ? sanitize_text_field(wp_unslash($_GET['content_type'])) : '', 'contact'); // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>><?php esc_html_e('Contact', 'aiohm-kb-assistant'); ?></option>
                     <option value="project_note" <?php selected(isset($_GET['content_type']) ? sanitize_text_field(wp_unslash($_GET['content_type'])) : '', 'project_note'); // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>><?php esc_html_e('Notes', 'aiohm-kb-assistant'); ?></option>
+                    <option value="conversation" <?php selected(isset($_GET['content_type']) ? sanitize_text_field(wp_unslash($_GET['content_type'])) : '', 'conversation'); // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>><?php esc_html_e('Conversations', 'aiohm-kb-assistant'); ?></option>
                 </select>
 
                 <label for="filter-visibility" class="screen-reader-text">Filter by Visibility</label>

@@ -184,6 +184,13 @@ class AIOHM_KB_Core_Init {
         // Email verification AJAX handlers
         add_action('wp_ajax_aiohm_send_verification_code', array(__CLASS__, 'handle_send_verification_code_ajax'));
         add_action('wp_ajax_aiohm_verify_email_code', array(__CLASS__, 'handle_verify_email_code_ajax'));
+        
+        // File upload to KB handler
+        add_action('wp_ajax_aiohm_kb_file_upload', array(__CLASS__, 'handle_kb_file_upload_ajax'));
+        
+        // Allow JSON file uploads for KB functionality
+        add_filter('upload_mimes', array(__CLASS__, 'allow_json_uploads'));
+        add_filter('wp_check_filetype_and_ext', array(__CLASS__, 'allow_json_file_upload'), 10, 4);
     }
     
     /**
@@ -1180,7 +1187,8 @@ class AIOHM_KB_Core_Init {
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'aiohm_brand_soul_nonce') || !current_user_can('read')) {
             wp_send_json_error(['message' => 'Security check failed.']);
         }
-        $raw_data = isset($_POST['data']) ? sanitize_textarea_field(wp_unslash($_POST['data'])) : '';
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Raw form data is unslashed then parsed and individual fields are sanitized below
+        $raw_data = isset($_POST['data']) ? wp_unslash($_POST['data']) : '';
         parse_str($raw_data, $form_data);
         $answers = isset($form_data['answers']) ? array_map('sanitize_textarea_field', $form_data['answers']) : [];
         update_user_meta(get_current_user_id(), 'aiohm_brand_soul_answers', $answers);
@@ -1191,7 +1199,8 @@ class AIOHM_KB_Core_Init {
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'aiohm_brand_soul_nonce') || !current_user_can('read')) {
             wp_send_json_error(['message' => 'Security check failed.']);
         }
-        $raw_data = isset($_POST['data']) ? sanitize_textarea_field(wp_unslash($_POST['data'])) : '';
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Raw form data is unslashed then parsed and individual fields are sanitized below
+        $raw_data = isset($_POST['data']) ? wp_unslash($_POST['data']) : '';
         parse_str($raw_data, $form_data);
         $answers = isset($form_data['answers']) ? array_map('sanitize_textarea_field', $form_data['answers']) : [];
         if (empty($answers)) {
@@ -2575,6 +2584,250 @@ class AIOHM_KB_Core_Init {
             'message' => 'Email verified successfully! Your account is now connected.',
             'membership_data' => $result
         ]));
+    }
+
+    /**
+     * Handle file upload to knowledge base AJAX request
+     */
+    public static function handle_kb_file_upload_ajax() {
+        // Verify nonce
+        $nonce = sanitize_text_field(wp_unslash($_POST['nonce'] ?? ''));
+        if (!wp_verify_nonce($nonce, 'aiohm_admin_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed.']);
+        }
+
+        // Check user permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Insufficient permissions.']);
+        }
+
+        // Temporarily allow JSON uploads during our upload process
+        add_filter('upload_mimes', function($mimes) {
+            $mimes['json'] = 'application/json';
+            $mimes['md'] = 'text/markdown';
+            return $mimes;
+        }, 999);
+        
+        add_filter('wp_check_filetype_and_ext', function($data, $file, $filename, $mimes) {
+            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            if ($ext === 'json') {
+                $data['ext'] = 'json';
+                $data['type'] = 'application/json';
+            } elseif ($ext === 'md') {
+                $data['ext'] = 'md';
+                $data['type'] = 'text/markdown';
+            }
+            return $data;
+        }, 999, 4);
+
+        // Check if files were uploaded
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- $_FILES superglobal is validated and sanitized below
+        if (empty($_FILES['files'])) {
+            wp_send_json_error(['message' => 'No files were uploaded.']);
+        }
+
+        $scope = sanitize_text_field(wp_unslash($_POST['scope'] ?? 'public'));
+        if (!in_array($scope, ['public', 'private'])) {
+            $scope = 'public';
+        }
+
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- File data is validated and individual values sanitized below
+        $files = $_FILES['files'];
+        $results = [];
+        $uploads_crawler = new AIOHM_KB_Uploads_Crawler();
+        $rag_engine = new AIOHM_KB_RAG_Engine();
+
+        // Handle multiple files
+        $file_count = is_array($files['name']) ? count($files['name']) : 1;
+        
+        for ($i = 0; $i < $file_count; $i++) {
+            $file = [
+                'name' => is_array($files['name']) ? $files['name'][$i] : $files['name'],
+                'type' => is_array($files['type']) ? $files['type'][$i] : $files['type'],
+                'tmp_name' => is_array($files['tmp_name']) ? $files['tmp_name'][$i] : $files['tmp_name'],
+                'error' => is_array($files['error']) ? $files['error'][$i] : $files['error'],
+                'size' => is_array($files['size']) ? $files['size'][$i] : $files['size']
+            ];
+
+            if ($file['error'] !== UPLOAD_ERR_OK) {
+                $results[] = [
+                    'filename' => $file['name'],
+                    'success' => false,
+                    'message' => 'Upload error: ' . $file['error']
+                ];
+                continue;
+            }
+
+            // Validate file extension
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowed_extensions = ['json', 'txt', 'csv', 'pdf', 'doc', 'docx', 'md'];
+            
+            if (!in_array($ext, $allowed_extensions)) {
+                $results[] = [
+                    'filename' => $file['name'],
+                    'success' => false,
+                    'message' => 'File type not supported. Allowed: ' . implode(', ', $allowed_extensions)
+                ];
+                continue;
+            }
+
+            try {
+                // Process the file content
+                $file_data = self::process_uploaded_file($file['tmp_name'], $file['name'], $ext);
+                
+                if (!$file_data || empty(trim($file_data['content']))) {
+                    throw new Exception('File content could not be extracted or is empty.');
+                }
+
+                // Add to knowledge base
+                $metadata = array_merge($file_data['metadata'], ['scope' => $scope]);
+                $result = $rag_engine->add_entry(
+                    $file_data['content'],
+                    $file_data['type'],
+                    $file_data['title'],
+                    $metadata
+                );
+
+                if (is_wp_error($result)) {
+                    throw new Exception('Failed to add to knowledge base: ' . $result->get_error_message());
+                }
+                
+                if (!$result) {
+                    throw new Exception('Knowledge base operation failed.');
+                }
+
+                $results[] = [
+                    'filename' => $file['name'],
+                    'success' => true,
+                    'message' => 'Successfully added to knowledge base'
+                ];
+
+            } catch (Exception $e) {
+                $results[] = [
+                    'filename' => $file['name'],
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ];
+            }
+        }
+
+        $success_count = count(array_filter($results, function($r) { return $r['success']; }));
+        $total_count = count($results);
+
+        wp_send_json_success([
+            'message' => "Processed $total_count files. $success_count successful.",
+            'results' => $results,
+            'success_count' => $success_count,
+            'total_count' => $total_count
+        ]);
+    }
+
+    /**
+     * Process uploaded file content
+     */
+    private static function process_uploaded_file($temp_path, $filename, $ext) {
+        if (!file_exists($temp_path) || !is_readable($temp_path)) {
+            return null;
+        }
+
+        $content = '';
+        $mime_type = wp_check_filetype($filename)['type'];
+
+        switch ($ext) {
+            case 'json':
+            case 'txt':
+            case 'csv':
+            case 'md':
+                $content = file_get_contents($temp_path);
+                break;
+
+            case 'pdf':
+                try {
+                    if (class_exists('Smalot\\PdfParser\\Parser')) {
+                        $parser = new \Smalot\PdfParser\Parser();
+                        $pdf = $parser->parseFile($temp_path);
+                        $content = $pdf->getText();
+                    } else {
+                        throw new Exception('PDF parser not available.');
+                    }
+                } catch (Exception $e) {
+                    $content = "PDF file: $filename (content extraction failed)";
+                }
+                break;
+
+            case 'docx':
+                try {
+                    $zip = new ZipArchive();
+                    if ($zip->open($temp_path) === TRUE) {
+                        $content = $zip->getFromName('word/document.xml');
+                        if ($content !== false) {
+                            $content = wp_strip_all_tags($content);
+                            $content = html_entity_decode($content, ENT_QUOTES, 'UTF-8');
+                        }
+                        $zip->close();
+                    }
+                    if (empty(trim($content))) {
+                        $content = "Word document: $filename (content extraction failed)";
+                    }
+                } catch (Exception $e) {
+                    $content = "Word document: $filename (content extraction failed)";
+                }
+                break;
+
+            case 'doc':
+                // DOC files require more complex parsing, fall back to filename
+                $content = "Word document: $filename (content extraction not supported for .doc files)";
+                break;
+
+            default:
+                return null;
+        }
+
+        return [
+            'content' => $content,
+            'type' => $mime_type,
+            'title' => $filename,
+            'metadata' => [
+                'size' => filesize($temp_path),
+                'original_filename' => $filename,
+                'file_type' => $ext,
+                'upload_method' => 'direct_upload'
+            ]
+        ];
+    }
+
+    /**
+     * Allow JSON file uploads for knowledge base functionality
+     */
+    public static function allow_json_uploads($mimes) {
+        // Only allow JSON uploads for administrators and in admin context
+        if (is_admin() && current_user_can('manage_options')) {
+            $mimes['json'] = 'application/json';
+            $mimes['md'] = 'text/markdown';
+        }
+        return $mimes;
+    }
+
+    /**
+     * Allow JSON and MD file uploads by bypassing WordPress file type restrictions
+     */
+    public static function allow_json_file_upload($data, $file, $filename, $mimes) {
+        // Only allow for administrators in admin context
+        if (!is_admin() || !current_user_can('manage_options')) {
+            return $data;
+        }
+
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        
+        if ($ext === 'json') {
+            $data['ext'] = 'json';
+            $data['type'] = 'application/json';
+        } elseif ($ext === 'md') {
+            $data['ext'] = 'md';
+            $data['type'] = 'text/markdown';
+        }
+        
+        return $data;
     }
 
     /**

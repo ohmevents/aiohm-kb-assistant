@@ -10,7 +10,7 @@ use Smalot\PdfParser\Parser;
 class AIOHM_KB_Uploads_Crawler {
 
     private $rag_engine;
-    private $readable_extensions = ['json', 'txt', 'csv', 'pdf'];
+    private $readable_extensions = ['json', 'txt', 'csv', 'pdf', 'doc', 'docx', 'md'];
 
     public function __construct() {
         $this->rag_engine = new AIOHM_KB_RAG_Engine();
@@ -167,7 +167,7 @@ class AIOHM_KB_Uploads_Crawler {
         $ext = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
         $mime_type = wp_check_filetype($file_path)['type']; // Use wp_check_filetype for MIME type
         $content = '';
-        if (in_array($ext, ['json', 'txt', 'csv'])) {
+        if (in_array($ext, ['json', 'txt', 'csv', 'md'])) {
             $content = file_get_contents($file_path);
             AIOHM_KB_Assistant::log("Processed {$ext} file using file_get_contents.");
         } elseif ($ext === 'pdf') {
@@ -204,6 +204,60 @@ class AIOHM_KB_Uploads_Crawler {
                     $content_parts[] = $attachment_post->post_title;
                     $content_parts[] = $attachment_post->post_excerpt; // Caption
                     $content_parts[] = $attachment_post->post_content; // Description
+                }
+                $content = implode("\n\n", array_filter($content_parts));
+            }
+        } elseif (in_array($ext, ['doc', 'docx'])) {
+            AIOHM_KB_Assistant::log("Attempting Word document text extraction for: {$file_path}");
+            // For .doc and .docx files, we'll use a basic approach
+            // You can enhance this later with libraries like PHPWord or system tools
+            try {
+                if ($ext === 'docx') {
+                    // Basic DOCX text extraction using ZIP
+                    $zip = new ZipArchive();
+                    if ($zip->open($file_path) === TRUE) {
+                        $content = $zip->getFromName('word/document.xml');
+                        if ($content !== false) {
+                            // Remove XML tags and decode entities
+                            $content = wp_strip_all_tags($content);
+                            $content = html_entity_decode($content, ENT_QUOTES, 'UTF-8');
+                            AIOHM_KB_Assistant::log("DOCX text extraction successful. Content length: " . strlen($content));
+                        }
+                        $zip->close();
+                    }
+                } else {
+                    // For .doc files, fall back to metadata since they require more complex parsing
+                    AIOHM_KB_Assistant::log("DOC file processing: falling back to metadata for {$file_path}");
+                    $attachment_post = get_post($attachment_id);
+                    $content_parts = [];
+                    if ($attachment_post) {
+                        $content_parts[] = $attachment_post->post_title;
+                        $content_parts[] = $attachment_post->post_excerpt;
+                        $content_parts[] = $attachment_post->post_content;
+                    }
+                    $content = implode("\n\n", array_filter($content_parts));
+                }
+                
+                // If content is still empty, fall back to metadata
+                if (empty(trim($content))) {
+                    AIOHM_KB_Assistant::log('Word document text extraction resulted in empty content, falling back to metadata.', 'warning');
+                    $attachment_post = get_post($attachment_id);
+                    $content_parts = [];
+                    if ($attachment_post) {
+                        $content_parts[] = $attachment_post->post_title;
+                        $content_parts[] = $attachment_post->post_excerpt;
+                        $content_parts[] = $attachment_post->post_content;
+                    }
+                    $content = implode("\n\n", array_filter($content_parts));
+                }
+            } catch (Exception $e) {
+                AIOHM_KB_Assistant::log('Error parsing Word document ' . basename($file_path) . ': ' . $e->getMessage() . '. Falling back to metadata.', 'error');
+                $attachment_post = get_post($attachment_id);
+                $content_parts = [];
+                if ($attachment_post) {
+                    $content_parts[] = $attachment_post->post_title;
+                    $content_parts[] = $attachment_post->post_excerpt;
+                    $content_parts[] = $attachment_post->post_content;
                 }
                 $content = implode("\n\n", array_filter($content_parts));
             }

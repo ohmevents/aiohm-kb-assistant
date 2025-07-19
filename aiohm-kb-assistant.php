@@ -3,7 +3,7 @@
  * Plugin Name: AIOHM Knowledge Assistant
  * Plugin URI:  https://aiohm.app/
  * Description: Unlock soulful productivity with an AI-powered knowledge assistant for WordPress. With Mirror Mode for refining and Muse Mode for sparking ideas, AIOHM becomes your perfect creative partner — supporting your brand voice, not replacing it.
- * Version:     1.2.0
+ * Version:     1.2.2
  * Author:      OHM Events Agency
  * Author URI:  https://ohm.events
  * Text Domain: aiohm-kb-assistant
@@ -18,7 +18,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('AIOHM_KB_VERSION', '1.2.0');
+define('AIOHM_KB_VERSION', '1.2.2');
 define('AIOHM_KB_PLUGIN_FILE', __FILE__);
 define('AIOHM_KB_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AIOHM_KB_INCLUDES_DIR', AIOHM_KB_PLUGIN_DIR . 'includes/');
